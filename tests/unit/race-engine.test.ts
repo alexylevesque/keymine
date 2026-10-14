@@ -179,6 +179,22 @@ describe("fin de course et classement (COURSE-09, COURSE-10)", () => {
     expect(e.results(START + 10_000).every((r) => r.status === "timeout")).toBe(true);
   });
 
+  it("sans temps maximal (durée 0), la course ne s'arrête qu'à l'arrivée de tous (CONF-01)", () => {
+    const e = engine([human("a"), human("b")], { durationMs: 0 });
+    expect(e.endsAtMs).toBe(Infinity);
+    e.tick(START + 3_600_000);
+    expect(e.isFinalized).toBe(false);
+    for (const id of ["a", "b"]) {
+      for (let s = 1; s * 20 < TEXT.length; s++) {
+        e.applyProgress(id, { progressChars: s * 20, errorCount: 0 }, START + 3_600_000 + s * 1_000);
+      }
+      e.applyProgress(id, { progressChars: TEXT.length, errorCount: 0 }, START + 3_700_000);
+    }
+    e.tick(START + 3_700_000);
+    expect(e.isFinalized).toBe(true);
+    expect(e.results(START + 3_700_000).every((r) => r.status === "finished")).toBe(true);
+  });
+
   it("l'abandon est confirmé côté serveur et figé", () => {
     const e = engine([human("a"), human("b")]);
     e.applyProgress("a", { progressChars: 40, errorCount: 0 }, START + 5_000);

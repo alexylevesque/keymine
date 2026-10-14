@@ -54,7 +54,7 @@ for (const theme of THEMES) {
     const context = await browser.newContext({ colorScheme: theme, locale: "fr-CA" });
     const page = await context.newPage();
     await registerViaApi(page.request, "axe");
-    const code = await createRoomViaApi(page.request, { durationSeconds: 15, textLength: 10 });
+    const code = await createRoomViaApi(page.request, { durationSeconds: 30, textLength: 10 });
     await addBotViaApi(page.request, code, "noob");
 
     const audit = async (label: string) => {

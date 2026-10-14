@@ -9,6 +9,7 @@ import { generateRaceText } from "@/lib/text/generate";
 import type { Difficulty, Language, TextType } from "@/db/types";
 import type { AccentType } from "@/lib/text/accents";
 import { BONUS_KINDS } from "@/lib/race/bonus";
+import { DURATION_CHOICES } from "@/lib/race/duration";
 import { checkRoomName, normalizeRoomName, ROOM_NAME_MAX } from "@/lib/room-name";
 import { DIGIT_ROWS, LETTER_ROWS, SYMBOL_ROWS } from "./key-maps";
 import {
@@ -23,8 +24,8 @@ import {
 } from "./settings";
 import { AccentKeyMap, CharKeyMap, Legend } from "./TriStateKeys";
 
-// CONF-01 : de 15 secondes à 2 heures.
-export const DURATIONS = [15, 30, 60, 120, 300, 600, 1800, 3600, 7200] as const;
+// CONF-01 : aucun temps maximal, ou de 30 secondes à 10 minutes.
+export const DURATIONS = DURATION_CHOICES;
 
 const COMPLEXITY_KEYS = {
   easy: ["set.easy", "set.easy_sub"],

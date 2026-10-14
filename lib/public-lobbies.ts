@@ -55,7 +55,8 @@ export async function listPublicLobbies(
       eb
         .selectFrom("races")
         .select(
-          sql<number>`extract(epoch from (races.starts_at + make_interval(secs => races.duration_seconds) - now()))`.as(
+          // Sans temps maximal (durée 0), pas de temps restant.
+          sql<number | null>`case when races.duration_seconds = 0 then null else extract(epoch from (races.starts_at + make_interval(secs => races.duration_seconds) - now())) end`.as(
             "left",
           ),
         )
@@ -81,8 +82,11 @@ export async function listPublicLobbies(
       players,
       capacity: r.max_players,
       status: r.status as PublicLobby["status"],
+      // null : salle en attente, ou course sans temps maximal (CONF-01).
       secondsLeft:
-        r.status === "lobby" ? null : Math.max(0, Math.ceil(Number(r.seconds_left ?? 0))),
+        r.status === "lobby" || r.seconds_left === null
+          ? null
+          : Math.max(0, Math.ceil(Number(r.seconds_left))),
       joinable: r.status === "lobby" && players < r.max_players,
     };
   });

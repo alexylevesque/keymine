@@ -161,7 +161,9 @@ export default function CoursePage() {
   const secondsToStart = state ? Math.ceil((state.startsAt - serverNow) / 1000) : 3;
   const racing = !!state && state.phase === "racing" && serverNow >= state.startsAt;
   const canType = isParticipant && racing && me?.status === "racing";
-  const secondsLeft = state ? (state.endsAt - serverNow) / 1000 : 0;
+  const unlimited = !!state && state.endsAt === null;
+  const secondsLeft = state && state.endsAt !== null ? (state.endsAt - serverNow) / 1000 : 0;
+  const secondsElapsed = state ? Math.max(0, (serverNow - state.startsAt) / 1000) : 0;
   const fogged = !!me && me.fogUntilMs > serverNow;
 
   // Envoi de l'avancement, au plus une fois toutes les 100 ms (PERF-02, TECH-06).
@@ -342,9 +344,11 @@ export default function CoursePage() {
 
           <div className="mb-6 flex flex-wrap items-center gap-3.5">
             <div className="pixel-slot flex w-48 flex-col gap-1 px-4 py-2">
-              <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.time_left")}</b>
+              <b className="font-pixel text-[9px] text-[#ffefb3]">
+                {unlimited ? t("race.time_elapsed") : t("race.time_left")}
+              </b>
               <span className="font-pixel py-1 text-2xl text-white">
-                {formatClock(secondsLeft)}
+                {formatClock(unlimited ? secondsElapsed : secondsLeft)}
               </span>
             </div>
             <div className="pixel-slot flex w-40 flex-col gap-1 px-4 py-2">

@@ -7,7 +7,7 @@ test("360 px : salle d'attente, profil, historique et course (message clavier ph
   const context = await browser.newContext({ viewport: { width: 360, height: 740 }, locale: "fr-CA", hasTouch: true, isMobile: true });
   const page = await context.newPage();
   await registerViaApi(page.request, "mob");
-  const code = await createRoomViaApi(page.request, { durationSeconds: 15 });
+  const code = await createRoomViaApi(page.request, { durationSeconds: 30 });
   await addBotViaApi(page.request, code, "noob");
 
   async function expectNoHorizontalScroll(path: string) {

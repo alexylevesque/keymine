@@ -192,3 +192,20 @@ test("changer de langue pendant la course, puis continuer à taper (I18N-02)", a
   await page.getByRole("combobox", { name: "Site language" }).selectOption("fr");
   await expect(page.getByText("TEMPS RESTANT")).toBeVisible();
 });
+
+// CONF-01 : temps maximal « aucun » ou de 30 s à 10 min.
+test("course sans temps maximal : le chronomètre compte le temps écoulé (CONF-01)", async ({ page }) => {
+  await startRace(page, { durationSeconds: 0 });
+  await expect(page.getByText("TEMPS ECOULE")).toBeVisible();
+  await expect(page.getByText("TEMPS RESTANT")).toHaveCount(0);
+});
+
+test("le formulaire propose « Sans limite » puis de 30 s à 10 min (CONF-01)", async ({ page }) => {
+  await registerViaApi(page.request, "duree");
+  await page.goto("/jouer/creer");
+  const select = page.getByRole("combobox", { name: /durée/i });
+  const options = await select.locator("option").allTextContents();
+  expect(options[0]).toBe("Sans limite");
+  expect(options.at(-1)).toMatch(/^10\sminutes$/);
+  expect(options).not.toContain("15 secondes");
+});

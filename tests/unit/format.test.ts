@@ -40,6 +40,9 @@ describe("formatage localisé (I18N-03)", () => {
     expect(plain(formatDuration("fr", 3600))).toBe("1 heure");
     expect(plain(formatDuration("en", 7200))).toBe("2 hours");
     expect(plain(formatDuration("en", 90))).toBe("90 seconds");
+    // CONF-01 : 0 = aucun temps maximal.
+    expect(formatDuration("fr", 0)).toBe("Sans limite");
+    expect(formatDuration("en", 0)).toBe("No limit");
   });
 
   it("n'utilise que des espaces ordinaires pour la durée (sinon le serveur et le navigateur divergent à l'hydratation)", () => {

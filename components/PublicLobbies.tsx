@@ -62,7 +62,9 @@ export function PublicLobbies({ initial }: { initial: PublicLobby[] }) {
   const stateText = (l: PublicLobby) =>
     l.status === "lobby"
       ? t("lobbies.state_waiting")
-      : t("lobbies.state_racing", { time: formatClock(secondsLeft(l)) });
+      : l.secondsLeft === null
+        ? t("lobbies.state_racing_nolimit")
+        : t("lobbies.state_racing", { time: formatClock(secondsLeft(l)) });
 
   const complexityText = (c: PublicLobby["complexity"]) =>
     c === "easy" ? t("lobbies.easy") : c === "medium" ? t("lobbies.medium") : t("lobbies.hard");

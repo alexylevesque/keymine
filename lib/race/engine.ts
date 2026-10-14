@@ -213,7 +213,9 @@ export class RaceEngine {
     return this.finalized;
   }
 
+  /** Fin prévue de la course ; `Infinity` sans temps maximal (CONF-01, durée 0). */
   get endsAtMs(): number {
+    if (this.config.durationMs <= 0) return Infinity;
     return this.config.startsAtMs + this.config.durationMs;
   }
 
@@ -459,7 +461,11 @@ export class RaceEngine {
   /** Arrivé à temps : a fini le texte et, pénalité comprise, dans la durée de la course. */
   private finishedInTime(r: Racer): boolean {
     if (r.status !== "finished") return false;
-    return this.penaltyMs(r) === 0 || this.rankedTimeMs(r) <= this.config.durationMs;
+    return (
+      this.penaltyMs(r) === 0 ||
+      this.config.durationMs <= 0 ||
+      this.rankedTimeMs(r) <= this.config.durationMs
+    );
   }
 
   /**

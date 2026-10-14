@@ -53,6 +53,7 @@ const DURATION_UNITS: Record<SiteLang, Record<"second" | "minute" | "hour", [str
  * n'utilisent pas la même espace insécable, ce qui provoquait une erreur d'hydratation React.
  */
 export function formatDuration(lang: SiteLang, seconds: number): string {
+  if (seconds === 0) return lang === "fr" ? "Sans limite" : "No limit"; // CONF-01 : aucun temps maximal
   const [unit, value] =
     seconds % 3600 === 0
       ? (["hour", seconds / 3600] as const)

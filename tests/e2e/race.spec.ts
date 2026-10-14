@@ -40,7 +40,7 @@ test("course complète : hôte + invité + bot, résultats, rejouer (COURSE-03/0
   await registerViaApi(host.request, "hote");
   const code = await createRoomViaApi(host.request, {
     textLength: 10,
-    durationSeconds: 15,
+    durationSeconds: 30,
     comebackBonus: false,
   });
   await addBotViaApi(host.request, code, "noob");
@@ -124,7 +124,7 @@ test("marteler le clavier est pénalisé : la pénalité s'ajoute au temps d'arr
   await registerViaApi(page.request, "martel");
   const code = await createRoomViaApi(page.request, {
     textLength: 10,
-    durationSeconds: 15,
+    durationSeconds: 30,
     comebackBonus: false,
     errorMode: "accumuler",
     penaltySeconds: 1,
@@ -201,7 +201,7 @@ test("abandonner ramène à la liste des lobbys et ferme la porte de cette cours
   await registerViaApi(page.request, "abandon");
   const code = await createRoomViaApi(page.request, {
     textLength: 10,
-    durationSeconds: 15,
+    durationSeconds: 30,
     comebackBonus: false,
   });
   await addBotViaApi(page.request, code, "noob");

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { roomNameSchema } from "@/lib/room-name";
 import { ACCENT_TYPES } from "@/lib/text/accents";
 import { BONUS_KINDS } from "@/lib/race/bonus";
+import { isValidDuration } from "@/lib/race/duration";
 
 // CONF-01 à CONF-12 : réglages d'une salle, validés côté serveur (TECH-07).
 const char = z.string().min(1).max(2);
@@ -14,8 +15,12 @@ const lobbyFields = z.object({
     access: z.enum(["public", "unlisted", "private"]).default("public"),
     hostRole: z.enum(["participant", "spectator"]).default("participant"),
     maxPlayers: z.number().int().min(2).max(30).default(30), // SALLE-05
-    // CONF-01 : durée maximale de la course, de 15 secondes à 2 heures.
-    durationSeconds: z.number().int().min(15).max(7200).default(300),
+    // CONF-01 : temps maximal « aucun » (0) ou de 30 secondes à 10 minutes.
+    durationSeconds: z
+      .number()
+      .int()
+      .refine(isValidDuration, { message: "Temps maximal : aucun, ou de 30 secondes à 10 minutes." })
+      .default(300),
     language: z.enum(["fr", "en"]).default("fr"), // CONF-02
     textType: z.enum(["coherent", "aleatoire"]).default("coherent"), // CONF-03
     textLength: z.number().int().min(10).max(400).default(40), // CONF-04 (mots)

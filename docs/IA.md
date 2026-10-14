@@ -86,6 +86,18 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** En écrivant le test e2e des bonus (BONUS-03), aucun bonus ne se déclenchait : le serveur voyait le joueur à 3 MPM. L'agent a enregistré les messages WebSocket envoyés par la page : un seul message pendant toute la rafale.
 **Correction.** Le regroupeur est créé une seule fois et appelle la dernière version de `send` par une référence. Nouveau test e2e qui lit les messages WebSocket envoyés : moins de messages que de frappes, et le dernier contient bien la dernière frappe. Leçon : tester un utilitaire isolé ne suffit pas, il faut aussi tester son branchement dans la page.
 
+### 13. Une exigence « complète » qui ne respectait pas le cahier (temps maximal)
+
+**Ce qui s'est passé.** CONF-01 était noté « complet » avec « durée max 15 s à 2 h ». Le cahier des charges demande pourtant « aucun, ou une durée entre 30 secondes et 10 minutes » : l'agent avait vérifié que le réglage existait et était validé, sans relire les bornes exactes du cahier.
+**Détection.** En relisant les exigences de configuration pour répondre aux retours de l'étudiant sur le formulaire de création, l'agent a comparé chaque ligne de `docs/EXIGENCES.md` au texte du PDF.
+**Correction.** Choix « Sans limite » puis de 30 s à 10 min ; règle commune au formulaire, au schéma Zod et à une contrainte en base (migration 0012, qui ramène les anciennes salles dans l'intervalle) ; course sans limite gérée par le moteur (fin quand tous ont fini) et chronomètre du temps écoulé. Tests unitaires et e2e. Leçon : une exigence se coche contre le texte exact du cahier, pas contre le souvenir qu'on en a.
+
+### 14. Deux oublis trouvés par l'étudiant en testant le site en ligne
+
+**Ce qui s'est passé.** (a) Après l'ajout de l'avatar généré (AUTH-03), la salle d'attente montrait ce motif même pour un compte avec photo : la liste des joueurs n'avait jamais reçu les photos, et l'agent ne l'avait pas vérifié avec un vrai compte. (b) Sur la page d'un lien d'invitation refusé, le bouton « Annuler » fermait le message et laissait la page sur « Un instant… » sans fin.
+**Détection.** L'étudiant, en testant keymine.quest avec son compte Discord et un lien déjà utilisé.
+**Correction.** (a) La photo du compte est transmise dans l'état de la salle (test en base et e2e). (b) Sur les pages qui n'ont rien d'autre à montrer (lien d'invitation, lien direct d'une salle), un refus propose « Retour à l'accueil » (test e2e). Leçon : vérifier une fonctionnalité visuelle avec les vrais cas (compte avec photo, lien déjà utilisé), pas seulement le cas le plus simple.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._

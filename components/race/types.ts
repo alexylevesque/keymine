@@ -9,7 +9,8 @@ export type RaceParticipantView = RacerView & { avatarUrl: string | null };
 export type RaceState = {
   phase: RacePhase;
   startsAt: number;
-  endsAt: number;
+  /** null : course sans temps maximal (CONF-01). */
+  endsAt: number | null;
   participants: RaceParticipantView[];
 };
 

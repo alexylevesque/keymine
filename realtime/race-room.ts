@@ -57,7 +57,7 @@ function stateMessage(room: Room, now: number) {
     raceId: room.raceId,
     phase: room.phase,
     startsAt: room.startsAtMs,
-    endsAt: room.engine.endsAtMs,
+    endsAt: Number.isFinite(room.engine.endsAtMs) ? room.engine.endsAtMs : null, // null : sans temps maximal
     serverNow: now,
     participants: room.engine
       .snapshot(now)
