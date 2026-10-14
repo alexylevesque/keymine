@@ -54,7 +54,7 @@ erDiagram
     text text_type "coherent | aleatoire"
     text complexity "easy | medium | hard"
     int max_players "2 à 30"
-    int duration_seconds "15 à 7200"
+    int duration_seconds "0 (sans limite) ou 30 à 600"
   }
   lobby_players {
     uuid id PK
@@ -194,7 +194,7 @@ Passage (texte cohérent), mesuré à l'import (`lib/text/difficulty.ts`) : long
 - **difficile** : longueur moyenne ≥ 5,6 ou spéciaux ≥ 8 % ;
 - **moyen** : le reste.
 
-Choix pour CONF-06/07 : en mode cohérent, les options (accents, ponctuation, majuscules, nombres) **adaptent** le passage au lieu de le rejeter ; l'inclusion/exclusion de caractères est **désactivée** en mode cohérent et ne s'applique qu'au texte aléatoire (l'exclusion l'emporte sur l'inclusion).
+Choix pour CONF-06/07 : en mode cohérent, le vrai passage est tapé **tel qu'écrit** (majuscules, ponctuation, accents, chiffres) ; les options de texte et l'inclusion/exclusion de caractères sont **désactivées** en mode cohérent et ne s'appliquent qu'au texte aléatoire (l'exclusion l'emporte sur l'inclusion). Les accents ne s'appliquent qu'au français.
 
 ## 9. Authentification et sécurité
 
