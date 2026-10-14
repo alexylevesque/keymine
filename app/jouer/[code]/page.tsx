@@ -172,6 +172,7 @@ export default function LobbyPage() {
                       label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
                       color={p.isBot ? "#555555" : AVATAR_COLORS[i % AVATAR_COLORS.length]!}
                       seed={p.isBot ? null : participantName(t, p)}
+                      src={p.avatarUrl}
                       className="h-9 w-9 text-sm"
                     />
                     <div className="min-w-0 flex-grow leading-none">

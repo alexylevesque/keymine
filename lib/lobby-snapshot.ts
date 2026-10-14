@@ -14,6 +14,8 @@ export type RawPlayer = {
   role: "participant" | "spectator";
   isBot: boolean;
   botLevel: BotLevel | null;
+  /** Photo du compte (téléversée ou fournie par Discord/GitHub), sinon null : avatar généré. */
+  avatarUrl: string | null;
   joinedAt: Date;
 };
 
@@ -57,6 +59,7 @@ export type PlayerView = {
   role: "participant" | "spectator";
   isBot: boolean;
   botLevel: BotLevel | null;
+  avatarUrl: string | null;
   isSelf: boolean;
   isHost: boolean;
   connected: boolean;
@@ -89,6 +92,7 @@ export async function loadLobbySnapshot(code: string): Promise<RawLobbySnapshot 
       "lobby_players.bot_level",
       "lobby_players.joined_at",
       "users.display_name",
+      "users.avatar_url",
     ])
     .where("lobby_players.lobby_id", "=", lobby.id)
     .where("lobby_players.active", "=", true)
@@ -139,6 +143,7 @@ export async function loadLobbySnapshot(code: string): Promise<RawLobbySnapshot 
       role: p.role,
       isBot: p.is_bot,
       botLevel: p.bot_level,
+      avatarUrl: p.is_bot ? null : (p.avatar_url ?? null),
       joinedAt: new Date(p.joined_at),
     })),
     activeRace: activeRace
@@ -174,6 +179,7 @@ export function viewLobby(
       role: p.role,
       isBot: p.isBot,
       botLevel: p.botLevel,
+      avatarUrl: p.avatarUrl,
       isSelf: isSameViewer(p, viewer),
       isHost: isSameViewer(p, host),
       connected: p.isBot

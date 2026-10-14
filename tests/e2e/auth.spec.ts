@@ -91,6 +91,14 @@ test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jo
   const meta = await sharp(await served.body()).metadata();
   expect([meta.format, meta.width, meta.height]).toEqual(["webp", 256, 256]);
 
+  // La photo apparaît aussi dans la liste des joueurs de la salle d'attente.
+  const created = await page.request.post("/api/lobbies", { data: {} });
+  const { code } = (await created.json()) as { code: string };
+  await page.goto(`/jouer/${code}`);
+  await expect(page.locator("main [data-avatar]").first()).toHaveAttribute("data-avatar", "photo");
+  await page.request.post(`/api/lobbies/${code}/leave`);
+  await page.goto("/profil");
+
   // Retirer la photo ramène l'avatar généré.
   await page.getByRole("button", { name: "Retirer la photo" }).click();
   await expect(header).toHaveAttribute("data-avatar", "generated");
