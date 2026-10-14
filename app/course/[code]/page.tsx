@@ -9,6 +9,7 @@ import { useRaceConnection } from "@/components/race/useRaceConnection";
 import { PixelButton, PixelPanel } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
 import { formatClock, formatNumber } from "@/lib/format";
+import { createThrottle, type Throttle } from "@/lib/race/throttle";
 
 // Page de course : zone de frappe (COURSE-04), piste en direct (COURSE-05),
 // décompte 3-2-1 (COURSE-03), abandon avec confirmation (COURSE-07),
@@ -81,8 +82,6 @@ export default function CoursePage() {
     const s = typed.current;
     setView({ index: s.index, errors: s.errors, incorrect: new Set(s.incorrect) });
   }, []);
-  const lastSent = useRef(0);
-  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Charge la course : même texte pour tous au départ (TXT-8).
   useEffect(() => {
@@ -164,10 +163,8 @@ export default function CoursePage() {
   const secondsLeft = state ? (state.endsAt - serverNow) / 1000 : 0;
   const fogged = !!me && me.fogUntilMs > serverNow;
 
-  // Envoi de l'avancement, au plus une fois toutes les 100 ms (PERF-02).
-  const flush = useCallback(() => {
-    sendTimer.current = null;
-    lastSent.current = Date.now();
+  // Envoi de l'avancement, au plus une fois toutes les 100 ms (PERF-02, TECH-06).
+  const sendProgress = useCallback(() => {
     const s = typed.current;
     send({
       type: "progress",
@@ -177,26 +174,13 @@ export default function CoursePage() {
       keyErrors: s.keyErrors,
     });
   }, [send]);
-
-  const scheduleSend = useCallback(
-    (immediate: boolean) => {
-      const wait = SEND_INTERVAL_MS - (Date.now() - lastSent.current);
-      if (immediate || wait <= 0) {
-        if (sendTimer.current) clearTimeout(sendTimer.current);
-        flush();
-      } else if (!sendTimer.current) {
-        sendTimer.current = setTimeout(flush, wait);
-      }
-    },
-    [flush],
-  );
-
-  useEffect(
-    () => () => {
-      if (sendTimer.current) clearTimeout(sendTimer.current);
-    },
-    [],
-  );
+  const throttle = useRef<Throttle | null>(null);
+  useEffect(() => {
+    const t = createThrottle(SEND_INTERVAL_MS, sendProgress);
+    throttle.current = t;
+    return () => t.cancel();
+  }, [sendProgress]);
+  const scheduleSend = useCallback((immediate: boolean) => throttle.current?.schedule(immediate), []);
 
   // Frappe au clavier : pas de retour arrière, pas de collage (COURSE-04).
   useEffect(() => {
