@@ -80,6 +80,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** En relisant les exigences encore « partielles » avec l'étudiant, une recherche des chaînes `encodeURIComponent("…")` dans `app/api` a montré ces quatre messages ; le test d'usage des clés de traduction ne les voyait pas, car il ne cherche que les appels `t("…")`.
 **Correction.** Les routes renvoient maintenant un code (`oauth_failed` ou `oauth_not_configured`) et le fournisseur ; la page de connexion valide ces deux valeurs avec Zod et affiche le message traduit du dictionnaire, sinon rien. Tests unitaire et e2e ajoutés (message traduit, texte libre ignoré). Leçon : une exigence « complète » se revérifie quand on ajoute une fonctionnalité qui la touche (ici, l'OAuth ajouté après coup).
 
+### 12. Un refactor qui retenait l'avancement jusqu'à la fin du texte
+
+**Ce qui s'est passé.** Pour tester le regroupement des envois (TECH-06), l'agent a sorti la logique dans `lib/race/throttle.ts` et l'a branchée dans la page de course avec un `useEffect` qui recréait le regroupeur à chaque nouvelle fonction `send`. Or cette fonction change à chaque rendu : l'envoi en attente était annulé à chaque frappe, et le serveur ne recevait l'avancement qu'au début et à la fin du texte. Les tests unitaires du regroupeur passaient, et les tests e2e de course aussi (l'envoi immédiat de fin de texte suffisait à finir la course).
+**Détection.** En écrivant le test e2e des bonus (BONUS-03), aucun bonus ne se déclenchait : le serveur voyait le joueur à 3 MPM. L'agent a enregistré les messages WebSocket envoyés par la page : un seul message pendant toute la rafale.
+**Correction.** Le regroupeur est créé une seule fois et appelle la dernière version de `send` par une référence. Nouveau test e2e qui lit les messages WebSocket envoyés : moins de messages que de frappes, et le dernier contient bien la dernière frappe. Leçon : tester un utilitaire isolé ne suffit pas, il faut aussi tester son branchement dans la page.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._

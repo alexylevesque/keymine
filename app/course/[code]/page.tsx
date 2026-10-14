@@ -174,12 +174,18 @@ export default function CoursePage() {
       keyErrors: s.keyErrors,
     });
   }, [send]);
+  // Le regroupeur est créé une seule fois : s'il était recréé à chaque nouvelle fonction `send`, l'envoi
+  // en attente serait annulé à chaque rendu et l'avancement n'arriverait au serveur qu'en fin de texte.
+  const sendProgressRef = useRef(sendProgress);
+  useEffect(() => {
+    sendProgressRef.current = sendProgress;
+  }, [sendProgress]);
   const throttle = useRef<Throttle | null>(null);
   useEffect(() => {
-    const t = createThrottle(SEND_INTERVAL_MS, sendProgress);
+    const t = createThrottle(SEND_INTERVAL_MS, () => sendProgressRef.current());
     throttle.current = t;
     return () => t.cancel();
-  }, [sendProgress]);
+  }, []);
   const scheduleSend = useCallback((immediate: boolean) => throttle.current?.schedule(immediate), []);
 
   // Frappe au clavier : pas de retour arrière, pas de collage (COURSE-04).
