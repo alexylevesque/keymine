@@ -91,7 +91,7 @@ export default async function ProfilPage() {
               seed={user.display_name}
               className="h-32 w-32 border-[5px] text-5xl"
             />
-            <div className="font-pixel text-lg">{user.display_name.toUpperCase()}</div>
+            <h1 className="font-pixel text-lg">{user.display_name.toUpperCase()}</h1>
             <p className="text-center text-xl leading-tight text-[#3a3a3a]">
               {t("profile.created", { date: formatDate(lang, user.created_at) })}
             </p>

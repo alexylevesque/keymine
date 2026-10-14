@@ -313,6 +313,7 @@ export default function CoursePage() {
 
       <main className="px-4 py-6 sm:px-8 sm:py-7">
         <div className="mx-auto w-full max-w-[1400px]">
+          <h1 className="sr-only">{t("race.room", { code })}</h1>
           {status === "reconnecting" && (
             <div
               role="alert"

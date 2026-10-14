@@ -176,7 +176,7 @@ export default function LobbyPage() {
                     />
                     <div className="min-w-0 flex-grow leading-none">
                       <div className="truncate text-2xl text-white">{participantName(t, p)}</div>
-                      <div className="font-pixel mt-1 text-[8px] text-[#ffe08a]">
+                      <div className="font-pixel mt-1 text-[8px] text-white">
                         {p.isBot
                           ? t("lobby.tag_bot")
                           : !p.connected

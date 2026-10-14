@@ -224,7 +224,8 @@ export default async function ResultatsPage({
         <div className="flex w-full min-w-0 flex-grow flex-col gap-6">
           <PixelPanel className="p-5">
             <PixelDisclosure title={t("res.ranking")} defaultOpen>
-              <div className="overflow-x-auto">
+              {/* Sur écran étroit le tableau défile : la zone doit être atteignable au clavier (A11Y-04). */}
+              <div className="overflow-x-auto" role="region" aria-label={t("res.ranking")} tabIndex={0}>
                 <table className="w-full min-w-[40rem] border-collapse text-left text-xl leading-tight">
                   <caption className="sr-only">{t("res.ranking")}</caption>
                   <thead>
