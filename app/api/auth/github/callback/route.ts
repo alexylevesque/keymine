@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const query = parseSearchParams(request.url, oauthCallbackQuery);
   const loginError = () =>
     NextResponse.redirect(
-      `${siteUrl()}/connexion?error=${encodeURIComponent("Échec de la connexion GitHub")}`,
+      `${siteUrl()}/connexion?error=oauth_failed&provider=github`,
     );
 
   const stateOk = await consumeOAuthState(query?.state ?? null);

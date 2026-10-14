@@ -74,6 +74,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** L'étudiant a lancé le build sur son serveur et a copié l'erreur (« DATABASE_URL manquant »).
 **Correction.** Une adresse factice est fournie à la seule commande `bun run build` (aucune page n'interroge la base pendant le build) ; le build a été revérifié avec cette adresse sur une base injoignable avant de corriger le fichier. La vraie adresse arrive au démarrage par le docker-compose. Leçon : un fichier de déploiement non exécuté reste une hypothèse ; la mention « non testé » dans les exigences était justifiée.
 
+### 11. Une exigence « complète » avec des messages codés en dur
+
+**Ce qui s'est passé.** I18N-01 était noté « complet » dans `docs/EXIGENCES.md`, mais les routes OAuth (Discord et GitHub) renvoyaient vers la page de connexion avec un message en français écrit en dur dans l'URL (« Échec de la connexion GitHub »), affiché tel quel, même en anglais. En plus, la page affichait n'importe quel texte passé dans `?error=` : un lien piégé pouvait y faire apparaître un faux message.
+**Détection.** En relisant les exigences encore « partielles » avec l'étudiant, une recherche des chaînes `encodeURIComponent("…")` dans `app/api` a montré ces quatre messages ; le test d'usage des clés de traduction ne les voyait pas, car il ne cherche que les appels `t("…")`.
+**Correction.** Les routes renvoient maintenant un code (`oauth_failed` ou `oauth_not_configured`) et le fournisseur ; la page de connexion valide ces deux valeurs avec Zod et affiche le message traduit du dictionnaire, sinon rien. Tests unitaire et e2e ajoutés (message traduit, texte libre ignoré). Leçon : une exigence « complète » se revérifie quand on ajoute une fonctionnalité qui la touche (ici, l'OAuth ajouté après coup).
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._

@@ -6,6 +6,7 @@ import {
   githubUserResponse,
   inviteTokenSchema,
   lobbyCodeSchema,
+  oauthErrorQuery,
   oauthCallbackQuery,
   parseSearchParams,
 } from "@/lib/api-input";
@@ -32,6 +33,12 @@ describe("schémas des entrées hors JSON (TECH-07)", () => {
     });
     expect(parseSearchParams("https://x.test/cb?code=abc", oauthCallbackQuery)).toBeNull();
     expect(parseSearchParams("https://x.test/cb?error=access_denied", oauthCallbackQuery)).toBeNull();
+  });
+
+  it("erreur OAuth affichée : seulement des codes connus (I18N-01)", () => {
+    expect(oauthErrorQuery.safeParse({ error: "oauth_failed", provider: "github" }).success).toBe(true);
+    expect(oauthErrorQuery.safeParse({ error: "Ton compte est suspendu", provider: "github" }).success).toBe(false);
+    expect(oauthErrorQuery.safeParse({ error: "oauth_failed", provider: "google" }).success).toBe(false);
   });
 
   it("réponses des fournisseurs : forme minimale exigée", () => {

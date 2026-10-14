@@ -7,7 +7,7 @@ export async function GET() {
   const clientId = process.env.DISCORD_CLIENT_ID;
   if (!clientId) {
     return NextResponse.redirect(
-      `${siteUrl()}/connexion?error=${encodeURIComponent("Connexion Discord non configurée")}`,
+      `${siteUrl()}/connexion?error=oauth_not_configured&provider=discord`,
     );
   }
 

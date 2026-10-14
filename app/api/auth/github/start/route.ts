@@ -7,7 +7,7 @@ export async function GET() {
   const clientId = process.env.GITHUB_CLIENT_ID;
   if (!clientId) {
     return NextResponse.redirect(
-      `${siteUrl()}/connexion?error=${encodeURIComponent("Connexion GitHub non configurée")}`,
+      `${siteUrl()}/connexion?error=oauth_not_configured&provider=github`,
     );
   }
 

@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { PixelShell } from "@/components/PixelShell";
 import { PixelButton, PixelPanel } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
+import { OAUTH_PROVIDER_NAMES, oauthErrorQuery } from "@/lib/api-input";
 
 type Mode = "login" | "register";
 
@@ -30,10 +31,17 @@ function ConnexionForm() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    const oauthError = searchParams.get("error");
+    // Retour OAuth : seuls des codes connus sont acceptés et traduits (I18N-01) ; un texte arbitraire
+    // passé dans l'URL n'est jamais affiché tel quel.
+    const oauth = oauthErrorQuery.safeParse({
+      error: searchParams.get("error"),
+      provider: searchParams.get("provider"),
+    });
+    if (!oauth.success) return;
+    const key = oauth.data.error === "oauth_failed" ? "auth.oauth_failed" : "auth.oauth_not_configured";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lu depuis l'URL de retour OAuth, pas dispo au premier rendu serveur
-    if (oauthError) setError(oauthError);
-  }, [searchParams]);
+    setError(t(key, { provider: OAUTH_PROVIDER_NAMES[oauth.data.provider] }));
+  }, [searchParams, t]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

@@ -82,3 +82,19 @@ test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jo
   await expect(page.getByText("Photo mise à jour.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Retirer la photo" })).toBeVisible();
 });
+
+test("les erreurs OAuth sont traduites et un texte libre dans l'URL n'est jamais affiché (I18N-01)", async ({
+  page,
+}) => {
+  await page.goto("/connexion?error=oauth_failed&provider=github");
+  await expect(page.getByText("Échec de la connexion GitHub. Réessaie.")).toBeVisible();
+
+  await page.goto("/connexion?error=Ton%20compte%20est%20suspendu");
+  await expect(page.getByRole("button", { name: "CONNEXION" }).last()).toBeVisible();
+  await expect(page.getByText("Ton compte est suspendu")).toHaveCount(0);
+
+  // Sans identifiants OAuth (environnement de test), le bouton renvoie un code d'erreur connu.
+  const res = await page.request.get("/api/auth/discord/start", { maxRedirects: 0 });
+  expect(res.status()).toBeGreaterThanOrEqual(300);
+  expect(res.headers()["location"]).toContain("/connexion?error=oauth_not_configured&provider=discord");
+});

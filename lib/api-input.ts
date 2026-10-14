@@ -22,6 +22,13 @@ export const oauthCallbackQuery = z.object({
   state: z.string().min(1).max(256),
 });
 
+/** Erreur OAuth renvoyée vers la page de connexion : un code connu, jamais un texte libre. */
+export const oauthErrorQuery = z.object({
+  error: z.enum(["oauth_failed", "oauth_not_configured"]),
+  provider: z.enum(["discord", "github"]),
+});
+export const OAUTH_PROVIDER_NAMES = { discord: "Discord", github: "GitHub" } as const;
+
 export const oauthTokenResponse = z.object({ access_token: z.string().min(1) });
 
 export const discordUserResponse = z.object({

@@ -256,6 +256,8 @@ export const DICTIONARY = {
     "auth.submit_login": "CONNEXION",
     "auth.submit_register": "CREER LE COMPTE",
     "auth.or": "OU",
+    "auth.oauth_failed": "Échec de la connexion {provider}. Réessaie.",
+    "auth.oauth_not_configured": "La connexion {provider} n'est pas configurée sur ce serveur.",
     "auth.photo_note":
       "Ta photo Discord ou GitHub sert de photo de profil. Tu pourras la changer ou en téléverser une autre.",
     "auth.no_email":
@@ -731,6 +733,8 @@ export const DICTIONARY = {
     "auth.submit_login": "LOG IN",
     "auth.submit_register": "CREATE ACCOUNT",
     "auth.or": "OR",
+    "auth.oauth_failed": "{provider} sign-in failed. Please try again.",
+    "auth.oauth_not_configured": "{provider} sign-in is not configured on this server.",
     "auth.photo_note":
       "Your Discord or GitHub picture is used as your profile picture. You can change it or upload another one.",
     "auth.no_email": "No email asked. Forgot your password? No recovery: create a new account.",
