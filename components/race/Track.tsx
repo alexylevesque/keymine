@@ -100,6 +100,7 @@ export function Track({
                     label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
                     color={p.isBot ? "#555555" : AVATAR_COLORS[index % AVATAR_COLORS.length]!}
                     src={p.isBot ? null : p.avatarUrl}
+                    seed={p.isBot ? null : participantName(t, p)}
                     className={`h-6 w-6 text-[10px] ${isMe ? "ring-2 ring-[#ffd84a]" : ""}`}
                   />
                   {isMe && (

@@ -57,6 +57,14 @@ test("un invité ne peut pas créer de salle (AUTH-03)", async ({ request }) => 
   expect((await res.json()).code).toBe("account_required");
 });
 
+test("un invité voit un avatar généré à la place d'une photo (AUTH-03)", async ({ page }) => {
+  await page.request.post("/api/auth/guest", { data: { pseudo: uniqueName("inv") } });
+  await page.goto("/");
+  const avatar = page.getByRole("banner").locator("[data-avatar]");
+  await expect(avatar).toHaveAttribute("data-avatar", "generated");
+  await expect(avatar.locator("rect").first()).toBeAttached();
+});
+
 // AUTH-05 : un vrai bouton (et non le champ fichier natif) permet de changer la photo.
 test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jour", async ({
   page,

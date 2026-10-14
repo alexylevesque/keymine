@@ -114,6 +114,7 @@ export function PixelShell({
               color="#3d6fc4"
               className="h-9 w-9 text-sm"
               src={viewer?.kind === "user" ? viewer.avatarUrl : null}
+              seed={viewer ? viewerName : null}
             />
             <span className="hidden max-w-40 truncate sm:inline">{viewerName}</span>
             <span className="sr-only sm:hidden">

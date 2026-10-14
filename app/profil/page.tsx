@@ -88,6 +88,7 @@ export default async function ProfilPage() {
               label={user.display_name[0]?.toUpperCase() ?? "?"}
               color="#3d6fc4"
               src={user.avatar_url}
+              seed={user.display_name}
               className="h-32 w-32 border-[5px] text-5xl"
             />
             <div className="font-pixel text-lg">{user.display_name.toUpperCase()}</div>

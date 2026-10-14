@@ -163,6 +163,7 @@ export default async function ResultatsPage({
                       label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
                       color={p.isBot ? "#555555" : "#3d6fc4"}
                       src={p.avatarUrl}
+                      seed={p.isBot ? null : p.name}
                       className={style.avatar}
                     />
                     <div className="max-w-full truncate text-2xl leading-none">{p.name}</div>

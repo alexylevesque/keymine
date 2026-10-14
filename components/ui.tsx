@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IDENTICON_SIZE, identicon } from "@/lib/identicon";
 import type { ReactNode } from "react";
 
 type Variant = "green" | "slate" | "red" | "gold";
@@ -120,22 +121,50 @@ export function PixelAvatar({
   color,
   className = "",
   src,
+  seed,
 }: {
   label: string;
   color: string;
   className?: string;
-  /** Photo de profil (facultative) : sinon on affiche l'initiale sur fond de couleur. */
+  /** Photo de profil (facultative). */
   src?: string | null;
+  /**
+   * Graine de l'avatar généré (AUTH-03), en général le pseudo : sans photo, on
+   * dessine un motif pixel propre à ce pseudo. Sans graine (bots), l'initiale.
+   */
+  seed?: string | null;
 }) {
+  const generated = !src && seed ? identicon(seed) : null;
   return (
     <span
       className={`pixel-avatar overflow-hidden ${className}`}
-      style={{ backgroundColor: color }}
+      style={{ backgroundColor: generated?.color ?? color }}
       aria-hidden="true"
+      data-avatar={src ? "photo" : generated ? "generated" : "initial"}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- avatar utilisateur de taille minuscule
         <img src={src} alt="" className="h-full w-full object-cover" />
+      ) : generated ? (
+        <svg
+          viewBox={`-1 -1 ${IDENTICON_SIZE + 2} ${IDENTICON_SIZE + 2}`}
+          className="h-full w-full"
+          shapeRendering="crispEdges"
+          focusable="false"
+        >
+          {generated.cells.map((on, i) =>
+            on ? (
+              <rect
+                key={i}
+                x={i % IDENTICON_SIZE}
+                y={Math.floor(i / IDENTICON_SIZE)}
+                width="1"
+                height="1"
+                fill="#ffffff"
+              />
+            ) : null,
+          )}
+        </svg>
       ) : (
         label
       )}
