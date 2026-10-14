@@ -221,9 +221,9 @@ La langue est décidée côté serveur (cookie `km_lang`, sinon `Accept-Language
 
 | Niveau | Outil | Ce qui est couvert |
 | --- | --- | --- |
-| Unitaires | Vitest | Génération et complexité du texte, protocole Zod, limiteur, authentification WebSocket, bots, états. |
-| Intégration base | Vitest + Postgres réel (`bun run test:db`) | Contraintes SALLE-06, notifications, balayage d'hôte, règles d'entrée en salle, seed idempotent, serveur temps réel complet avec vrais cookies. |
-| Bout en bout | Playwright (Chromium) | 21 tests : accueil, langue et thème, 360 px, inscription/connexion par mot de passe, salle privée par lien, course complète hôte + invité + bot jusqu'aux résultats et « rejouer », expulsion, réglages en direct, actions réservées à l'hôte (401/403), 30 participants (images/s), audit d'accessibilité axe dans les deux thèmes. |
+| Unitaires | Vitest | Génération et complexité du texte, protocole Zod, schémas des entrées et audit des routes API, regroupement des envois, avatar généré, limiteur, authentification WebSocket, bots, états. |
+| Intégration base | Vitest + Postgres réel (`bun run test:db`) | Contraintes SALLE-06, notifications, balayage d'hôte (salle d'attente, résultats et course), règles d'entrée en salle, seed idempotent, serveur temps réel complet avec vrais cookies. |
+| Bout en bout | Playwright (Chromium) | 53 tests : accueil, langue et thème, 360 px, inscription/connexion par mot de passe, photo et pseudonyme, téléversements refusés, avatar généré, salle privée par lien, rejoindre par code, explorateur et partie rapide, force brute sur les codes, course complète hôte + invité + bot jusqu'aux résultats et « rejouer », modes d'erreur, rechargement en course, bonus, envois WebSocket regroupés, expulsion, réglages en direct, actions réservées à l'hôte (401/403), 30 participants (images/s), parcours au clavier, audit d'accessibilité axe dans les deux thèmes (salle, course et résultats compris). |
 | CI | GitHub Actions | Lint, typecheck, tests unitaires ; Postgres 18 pour migrations, tests base, build et e2e (Playwright démarre aussi le serveur temps réel). |
 
 ## 11. Décisions notables (ADR courts)
