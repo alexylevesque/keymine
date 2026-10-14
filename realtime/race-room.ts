@@ -1,6 +1,7 @@
 import type { WebSocket } from "ws";
 import { db } from "@/lib/db";
 import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
+import { handOverHostDuringRace } from "@/lib/lobby-sweep";
 import { assertTransition } from "@/lib/race/state";
 import { RaceEngine, type EngineEvent, type RacerInit } from "@/lib/race/engine";
 import { isBotLevel } from "@/lib/race/bots";
@@ -210,6 +211,7 @@ async function releaseMember(room: Room, racerId: string) {
       racer.userId ? eb("user_id", "=", racer.userId) : eb("guest_id", "=", racer.guestId),
     )
     .execute();
+  if (racer.userId) await handOverHostDuringRace(room.lobbyId, racer.userId);
 }
 
 async function tick(room: Room) {
@@ -320,8 +322,16 @@ async function persistResults(room: Room, now: number) {
   if (lobby?.status === "racing" || lobby?.status === "countdown") {
     await db
       .updateTable("lobbies")
-      .set({ status: "finished" })
+      // Les pages de course ne signalent pas la présence en salle : on repart d'une présence
+      // « fraîche » pour que l'hôte ait le temps d'arriver sur les résultats (SALLE-08).
+      .set({ status: "finished", last_host_seen_at: new Date(now) })
       .where("id", "=", room.lobbyId)
+      .execute();
+    await db
+      .updateTable("lobby_players")
+      .set({ last_seen_at: new Date(now) })
+      .where("lobby_id", "=", room.lobbyId)
+      .where("active", "=", true)
       .execute();
   }
 }

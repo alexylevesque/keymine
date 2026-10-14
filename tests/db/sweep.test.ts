@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
-import { sweepLobbies } from "@/lib/lobby-sweep";
+import { handOverHostDuringRace, sweepLobbies } from "@/lib/lobby-sweep";
 
 // SALLE-08 : l'hôte parti est remplacé par le compte connecté présent depuis
 // le plus longtemps ; s'il n'en reste aucun, la salle est fermée.
@@ -86,5 +86,73 @@ describe("balayage des salles (SALLE-08)", () => {
     await sweepLobbies();
     const check = await client.query(`select status from lobbies where id = $1`, [rows[0].id]);
     expect(check.rows[0].status).toBe("lobby");
+  });
+
+  it("sur l'écran des résultats, un hôte absent est aussi remplacé", async () => {
+    const { lobby } = await lobbyWithAbsentHost();
+    await client.query(`update lobbies set status = 'finished' where id = $1`, [lobby]);
+    const present = await user("resultats");
+    await client.query(
+      `insert into lobby_players (lobby_id, user_id, joined_at, last_seen_at) values ($1, $2, now() - interval '2 minutes', now())`,
+      [lobby, present],
+    );
+    await sweepLobbies();
+    const { rows } = await client.query(`select host_user_id, status from lobbies where id = $1`, [lobby]);
+    expect(rows[0]).toMatchObject({ host_user_id: present, status: "finished" });
+  });
+});
+
+async function racingLobby() {
+  const host = await user("hote_course");
+  const code = `R${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const { rows } = await client.query<{ id: string }>(
+    `insert into lobbies (code, host_user_id, name, status) values ($1, $2, 'course', 'racing') returning id`,
+    [code, host],
+  );
+  await client.query(
+    `insert into lobby_players (lobby_id, user_id, joined_at) values ($1, $2, now() - interval '10 minutes')`,
+    [rows[0].id, host],
+  );
+  return { host, lobby: rows[0].id };
+}
+
+describe("hôte qui quitte pendant une course (SALLE-08)", () => {
+  it("passe le rôle au plus ancien compte encore dans la salle, spectateurs compris", async () => {
+    const { host, lobby } = await racingLobby();
+    const spectator = await user("spectateur");
+    const racer = await user("coureur");
+    await client.query(
+      `insert into lobby_players (lobby_id, user_id, role, joined_at, last_seen_at) values
+        ($1, $2, 'spectator', now() - interval '8 minutes', now() - interval '8 minutes'),
+        ($1, $3, 'participant', now() - interval '2 minutes', now())`,
+      [lobby, spectator, racer],
+    );
+    await client.query(`update lobby_players set active = false where lobby_id = $1 and user_id = $2`, [lobby, host]);
+
+    expect(await handOverHostDuringRace(lobby, host)).toBe("transferred");
+    const { rows } = await client.query(`select host_user_id, status from lobbies where id = $1`, [lobby]);
+    expect(rows[0]).toMatchObject({ host_user_id: spectator, status: "racing" });
+  });
+
+  it("ne ferme pas la course s'il ne reste que des invités", async () => {
+    const { host, lobby } = await racingLobby();
+    await client.query(
+      `insert into lobby_players (lobby_id, guest_id, guest_name) values ($1, $2, 'Invité')`,
+      [lobby, `g-${Math.random().toString(36).slice(2, 8)}`],
+    );
+    await client.query(`update lobby_players set active = false where lobby_id = $1 and user_id = $2`, [lobby, host]);
+
+    expect(await handOverHostDuringRace(lobby, host)).toBe("kept");
+    const { rows } = await client.query(`select host_user_id, status from lobbies where id = $1`, [lobby]);
+    expect(rows[0]).toMatchObject({ host_user_id: host, status: "racing" });
+  });
+
+  it("ignore un joueur qui n'est pas l'hôte", async () => {
+    const { host, lobby } = await racingLobby();
+    const other = await user("autre");
+    await client.query(`insert into lobby_players (lobby_id, user_id) values ($1, $2)`, [lobby, other]);
+    expect(await handOverHostDuringRace(lobby, other)).toBe("kept");
+    const { rows } = await client.query(`select host_user_id from lobbies where id = $1`, [lobby]);
+    expect(rows[0].host_user_id).toBe(host);
   });
 });
