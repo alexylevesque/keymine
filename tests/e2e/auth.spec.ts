@@ -81,6 +81,55 @@ test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jo
 
   await expect(page.getByText("Photo mise à jour.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Retirer la photo" })).toBeVisible();
+
+  // La photo remplace l'avatar généré dans l'en-tête ; le serveur la sert ré-encodée en WebP 256 px.
+  const header = page.getByRole("banner").locator("[data-avatar]");
+  await expect(header).toHaveAttribute("data-avatar", "photo");
+  const src = await header.locator("img").getAttribute("src");
+  const served = await page.request.get(src!);
+  expect(served.headers()["content-type"]).toBe("image/webp");
+  const meta = await sharp(await served.body()).metadata();
+  expect([meta.format, meta.width, meta.height]).toEqual(["webp", 256, 256]);
+
+  // Retirer la photo ramène l'avatar généré.
+  await page.getByRole("button", { name: "Retirer la photo" }).click();
+  await expect(header).toHaveAttribute("data-avatar", "generated");
+});
+
+// SEC-02 / AUTH-04 : le serveur vérifie le type réel et la taille, quoi qu'en dise le navigateur.
+test("un fichier déguisé ou trop lourd est refusé par le serveur (SEC-02)", async ({ page }) => {
+  await registerViaApi(page.request, "televers");
+  const upload = (name: string, mimeType: string, buffer: Buffer) =>
+    page.request.post("/api/profile/avatar", { multipart: { file: { name, mimeType, buffer } } });
+
+  const fake = await upload("photo.png", "image/png", Buffer.from("<script>alert(1)</script>".repeat(10)));
+  expect(fake.status()).toBe(415);
+
+  const gif = await upload("anim.png", "image/png", Buffer.from("GIF89a\x01\x00\x01\x00\x00\x00\x00;", "binary"));
+  expect(gif.status()).toBe(415);
+
+  const big = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#000" } }).png().toBuffer();
+  const tooLarge = await upload("lourd.png", "image/png", Buffer.concat([big, Buffer.alloc(2 * 1024 * 1024)]));
+  expect(tooLarge.status()).toBe(413);
+
+  const missing = await page.request.post("/api/profile/avatar", { multipart: { autre: "x" } });
+  expect(missing.status()).toBe(400);
+});
+
+// AUTH-05 : changer son nom d'affichage depuis le profil.
+test("changer son pseudonyme depuis le profil (AUTH-05)", async ({ page }) => {
+  await registerViaApi(page.request, "renom");
+  await page.goto("/profil");
+  const newName = uniqueName("Nouv");
+  await page.getByLabel("PSEUDONYME").fill(newName);
+  await page.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(page.getByText("Pseudonyme enregistré.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: newName.toUpperCase() })).toBeVisible();
+
+  // Trop court : refusé côté serveur aussi.
+  const res = await page.request.patch("/api/profile", { data: { displayName: "ab" } });
+  expect(res.status()).toBe(400);
 });
 
 test("les erreurs OAuth sont traduites et un texte libre dans l'URL n'est jamais affiché (I18N-01)", async ({

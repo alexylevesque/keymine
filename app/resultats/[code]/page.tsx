@@ -321,7 +321,7 @@ export default async function ResultatsPage({
                         key={letter}
                         className="mr-1.5 border-2 border-black bg-[#ff7b6b] px-1.5 font-normal"
                       >
-                        {letter} ({pct}%)
+                        {letter} ({formatPercent(lang, pct)})
                       </b>
                     ))}
                   </p>

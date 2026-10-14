@@ -68,6 +68,8 @@ test("course complète : hôte + invité + bot, résultats, rejouer (COURSE-03/0
   await host.getByRole("button", { name: "REJOUER" }).click();
   await expect(host).toHaveURL(new RegExp(`/jouer/${code}$`), { timeout: 15_000 });
   await expect(host.getByText(guestName).first()).toBeVisible();
+  // L'invité, resté sur les résultats, revient tout seul dans la salle (COURSE-11).
+  await expect(guest).toHaveURL(new RegExp(`/jouer/${code}$`), { timeout: 15_000 });
 
   await hostContext.close();
   await guestContext.close();

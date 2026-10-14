@@ -4,11 +4,12 @@ import { useParams, useRouter } from "next/navigation";
 import { participantName } from "@/lib/bot-name";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Track } from "@/components/race/Track";
+import { LanguageSelect } from "@/components/LanguageSelect";
 import type { RaceState } from "@/components/race/types";
 import { useRaceConnection } from "@/components/race/useRaceConnection";
 import { PixelButton, PixelPanel } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
-import { formatClock, formatNumber } from "@/lib/format";
+import { formatClock, formatNumber, formatPercent } from "@/lib/format";
 import { createThrottle, type Throttle } from "@/lib/race/throttle";
 
 // Page de course : zone de frappe (COURSE-04), piste en direct (COURSE-05),
@@ -258,6 +259,7 @@ export default function CoursePage() {
       <div className="font-pixel flex-grow truncate text-xs text-[#f1e6c9]">
         {t("race.room", { code })}
       </div>
+      <LanguageSelect />
     </header>
   );
 
@@ -353,7 +355,7 @@ export default function CoursePage() {
             </div>
             <div className="pixel-slot flex w-36 flex-col gap-1 px-4 py-2">
               <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.accuracy")}</b>
-              <span className="text-3xl text-white">{Math.round(me?.accuracy ?? 100)} %</span>
+              <span className="text-3xl text-white">{formatPercent(lang, me?.accuracy ?? 100)}</span>
             </div>
             <div className="pixel-slot flex w-32 flex-col gap-1 px-4 py-2">
               <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.errors")}</b>

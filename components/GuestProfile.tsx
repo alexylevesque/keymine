@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { PixelButton, PixelPanel, PixelSlot } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
+import { formatPercent } from "@/lib/format";
 
 type GuestRace = { code: string; wpm: number; accuracy: number; errors: number; at: string };
 
 // STAT-8: en invité, les stats ne vivent que le temps de l'onglet (AUTH-8).
 export function GuestProfile() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [history, setHistory] = useState<GuestRace[]>([]);
 
   useEffect(() => {
@@ -60,7 +61,7 @@ export function GuestProfile() {
           >
             <span>{t("guest.room", { code: h.code })}</span>
             <span className="text-[#3a3a3a]">{Math.round(h.wpm)} {t("race.wpm")}</span>
-            <span className="text-[#3a3a3a]">{Math.round(h.accuracy)} %</span>
+            <span className="text-[#3a3a3a]">{formatPercent(lang, h.accuracy)}</span>
           </div>
         ))}
       </PixelPanel>

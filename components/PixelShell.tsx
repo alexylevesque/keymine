@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PixelAvatar } from "./ui";
+import { LanguageSelect } from "./LanguageSelect";
 import { useLanguage, type SiteLang } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
 
@@ -80,16 +81,7 @@ export function PixelShell({
 
         <div className="flex-grow sm:hidden" />
 
-        <select
-          aria-label={t("lang.select")}
-          className="font-pixel h-10 shrink-0 border-3 border-white bg-[#c6c6c6] px-1 text-[11px] sm:px-2"
-          style={{ borderColor: "#fff #555 #555 #fff" }}
-          value={lang}
-          onChange={(e) => setLang(e.target.value as SiteLang)}
-        >
-          <option value="fr">FR</option>
-          <option value="en">EN</option>
-        </select>
+        <LanguageSelect />
 
         <button
           type="button"
