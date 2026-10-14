@@ -7,6 +7,7 @@ import { isJoinRateLimited, recordFailedJoin } from "@/lib/join-limit";
 import { joinLobby } from "@/lib/lobby";
 import { db } from "@/lib/db";
 import { msg } from "@/lib/api-messages";
+import { inviteTokenSchema } from "@/lib/api-input";
 
 const REFUSALS = {
   invalid: ["invite_invalid", 404],
@@ -17,7 +18,7 @@ const REFUSALS = {
 
 // SALLE-04 : utilisation d'un lien d'invitation (usage unique, lié à l'IP).
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
+  const parsedToken = inviteTokenSchema.safeParse((await params).token);
   const ip = clientIpFrom(request.headers);
 
   if (await isJoinRateLimited(ip)) {
@@ -31,6 +32,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (!identity) {
     return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
   }
+
+  if (!parsedToken.success) {
+    await recordFailedJoin(ip);
+    return NextResponse.json({ error: await msg("invite_invalid"), code: "invalid" }, { status: 404 });
+  }
+  const token = parsedToken.data;
 
   const invite = await db
     .selectFrom("lobby_invites")

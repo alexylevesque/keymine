@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIdentity } from "@/lib/auth/identity";
 import { checkAvatarUpload, processAvatar } from "@/lib/avatar";
+import { avatarUploadForm } from "@/lib/api-input";
 import { db } from "@/lib/db";
 import { msg } from "@/lib/api-messages";
 
@@ -18,9 +19,10 @@ export async function POST(request: Request) {
   }
 
   const form = await request.formData().catch(() => null);
-  const file = form?.get("file");
-  if (!(file instanceof File)) return NextResponse.json({ error: await msg("empty_file"), code: "empty" }, { status: 400 });
+  const parsedForm = avatarUploadForm.safeParse({ file: form?.get("file") });
+  if (!parsedForm.success) return NextResponse.json({ error: await msg("empty_file"), code: "empty" }, { status: 400 });
   // Refus avant même de lire le corps si la taille annoncée est déjà trop grande.
+  const { file } = parsedForm.data;
   if (file.size > 2 * 1024 * 1024) return NextResponse.json({ error: await msg("too_large"), code: "too_large" }, { status: 413 });
 
   const bytes = new Uint8Array(await file.arrayBuffer());

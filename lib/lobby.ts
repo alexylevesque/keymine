@@ -1,4 +1,5 @@
 import { customAlphabet } from "nanoid";
+import { lobbyCodeSchema } from "@/lib/api-input";
 import { db } from "@/lib/db";
 import type { Identity } from "@/lib/auth/identity";
 import { isBanned } from "@/lib/bans";
@@ -29,12 +30,11 @@ export function isHost(
   return lobby.host_guest_id === identity.guestId;
 }
 
+/** Cherche une salle par son code ; un code mal formé est refusé par Zod avant la base (TECH-07). */
 export async function getLobbyByCode(code: string) {
-  return db
-    .selectFrom("lobbies")
-    .selectAll()
-    .where("code", "=", code.toUpperCase())
-    .executeTakeFirst();
+  const parsed = lobbyCodeSchema.safeParse(code);
+  if (!parsed.success) return undefined;
+  return db.selectFrom("lobbies").selectAll().where("code", "=", parsed.data).executeTakeFirst();
 }
 
 type PlayerRole = "participant" | "spectator";

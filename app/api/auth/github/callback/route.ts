@@ -1,21 +1,19 @@
 import { NextResponse } from "next/server";
 import { consumeOAuthState, loginOrCreateOAuthUser, siteUrl } from "@/lib/auth/oauth";
-
-type GitHubUser = { id: number; login: string; avatar_url: string | null };
+import { githubUserResponse, oauthCallbackQuery, oauthTokenResponse, parseSearchParams } from "@/lib/api-input";
 
 export async function GET(request: Request) {
-  const url = new URL(request.url);
-  const code = url.searchParams.get("code");
-  const state = url.searchParams.get("state");
+  const query = parseSearchParams(request.url, oauthCallbackQuery);
   const loginError = () =>
     NextResponse.redirect(
       `${siteUrl()}/connexion?error=${encodeURIComponent("Échec de la connexion GitHub")}`,
     );
 
-  const stateOk = await consumeOAuthState(state);
+  const stateOk = await consumeOAuthState(query?.state ?? null);
   const clientId = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  if (!stateOk || !code || !clientId || !clientSecret) return loginError();
+  if (!stateOk || !query || !clientId || !clientSecret) return loginError();
+  const { code } = query;
 
   try {
     const redirectUri = `${siteUrl()}/api/auth/github/callback`;
@@ -33,14 +31,17 @@ export async function GET(request: Request) {
       }),
     });
     if (!tokenRes.ok) return loginError();
-    const { access_token } = (await tokenRes.json()) as { access_token?: string };
-    if (!access_token) return loginError();
+    const token = oauthTokenResponse.safeParse(await tokenRes.json());
+    if (!token.success) return loginError();
+    const { access_token } = token.data;
 
     const userRes = await fetch("https://api.github.com/user", {
       headers: { Authorization: `Bearer ${access_token}`, "User-Agent": "KeyMine" },
     });
     if (!userRes.ok) return loginError();
-    const githubUser = (await userRes.json()) as GitHubUser;
+    const parsedUser = githubUserResponse.safeParse(await userRes.json());
+    if (!parsedUser.success) return loginError();
+    const githubUser = parsedUser.data;
 
     await loginOrCreateOAuthUser("github", {
       providerId: String(githubUser.id),

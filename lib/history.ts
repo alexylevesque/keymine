@@ -1,4 +1,5 @@
 import { sql } from "kysely";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import type { ParticipantStatus } from "@/db/types";
 import {
@@ -52,26 +53,30 @@ export type HistoryPage = HistoryQuery & {
 
 type RawParam = string | string[] | undefined;
 
-function first(value: RawParam): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 /** Numéro de page demandé (query string) ramené à un entier ≥ 1. */
 export function parsePage(value: RawParam): number {
-  const n = Number.parseInt(first(value) ?? "1", 10);
-  return Number.isFinite(n) && n >= 1 ? Math.min(n, 100_000) : 1;
+  return historyQuerySchema.shape.page.parse(value);
 }
+
+// Paramètres d'URL de l'historique validés par Zod (TECH-07) : toute valeur inconnue retombe sur la
+// valeur par défaut au lieu de provoquer une erreur.
+const queryValue = z.preprocess((v) => (Array.isArray(v) ? v[0] : v), z.string().optional());
+const historyQuerySchema = z.object({
+  section: queryValue.pipe(z.enum(HISTORY_SECTIONS)).catch("all"),
+  sort: queryValue.pipe(z.enum(HISTORY_SORTS)).catch("date"),
+  dir: queryValue.pipe(z.enum(["asc", "desc"])).catch("desc"),
+  page: queryValue
+    .pipe(z.string().regex(/^\d+$/).transform(Number))
+    .pipe(z.number().int().min(1))
+    .transform((n) => Math.min(n, 100_000))
+    .catch(1),
+});
 
 /** Paramètres d'URL de l'historique : toute valeur inconnue retombe sur la valeur par défaut. */
 export function parseHistoryQuery(query: Record<string, RawParam>): HistoryQuery {
-  const section = HISTORY_SECTIONS.find((s) => s === first(query.section)) ?? "all";
+  const q = historyQuerySchema.parse(query);
   // La section « spectateur » n'a pas de MPM ni de rang personnels : seul le tri par date a un sens.
-  const sort =
-    section === "spectated"
-      ? "date"
-      : (HISTORY_SORTS.find((s) => s === first(query.sort)) ?? "date");
-  const dir: HistoryDirection = first(query.dir) === "asc" ? "asc" : "desc";
-  return { section, sort, dir, page: parsePage(query.page) };
+  return { section: q.section, sort: q.section === "spectated" ? "date" : q.sort, dir: q.dir, page: q.page };
 }
 
 function baseFor(userId: string, section: HistorySection) {
