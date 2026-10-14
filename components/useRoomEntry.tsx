@@ -20,7 +20,14 @@ type State =
  * `run` exécute une requête d'entrée ; si elle réussit, `onEntered` est appelé
  * avec le code de la salle.
  */
-export function useRoomEntry(onEntered: (roomCode: string) => void) {
+export function useRoomEntry(
+  onEntered: (roomCode: string) => void,
+  /**
+   * Page qui n'a rien d'autre à montrer sans la salle (lien d'invitation, lien direct) : en cas de
+   * refus, le bouton ramène à l'accueil au lieu de fermer le message sur une page vide.
+   */
+  { leaveToHome = false }: { leaveToHome?: boolean } = {},
+) {
   const router = useRouter();
   const { t } = useLanguage();
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -83,8 +90,10 @@ export function useRoomEntry(onEntered: (roomCode: string) => void) {
   }
 
   function dismiss() {
-    setState({ kind: "idle" });
+    if (leaveToHome) router.push("/");
+    else setState({ kind: "idle" });
   }
+  const dismissLabel = leaveToHome ? t("entry.back_home") : t("entry.cancel");
 
   let panel: ReactNode = null;
   if (state.kind === "pseudo") {
@@ -104,7 +113,7 @@ export function useRoomEntry(onEntered: (roomCode: string) => void) {
           {t("entry.conflict_leave")}
         </PixelButton>
         <PixelButton variant="slate" onClick={dismiss} className="h-12 px-5 text-xs">
-          {t("entry.cancel")}
+          {dismissLabel}
         </PixelButton>
       </EntryBox>
     );
@@ -124,7 +133,7 @@ export function useRoomEntry(onEntered: (roomCode: string) => void) {
           </PixelButton>
         )}
         <PixelButton variant="slate" onClick={dismiss} className="h-12 px-5 text-xs">
-          {t("entry.cancel")}
+          {dismissLabel}
         </PixelButton>
       </EntryBox>
     );
@@ -132,7 +141,7 @@ export function useRoomEntry(onEntered: (roomCode: string) => void) {
     panel = (
       <EntryBox title={state.message ?? t("entry.error")}>
         <PixelButton variant="slate" onClick={dismiss} className="h-12 px-5 text-xs">
-          {t("entry.cancel")}
+          {dismissLabel}
         </PixelButton>
       </EntryBox>
     );

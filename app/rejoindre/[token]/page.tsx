@@ -13,7 +13,9 @@ export default function RejoindrePage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { token } = useParams<{ token: string }>();
-  const { run, pending, panel } = useRoomEntry((code) => router.push(`/jouer/${code}`));
+  const { run, pending, panel } = useRoomEntry((code) => router.push(`/jouer/${code}`), {
+    leaveToHome: true,
+  });
   const started = useRef(false);
 
   useEffect(() => {

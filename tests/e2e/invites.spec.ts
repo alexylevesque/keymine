@@ -40,5 +40,17 @@ test("salle privée : le code seul est refusé, le lien d'invitation fonctionne 
   });
   expect(reuse.ok()).toBe(false);
 
-  await Promise.all([hostContext, outsider, guestContext, second].map((c) => c.close()));
+  // Dans le navigateur, le refus propose de revenir à l'accueil (et non une page qui charge sans fin).
+  const third = await browser.newContext({
+    locale: "fr-CA",
+    extraHTTPHeaders: { "X-Forwarded-For": "203.0.113.78" },
+  });
+  const thirdPage = await third.newPage();
+  await thirdPage.request.post("/api/auth/guest", { data: { pseudo: uniqueName("trois") } });
+  await thirdPage.goto(`/rejoindre/${invite.token}`);
+  await expect(thirdPage.getByRole("alert")).toBeVisible({ timeout: 15_000 });
+  await thirdPage.getByRole("button", { name: "RETOUR A L'ACCUEIL" }).click();
+  await expect(thirdPage).toHaveURL(/\/$/);
+
+  await Promise.all([hostContext, outsider, guestContext, second, third].map((c) => c.close()));
 });

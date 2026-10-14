@@ -38,7 +38,7 @@ export default function LobbyPage() {
   const [editing, setEditing] = useState(false);
   const editor = useRef<HostSettingsEditorHandle>(null);
   const joined = useRef(false);
-  const { run, panel } = useRoomEntry(() => setEntered(true));
+  const { run, panel } = useRoomEntry(() => setEntered(true), { leaveToHome: true });
 
   // Entrée dans la salle (pseudo d'invité, déjà dans une autre salle… gérés par le hook).
   useEffect(() => {
