@@ -1,5 +1,5 @@
 import type { Difficulty, Language, TextType } from "@/db/types";
-import { accentTypesIn, stripAccentTypes, type AccentType } from "./accents";
+import { accentTypesIn, type AccentType } from "./accents";
 import { hasAccent, wordMatchesComplexity } from "./difficulty";
 
 // Génération du texte d'une course (CONF-02 à CONF-07). Fonction pure : le
@@ -61,43 +61,6 @@ function shuffled<T>(items: readonly T[], rng: Rng): T[] {
   return copy;
 }
 
-function stripAccents(text: string): string {
-  return text
-    .replace(/œ/g, "oe")
-    .replace(/Œ/g, "Oe")
-    .replace(/æ/g, "ae")
-    .replace(/Æ/g, "Ae")
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-}
-
-const SENTENCE_PUNCTUATION = /[.,;:!?«»"“”‘’()[\]…—–]/g;
-
-/**
- * Applique les options CONF-06 à un passage du corpus : le passage reste réel,
- * on retire seulement ce qui est désactivé (accents, ponctuation de phrase,
- * majuscules, mots contenant des chiffres). Apostrophes et traits d'union font
- * partie des mots et sont conservés.
- */
-export function applyOptionsToPassage(
-  content: string,
-  options: Pick<GenerateOptions, "uppercase" | "punctuation" | "digits" | "accents"> &
-    Partial<Pick<GenerateOptions, "accentForbidden">>,
-): string {
-  let text = content;
-  if (!options.accents) text = stripAccents(text);
-  else if (options.accentForbidden?.length) text = stripAccentTypes(text, options.accentForbidden);
-  if (!options.punctuation) text = text.replace(SENTENCE_PUNCTUATION, " ").replace(/\s+/g, " ").trim();
-  if (!options.uppercase) text = text.toLowerCase();
-  if (!options.digits) {
-    text = text
-      .split(/\s+/)
-      .filter((word) => !/\d/.test(word))
-      .join(" ");
-  }
-  return text.trim();
-}
-
 const DIFFICULTY_ORDER: Difficulty[] = ["easy", "medium", "hard"];
 
 /** Ordre de préférence des passages : la complexité demandée d'abord, puis les plus proches. */
@@ -121,8 +84,10 @@ function coherentText(options: GenerateOptions, corpus: Corpus, rng: Rng): strin
       candidates.filter((t) => t.difficulty === level),
       rng,
     )) {
-      const adapted = applyOptionsToPassage(passage.content, options);
-      if (adapted) words.push(...adapted.split(" "));
+      // Les vrais passages sont tapés tels qu'écrits (majuscules, ponctuation, accents, chiffres) :
+      // les options de texte et les cartes de touches ne s'appliquent qu'au texte aléatoire (CONF-06, CONF-07).
+      const asWritten = passage.content.replace(/\s+/g, " ").trim();
+      if (asWritten) words.push(...asWritten.split(" "));
       if (words.length >= options.length) return words.slice(0, options.length).join(" ");
     }
   }

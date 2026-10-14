@@ -43,17 +43,23 @@ export function Chip({
   onClick,
   children,
   label,
+  disabled = false,
+  title,
 }: {
   on: boolean;
   onClick: () => void;
   children: ReactNode;
   label?: string;
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      data-on={on}
+      disabled={disabled}
+      title={title}
+      data-on={on && !disabled}
       aria-pressed={on}
       aria-label={label}
       className="pixel-chip text-xl"
@@ -114,8 +120,8 @@ export function SettingsForm({
   const { t, lang } = useLanguage();
   const v = value;
   const random = v.textType === "aleatoire";
-  const accents = v.options.includes("Accents") && v.language === "fr"; // CONF-06 : accents « pour le français »
-  const punctuation = v.options.includes("Ponctuation");
+  const accents = random && v.options.includes("Accents") && v.language === "fr"; // CONF-06 : accents « pour le français »
+  const punctuation = random && v.options.includes("Ponctuation");
 
   // L'aperçu est tiré au hasard : on ne le calcule qu'après l'hydratation, sinon le texte
   // du serveur et celui du navigateur diffèrent (erreur d'hydratation React).
@@ -403,17 +409,29 @@ export function SettingsForm({
       <fieldset className="min-w-0 border-2 border-[#6b6b6b] p-3">
         <legend className="font-pixel px-1 text-[11px] text-[#3a3a3a]">{t("set.options")}</legend>
         <div className="flex flex-wrap gap-2">
-          {TEXT_OPTIONS.map((o) => (
-            <Chip
-              key={o}
-              on={v.options.includes(o)}
-              onClick={() => onChange({ options: toggled(v.options, o) })}
-            >
-              {t(`set.opt_${o}` as const)}
-            </Chip>
-          ))}
+          {TEXT_OPTIONS.map((o) => {
+            // Vrais passages : tapés tels qu'écrits. Anglais : pas d'accents (CONF-06).
+            const englishAccents = o === "Accents" && v.language === "en";
+            return (
+              <Chip
+                key={o}
+                on={v.options.includes(o)}
+                disabled={!random || englishAccents}
+                title={englishAccents ? t("set.accents_fr_only") : undefined}
+                onClick={() => onChange({ options: toggled(v.options, o) })}
+              >
+                {t(`set.opt_${o}` as const)}
+              </Chip>
+            );
+          })}
         </div>
-        <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.options_note")}</p>
+        <p className="mt-1.5 text-lg text-[#3a3a3a]">
+          {!random
+            ? t("set.options_coherent")
+            : v.language === "en"
+              ? `${t("set.options_note")} ${t("set.accents_fr_only")}`
+              : t("set.options_note")}
+        </p>
         <div className="mt-3">
           <Legend />
         </div>
@@ -458,6 +476,7 @@ export function SettingsForm({
             <Chip
               key={o}
               on={v.options.includes(o)}
+              disabled={!random}
               onClick={() => onChange({ options: toggled(v.options, o) })}
             >
               {t(`set.opt_${o}` as const)}
@@ -475,7 +494,7 @@ export function SettingsForm({
               onChange({ includeChars: next.wanted, excludeChars: next.forbidden })
             }
           />
-          {v.options.includes("Nombres") && (
+          {random && v.options.includes("Nombres") && (
             <div data-testid="digit-map" className="pixel-reveal">
               <div className="mb-2 flex h-7 items-center text-lg text-[#3a3a3a]">
                 {t("set.digits")}

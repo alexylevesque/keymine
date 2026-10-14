@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { BUNDLED_CORPUS } from "@/lib/text/corpus";
 import { classifyText, measureText, wordMatchesComplexity } from "@/lib/text/difficulty";
 import {
-  applyOptionsToPassage,
   generateRaceText,
   NoTextAvailableError,
   type GenerateOptions,
@@ -45,19 +44,15 @@ describe("génération du texte (CONF-02 à CONF-07)", () => {
     expect(frTitles.length).toBeGreaterThan(5);
   });
 
-  it("retire accents, ponctuation et majuscules d'un passage quand c'est désactivé (CONF-06)", () => {
-    const out = applyOptionsToPassage("Il était, une fois… Œuvre 1625 d'été !", {
-      uppercase: false,
-      punctuation: false,
-      digits: false,
-      accents: false,
-    });
-    expect(out).toBe("il etait une fois oeuvre d'ete");
-  });
-
-  it("conserve la ponctuation quand elle est activée en mode cohérent", () => {
-    const text = gen({ type: "coherent", language: "fr", punctuation: true, uppercase: true, length: 30 });
-    expect(text).toMatch(/[,.!?;:]/);
+  it("texte cohérent : le passage est tapé tel qu'écrit, quelles que soient les options (CONF-06)", () => {
+    const off = { uppercase: false, punctuation: false, digits: false, accents: false };
+    const on = { uppercase: true, punctuation: true, digits: true, accents: true };
+    const a = gen({ type: "coherent", language: "fr", length: 60, ...off }, 7);
+    const b = gen({ type: "coherent", language: "fr", length: 60, ...on, accentForbidden: ["aigu"] }, 7);
+    expect(a).toBe(b);
+    expect(a).toMatch(/[A-ZÀ-Ý]/); // majuscules d'origine
+    expect(a).toMatch(/[,.!?;:]/); // ponctuation d'origine
+    expect(a).toMatch(/[éèêàçùâîôû]/); // accents d'origine
   });
 
   it("exclut les caractères demandés du texte aléatoire (CONF-07)", () => {
@@ -161,21 +156,7 @@ describe("types d'accents (CONF-06)", () => {
     expect(gen({ accents: false, accentWanted: ["aigu"], length: 100 })).not.toMatch(/[éèêàçù]/);
   });
 
-  it("texte cohérent : un type interdit est retiré du passage, les autres restent", () => {
-    const adapted = applyOptionsToPassage("Le garçon est déjà où il doit être.", {
-      uppercase: true,
-      punctuation: true,
-      digits: true,
-      accents: true,
-      accentForbidden: ["aigu", "cedille"],
-    });
-    expect(adapted).toContain("garcon");
-    expect(adapted).toContain("dejà");
-    expect(adapted).toContain("où");
-    expect(adapted).toContain("être");
-    const text = gen({ type: "coherent", accentForbidden: ["aigu", "circonflexe", "grave", "cedille"], length: 80 });
-    expect(text).not.toMatch(/[éèêàçùâîôû]/);
-  });
+
 });
 
 describe("lettres et symboles à privilégier ou interdits (CONF-07)", () => {

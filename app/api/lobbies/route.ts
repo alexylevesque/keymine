@@ -49,7 +49,11 @@ export async function GET() {
 
 // COUR-1: l'hôte crée la course et règle les options.
 export async function POST(request: Request) {
-  const body = lobbySettingsSchema.safeParse(await request.json().catch(() => ({})));
+  const raw: unknown = await request.json().catch(() => ({}));
+  // CONF-02 : sans langue précisée (partie rapide, salle par défaut), le texte suit la langue du site.
+  const withLanguage =
+    raw && typeof raw === "object" && !("language" in raw) ? { ...raw, language: await getRequestLang() } : raw;
+  const body = lobbySettingsSchema.safeParse(withLanguage);
   if (!body.success) {
     return NextResponse.json(
       { error: await zodMessage(body.error, "bad_settings") },

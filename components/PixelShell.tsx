@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { PixelAvatar } from "./ui";
 import { LanguageSelect } from "./LanguageSelect";
-import { useLanguage, type SiteLang } from "@/lib/i18n";
+import { useLanguage } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
 
 type NavKey = "jouer" | "lobbys" | "stats" | null;
@@ -38,7 +38,7 @@ export function PixelShell({
   rightSlot?: ReactNode;
   children: ReactNode;
 }) {
-  const { t, lang, setLang } = useLanguage();
+  const { t } = useLanguage();
   const { toggle: toggleTheme } = useTheme();
   const viewer = useViewer();
   const viewerName = viewer?.name ?? t("common.guest");

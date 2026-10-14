@@ -53,15 +53,17 @@ export const DEFAULT_SETTINGS: SettingsState = {
   excludeChars: [],
   accentWanted: [],
   accentForbidden: [],
-  options: ["Accents"],
+  options: [],
   comebackBonus: true,
   bonusKinds: [...BONUS_KINDS],
 };
 
 /** Corps envoyé à POST /api/lobbies et PATCH /api/lobbies/[code]. */
 export function settingsToPayload(s: SettingsState) {
-  const random = s.textType === "aleatoire"; // lettres et symboles : réservés au texte aléatoire (CONF-07)
-  const accents = s.options.includes("Accents");
+  const random = s.textType === "aleatoire"; // options et cartes de touches : réservées au texte aléatoire (CONF-06, CONF-07)
+  // Les vrais passages sont tapés tels qu'écrits (le serveur ignore alors ces options) ; les accents
+  // n'existent qu'en français (CONF-06).
+  const accents = s.options.includes("Accents") && s.language === "fr";
   const punctuation = s.options.includes("Ponctuation");
   // On n'envoie que ce que le formulaire montre : une carte masquée (option décochée) ne garde pas d'effet caché.
   const visibleChars = (chars: string[]) =>
@@ -94,7 +96,7 @@ export function settingsToPayload(s: SettingsState) {
     includeChars: visibleChars(s.includeChars),
     excludeChars: visibleChars(s.excludeChars),
     accentWanted: accents && random ? s.accentWanted : [],
-    accentForbidden: accents ? s.accentForbidden : [],
+    accentForbidden: accents && random ? s.accentForbidden : [],
   };
 }
 

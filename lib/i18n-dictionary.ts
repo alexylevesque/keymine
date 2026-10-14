@@ -329,7 +329,7 @@ export const DICTIONARY = {
     "set.opt_Nombres": "Nombres",
     "set.opt_Accents": "Accents",
     "set.options_note":
-      "En mode cohérent, les passages sont adaptés (accents et ponctuation retirés si désactivés).",
+      "Texte aléatoire : chaque option ajoute ce type de caractères aux mots tirés.",
     "set.letters": "LETTRES",
     "set.digits": "Nombres",
     "set.letters_note":
@@ -351,6 +351,9 @@ export const DICTIONARY = {
     "set.state_forbidden": "jamais",
     "set.key_aria": "{key} : {state}",
     "set.chars_disabled": "Réglage désactivé en mode cohérent : réservé au texte aléatoire.",
+    "set.options_coherent":
+      "Vrais passages : le texte est tapé tel qu'écrit (majuscules, ponctuation, accents). Ces options servent au texte aléatoire.",
+    "set.accents_fr_only": "Les accents ne s'appliquent qu'aux textes en français.",
     "set.preview": "APERCU",
     "set.edit_title": "MODIFIER LES REGLAGES",
     "set.save": "ENREGISTRER",
@@ -805,7 +808,7 @@ export const DICTIONARY = {
     "set.opt_Nombres": "Numbers",
     "set.opt_Accents": "Accents",
     "set.options_note":
-      "In coherent mode, passages are adapted (accents and punctuation removed when disabled).",
+      "Random text: each option adds that kind of character to the drawn words.",
     "set.letters": "LETTERS",
     "set.digits": "Numbers",
     "set.letters_note":
@@ -827,6 +830,9 @@ export const DICTIONARY = {
     "set.state_forbidden": "never",
     "set.key_aria": "{key}: {state}",
     "set.chars_disabled": "Disabled in coherent mode: only for random text.",
+    "set.options_coherent":
+      "Real passages: the text is typed as written (capitals, punctuation, accents). These options are for random text.",
+    "set.accents_fr_only": "Accents only apply to French texts.",
     "set.preview": "PREVIEW",
     "set.edit_title": "EDIT SETTINGS",
     "set.save": "SAVE",

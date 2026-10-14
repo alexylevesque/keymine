@@ -16,6 +16,7 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
 
   await page.getByRole("button", { name: /ALEATOIRE/ }).click();
   await page.getByRole("button", { name: "Ponctuation" }).click();
+  await page.getByRole("button", { name: "Accents", exact: true }).click(); // décochés par défaut
 
   // Lettres : Z souvent (1 clic), E jamais (2 clics), K : 3 clics = retour au neutre.
   const letters = page.getByRole("group", { name: "LETTRES" });
@@ -77,22 +78,49 @@ test("décocher tous les types de bonus coupe l'interrupteur général", async (
   );
 });
 
-test("en texte cohérent, les cartes de lettres et de symboles sont désactivées", async ({
+test("en texte cohérent, tout est grisé : le passage est tapé tel qu'écrit (CONF-06, CONF-07)", async ({
   page,
 }) => {
   await registerViaApi(page.request, "coher");
   await page.goto("/jouer/creer");
-  await page.getByRole("button", { name: "Ponctuation" }).click();
+  // Par défaut : texte cohérent, aucune option cochée.
+  for (const name of ["Ponctuation", "Accents", "Nombres", "Majuscules"]) {
+    const chip = page.getByRole("button", { name, exact: true });
+    await expect(chip).toBeDisabled();
+    await expect(chip).toHaveAttribute("aria-pressed", "false");
+  }
   await expect(
     page.getByRole("group", { name: "LETTRES" }).getByRole("button", { name: /^Q : / }),
   ).toBeDisabled();
-  await expect(
-    page.getByRole("group", { name: "SYMBOLES" }).getByRole("button", { name: /^@ : / }),
-  ).toBeDisabled();
-  // Les types d'accents restent utilisables : un accent interdit s'applique aussi aux passages.
-  await expect(
-    page.getByRole("group", { name: "TYPES D'ACCENTS" }).getByRole("button").first(),
-  ).toBeEnabled();
+  await expect(page.getByRole("group", { name: "TYPES D'ACCENTS" })).toHaveCount(0);
+  await expect(page.getByText("Vrais passages : le texte est tapé tel qu'écrit")).toBeVisible();
+
+  // En texte aléatoire, les options redeviennent actives, sauf les accents en anglais.
+  await page.getByRole("button", { name: /ALEATOIRE/ }).click();
+  await expect(page.getByRole("button", { name: "Accents", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Accents", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Ponctuation", exact: true })).toBeEnabled();
+});
+
+test("la langue du texte part de la langue du site (CONF-02)", async ({ page }) => {
+  await registerViaApi(page.request, "langue");
+  await page.goto("/jouer/creer");
+  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("combobox", { name: "Langue du site" }).selectOption("en");
+  await page.goto("/jouer/creer");
+  await expect(page.getByRole("button", { name: "EN", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // Toujours modifiable.
+  await page.getByRole("button", { name: "FR", exact: true }).click();
+  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  // Salle par défaut (partie rapide sans salle) : même règle côté serveur.
+  const res = await page.request.post("/api/lobbies", { data: {} });
+  expect(res.ok()).toBe(true);
+  const { code } = (await res.json()) as { code: string };
+  const lobby = await page.request.get(`/api/lobbies/${code}`);
+  expect(((await lobby.json()) as { lobby: { language: string } }).lobby.language).toBe("en");
 });
 
 // SALLE-06 : dans une salle, la page de création ne montre pas le formulaire.

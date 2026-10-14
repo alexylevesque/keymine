@@ -12,10 +12,12 @@ import { checkRoomName, normalizeRoomName } from "@/lib/room-name";
 
 export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [accountRequired, setAccountRequired] = useState(false);
+  // CONF-02 : la langue du texte part de celle du site (modifiable, indépendante de l'interface ensuite).
   const [settings, setSettings] = useState<SettingsState>({
     ...DEFAULT_SETTINGS,
+    language: lang,
     name: defaultName,
   });
   const [bots, setBots] = useState<BotLevel[]>(["intermediaire", "expert"]);

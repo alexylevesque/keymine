@@ -99,7 +99,7 @@ describe("corps envoyé au serveur", () => {
     expect(payload.excludeChars).toEqual(["e"]);
   });
 
-  it("texte cohérent : pas de lettres ni de symboles, accents interdits gardés, souhaités ignorés", () => {
+  it("texte cohérent : aucune carte de touches ni type d'accent envoyé (passage tel qu'écrit)", () => {
     const payload = settingsToPayload(
       state({ ...chosen, textType: "coherent", options: ["Accents", "Ponctuation"] }),
     );
@@ -107,8 +107,19 @@ describe("corps envoyé au serveur", () => {
       includeChars: [],
       excludeChars: [],
       accentWanted: [],
-      accentForbidden: ["trema"],
+      accentForbidden: [],
     });
+  });
+
+  it("anglais : jamais d'accents, même cochés (CONF-06)", () => {
+    const payload = settingsToPayload(
+      state({ ...chosen, textType: "aleatoire", language: "en", options: ["Accents", "Ponctuation"] }),
+    );
+    expect(payload).toMatchObject({ accents: false, accentWanted: [], accentForbidden: [], punctuation: true });
+  });
+
+  it("par défaut, aucune option de texte n'est cochée", () => {
+    expect(DEFAULT_SETTINGS.options).toEqual([]);
   });
 
   it("accents désactivés : aucun type d'accent envoyé", () => {
