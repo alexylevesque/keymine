@@ -893,12 +893,6 @@ body {
     background: linear-gradient(to top, #f0b429, #e5541b);
   }
 
-  /* Personnage de l'accueil : le fond de la vidéo prolonge celui du cadre. */
-  .home-typist {
-    margin-top: 0.75rem;
-    background: #1a1004;
-  }
-
   /* Choix de la classe sur la page CLASSEMENT. */
   .lb-league-btn {
     font-family: var(--font-pixel), monospace;

@@ -3,7 +3,6 @@
 ## Agents et outils utilisés
 
 - **Claude (Anthropic)** via l'application de bureau Claude (mode Cowork / Claude Code) : écriture et refactorisation du code, des tests et de la documentation technique, sous la direction de l'équipe.
-- **ChatGPT (OpenAI)** et **Dreamina (CapCut)** : le personnage animé de la page d'accueil (`public/home/typist.*`), fait par l'étudiant. ChatGPT a créé l'image d'un personnage original en blocs avec ce prompt : « Personnage original en blocs, style voxel pixel art, assis de profil devant un bureau en bois, qui tape sur un clavier d'ordinateur… Pas de texte, pas de logo, pas de personnage existant. » Dreamina l'a animée en boucle de 5 secondes avec ce prompt : « The character types on the keyboard at a steady pace. Only the hands and fingers move, the head barely moves. Static camera, the background and lighting stay exactly the same. Seamless loop, 5 seconds. » Claude a recadré et compressé la vidéo (WebM et MP4, environ 100 Ko, sans son) et écrit le code qui la fait taper plus vite quand la souris approche du bouton JOUER (`components/HomeTypist.tsx`, `lib/typist.ts`). C'est une illustration décorative, pas le logo ni l'identité visuelle.
 - Aucun outil d'IA n'a servi pour le **nom, le logo, le moodboard, la palette et les typographies** : cette partie est faite à la main par l'équipe (DES-01 à DES-03, voir `DEMARCHE-CREATIVE.md`).
 
 ## Fichiers d'instructions d'agent (commités)

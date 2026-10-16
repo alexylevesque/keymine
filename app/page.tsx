@@ -1,4 +1,3 @@
-import { HomeTypist } from "@/components/HomeTypist";
 import { PixelShell } from "@/components/PixelShell";
 import { PixelButton, PixelSlot } from "@/components/ui";
 import { PublicLobbies } from "@/components/PublicLobbies";
@@ -38,13 +37,8 @@ async function getMiniStats() {
 }
 
 export default async function Home() {
-  const [lobbies, stats, lang] = await Promise.all([
-    listPublicLobbies(),
-    getMiniStats(),
-    getRequestLang(),
-  ]);
-  const t = (key: DictKey, params?: Record<string, string | number>) =>
-    translate(lang, key, params);
+  const [lobbies, stats, lang] = await Promise.all([listPublicLobbies(), getMiniStats(), getRequestLang()]);
+  const t = (key: DictKey, params?: Record<string, string | number>) => translate(lang, key, params);
 
   return (
     <PixelShell active="lobbys">
@@ -55,10 +49,7 @@ export default async function Home() {
           </h1>
           <p className="text-2xl leading-tight text-[#f1e6c9]">{t("home.subtitle")}</p>
 
-          {/* data-typist-target : le personnage de l'accueil tape plus vite quand la souris approche. */}
-          <div data-typist-target>
-            <QuickPlayButton className="h-24 w-full text-3xl" />
-          </div>
+          <QuickPlayButton className="h-24 text-3xl" />
           <p className="-mt-2 text-xl text-[#f1e6c9]">{t("home.quickplay_hint")}</p>
 
           <JoinByCodeForm />
@@ -72,9 +63,6 @@ export default async function Home() {
             </PixelButton>
           </div>
           <p className="text-xl text-[#c9bb98]">{t("home.guest_note")}</p>
-
-          {/* Grand écran : sous le bouton JOUER, dans la colonne de gauche. */}
-          <HomeTypist className="mt-2 hidden lg:block" />
         </div>
 
         <div className="flex w-full flex-grow flex-col gap-3">
@@ -83,9 +71,7 @@ export default async function Home() {
           <div className="mt-3 grid grid-cols-3 gap-2.5">
             <PixelSlot className="px-3 py-2">
               <div className="font-pixel text-[9px] text-[#fff6d6]">{t("home.stat_best")}</div>
-              <div className="text-3xl text-white">
-                {stats ? t("home.wpm_value", { value: formatNumber(lang, stats.bestWpm) }) : "—"}
-              </div>
+              <div className="text-3xl text-white">{stats ? t("home.wpm_value", { value: formatNumber(lang, stats.bestWpm) }) : "—"}</div>
             </PixelSlot>
             <PixelSlot className="px-3 py-2">
               <div className="font-pixel text-[9px] text-[#fff6d6]">{t("home.stat_races")}</div>
@@ -98,9 +84,6 @@ export default async function Home() {
               </div>
             </PixelSlot>
           </div>
-
-          {/* Téléphone et tablette : après les lobbys, pour ne pas les pousser vers le bas. */}
-          <HomeTypist className="mt-3 lg:hidden" />
         </div>
       </div>
     </PixelShell>
