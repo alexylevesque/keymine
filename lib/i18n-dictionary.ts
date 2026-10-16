@@ -586,7 +586,7 @@ export const DICTIONARY = {
     "inv.bag": "SAC",
     "inv.hint":
       "Clique ou touche un objet, puis la case où le poser (tu peux aussi le glisser). Au clavier : Entrée prend, Entrée pose, Échap annule.",
-    "inv.selected": "En main : {item} × {count}",
+    "inv.selected": "{item} x{count}",
     "inv.amount": "Quantité",
     "inv.amount_all": "TOUT",
     "inv.amount_half": "MOITIE",
@@ -654,6 +654,9 @@ export const DICTIONARY = {
     "inv.discard_confirm": "OUI, JETER",
     "inv.discarded": "{item} × {count} jeté : +{xp} XP.",
     "info.discard": "Si tu le jettes : {xp} XP rendus (25 % de sa valeur).",
+    "inv.held_title": "EN MAIN",
+    "inv.held_none":
+      "Rien en main. Touche ou clique un objet pour le prendre : ses actions apparaissent ici.",
   },
   en: {
     "meta.description": "Real-time typing races for the classroom.",
@@ -1226,7 +1229,7 @@ export const DICTIONARY = {
     "inv.bag": "BAG",
     "inv.hint":
       "Click or tap an item, then the slot where it goes (you can also drag it). Keyboard: Enter picks up, Enter drops, Escape cancels.",
-    "inv.selected": "Holding: {item} × {count}",
+    "inv.selected": "{item} x{count}",
     "inv.amount": "Amount",
     "inv.amount_all": "ALL",
     "inv.amount_half": "HALF",
@@ -1292,6 +1295,9 @@ export const DICTIONARY = {
     "inv.discard_confirm": "YES, DISCARD",
     "inv.discarded": "{item} × {count} discarded: +{xp} XP.",
     "info.discard": "If you discard it: {xp} XP back (25% of its value).",
+    "inv.held_title": "HOLDING",
+    "inv.held_none":
+      "Nothing in hand. Tap or click an item to pick it up: its actions show up here.",
   },
 } as const;
 
