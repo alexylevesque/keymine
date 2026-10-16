@@ -58,7 +58,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
-      <body className="min-h-screen antialiased">
+      {/* Des extensions de navigateur (ex. ColorZilla : cz-shortcut-listen) ajoutent des attributs à <body>
+          avant React : on ignore ces différences d'attributs sur cette seule balise. */}
+      <body className="min-h-screen antialiased" suppressHydrationWarning>
         <Providers initialLang={lang} viewer={viewer}>{children}</Providers>
       </body>
     </html>
