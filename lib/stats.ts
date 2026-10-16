@@ -62,17 +62,54 @@ export async function recomputeUserStats(userId: string) {
 
 /** Fusionne l'historique d'un invité dans un compte à la connexion (AUTH-8). */
 export async function mergeGuestHistory(guestId: string, userId: string) {
-  await db
-    .updateTable("lobby_players")
-    .set({ user_id: userId, guest_id: null })
-    .where("guest_id", "=", guestId)
-    .execute();
+  await db.transaction().execute(async (trx) => {
+    // Le compte était déjà dans une salle où l'invité a joué (deux onglets) :
+    // une seule ligne par personne et par salle, on garde celle du compte.
+    const duplicates = await trx
+      .selectFrom("lobby_players as g")
+      .innerJoin("lobby_players as u", (join) =>
+        join.onRef("u.lobby_id", "=", "g.lobby_id").on("u.user_id", "=", userId),
+      )
+      .where("g.guest_id", "=", guestId)
+      .select(["g.id as guestRow", "u.id as userRow"])
+      .execute();
+    for (const { guestRow, userRow } of duplicates) {
+      await trx
+        .updateTable("race_participants")
+        .set({ lobby_player_id: userRow })
+        .where("lobby_player_id", "=", guestRow)
+        .execute();
+      await trx.deleteFrom("lobby_players").where("id", "=", guestRow).execute();
+    }
 
-  await db
-    .updateTable("race_participants")
-    .set({ user_id: userId, guest_id: null })
-    .where("guest_id", "=", guestId)
-    .execute();
+    // Une seule salle active à la fois (SALLE-06) : si le compte est déjà
+    // dans une salle, la place de l'invité est libérée.
+    const userActive = await trx
+      .selectFrom("lobby_players")
+      .where("user_id", "=", userId)
+      .where("active", "=", true)
+      .select("id")
+      .executeTakeFirst();
+    if (userActive) {
+      await trx
+        .updateTable("lobby_players")
+        .set({ active: false })
+        .where("guest_id", "=", guestId)
+        .execute();
+    }
+
+    await trx
+      .updateTable("lobby_players")
+      .set({ user_id: userId, guest_id: null })
+      .where("guest_id", "=", guestId)
+      .execute();
+
+    await trx
+      .updateTable("race_participants")
+      .set({ user_id: userId, guest_id: null })
+      .where("guest_id", "=", guestId)
+      .execute();
+  });
 
   await recomputeUserStats(userId);
 }

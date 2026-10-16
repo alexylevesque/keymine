@@ -98,6 +98,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** L'étudiant, en testant keymine.quest avec son compte Discord et un lien déjà utilisé.
 **Correction.** (a) La photo du compte est transmise dans l'état de la salle (test en base et e2e). (b) Sur les pages qui n'ont rien d'autre à montrer (lien d'invitation, lien direct d'une salle), un refus propose « Retour à l'accueil » (test e2e). Leçon : vérifier une fonctionnalité visuelle avec les vrais cas (compte avec photo, lien déjà utilisé), pas seulement le cas le plus simple.
 
+### 15. Une fusion invité → compte qui pouvait planter la connexion
+
+**Ce qui s'est passé.** La fonction qui donne au compte les courses jouées en invité (`mergeGuestHistory`, appelée à l'inscription, à la connexion et après l'OAuth) avait été écrite par l'agent sans test. Elle réassignait toutes les lignes de salle de l'invité au compte d'un coup. Si le compte était déjà dans la même salle (deux onglets), ou déjà actif dans une autre salle, la base refusait la mise à jour (index uniques de SALLE-06) et la connexion échouait avec une erreur 500.
+**Détection.** En écrivant enfin le test en base de cette fusion, à la demande de l'étudiant : le cas « même salle » a échoué sur `lobby_players_user_unique`.
+**Correction.** La fusion se fait dans une transaction : la ligne en double de l'invité est retirée (ses courses pointent vers la ligne du compte), et sa place active est libérée si le compte est déjà dans une salle. Cinq tests en base (`tests/db/guest-merge.test.ts`). Leçon : du code sans test, même court, cache des cas limites ; les contraintes de la base en font partie.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._
