@@ -24,7 +24,7 @@ export const BONUS_LABELS: Record<BonusKind, string> = {
 };
 
 /** Pourquoi un malus n'a pas touché sa cible (équipement de l'inventaire). */
-export type BonusBlock = "apple" | "night_vision" | "shield" | "dodge";
+export type BonusBlock = "apple" | "night_vision" | "shield" | "feather" | "dodge";
 
 export type BonusRecord = {
   kind: BonusKind;
@@ -34,6 +34,8 @@ export type BonusRecord = {
   targetId: string; // le participant dont le texte/affichage est modifié
   /** Malus arrêté par l'équipement de la cible : le texte et l'affichage ne changent pas. */
   blocked?: BonusBlock;
+  /** Épines : la cible a renvoyé du brouillard au retardataire. */
+  thorns?: true;
 };
 
 /** Protection d'un joueur contre les malus, figée au départ (voir lib/inventory.ts). */
@@ -42,6 +44,10 @@ export type Protection = {
   immuneAll: boolean;
   immuneFog: boolean;
   shield: number;
+  /** Enchantements (facultatifs) : Chute amortie, Respiration, Épines. */
+  plusWordsBlock?: number;
+  fogReductionMs?: number;
+  thorns?: number;
 };
 
 /**
@@ -55,6 +61,9 @@ export function blockMalus(kind: BonusKind, p: Protection, roll: () => number): 
   if (p.shield > 0) {
     p.shield -= 1;
     return "shield";
+  }
+  if (kind === "plus_words" && (p.plusWordsBlock ?? 0) > 0 && roll() < p.plusWordsBlock!) {
+    return "feather";
   }
   return p.dodge > 0 && roll() < p.dodge ? "dodge" : null;
 }

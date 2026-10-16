@@ -18,6 +18,16 @@ import {
   type ItemId,
   type Material,
 } from "./items";
+import {
+  enchantLevel,
+  FEATHER_BLOCK_PER_LEVEL,
+  FORTUNE_XP_PER_LEVEL,
+  PROTECTION_DODGE_PER_LEVEL,
+  RESPIRATION_FOG_MS_PER_LEVEL,
+  THORNS_PER_LEVEL,
+  UNBREAKING_SAVE,
+  type Enchant,
+} from "./enchants";
 
 export const BAG_SIZE = 27;
 export const CRAFT_SIZE = 9;
@@ -30,6 +40,7 @@ export const AREAS = [
   "furnace_in",
   "furnace_fuel",
   "furnace_out",
+  "enchant",
 ] as const;
 export type Area = (typeof AREAS)[number];
 
@@ -40,9 +51,16 @@ export const AREA_SIZE: Record<Area, number> = {
   furnace_in: 1,
   furnace_fuel: 1,
   furnace_out: 1,
+  enchant: 1,
 };
 
-export type Stack = { item: ItemId; count: number; durability: number | null };
+export type Stack = {
+  item: ItemId;
+  count: number;
+  durability: number | null;
+  /** Enchantements (armure seulement), définitifs. */
+  enchants?: Enchant[];
+};
 export type Slot = Stack | null;
 
 export type FurnaceState = {
@@ -62,12 +80,14 @@ export function emptyInventory(): Inventory {
     furnace_in: [null],
     furnace_fuel: [null],
     furnace_out: [null],
+    enchant: [null],
     furnace: { burnLeft: 0, progressMs: 0 },
   };
 }
 
 export function cloneInventory(inv: Inventory): Inventory {
-  const copy = (slots: Slot[]) => slots.map((s) => (s ? { ...s } : null));
+  const copy = (slots: Slot[]) =>
+    slots.map((s) => (s ? { ...s, enchants: s.enchants?.map((e) => ({ ...e })) } : null));
   return {
     bag: copy(inv.bag),
     armor: copy(inv.armor),
@@ -75,6 +95,7 @@ export function cloneInventory(inv: Inventory): Inventory {
     furnace_in: copy(inv.furnace_in),
     furnace_fuel: copy(inv.furnace_fuel),
     furnace_out: copy(inv.furnace_out),
+    enchant: copy(inv.enchant),
     furnace: { ...inv.furnace },
   };
 }
@@ -108,9 +129,19 @@ export function canSmelt(item: ItemId): boolean {
   return item in SMELTING;
 }
 
-/** Ce qu'une case accepte (l'armure : seulement sa pièce ; la sortie du four : rien). */
-export function accepts(area: Area, slot: number, item: ItemId): boolean {
+/** Pièce maudite par la malédiction du lien : elle ne quitte plus sa case d'armure. */
+export function isBound(stack: Slot): boolean {
+  return enchantLevel(stack?.enchants, "binding_curse") > 0;
+}
+
+/**
+ * Ce qu'une case accepte (l'armure : seulement sa pièce ; la sortie du four : rien ; la table
+ * d'enchantement : une pièce d'armure pas encore enchantée).
+ */
+export function accepts(area: Area, slot: number, item: ItemId, enchants?: Enchant[]): boolean {
   switch (area) {
+    case "enchant":
+      return armorInfo(item) !== null && !(enchants && enchants.length > 0);
     case "armor":
       return armorInfo(item)?.slot === slot;
     case "furnace_in":
@@ -206,7 +237,12 @@ export function addToBag(inv: Inventory, stack: Stack): number {
   for (let i = 0; i < inv.bag.length && rest > 0; i++) {
     if (!inv.bag[i]) {
       const moved = Math.min(rest, max);
-      inv.bag[i] = { item: stack.item, count: moved, durability: stack.durability };
+      inv.bag[i] = {
+        item: stack.item,
+        count: moved,
+        durability: stack.durability,
+        ...(stack.enchants?.length ? { enchants: stack.enchants } : {}),
+      };
       rest -= moved;
     }
   }
@@ -234,6 +270,8 @@ export function moveItem(inv: Inventory, from: SlotRef, to: SlotRef, count?: num
   const source = slotOf(inv, from);
   if (!source) throw new InventoryError("empty_slot");
   const amount = Math.min(source.count, Math.max(1, Math.floor(count ?? source.count)));
+  // Malédiction du lien : la pièce portée ne quitte plus sa case (on peut seulement la jeter).
+  if (from.area === "armor" && isBound(source)) throw new InventoryError("not_allowed");
 
   if (to.slot === -1) {
     autoMove(inv, from, source, amount);
@@ -244,7 +282,9 @@ export function moveItem(inv: Inventory, from: SlotRef, to: SlotRef, count?: num
   const slots = inv[to.area];
 
   if (!target) {
-    if (!accepts(to.area, to.slot, source.item)) throw new InventoryError("not_allowed");
+    if (!accepts(to.area, to.slot, source.item, source.enchants)) {
+      throw new InventoryError("not_allowed");
+    }
     slots[to.slot] = { ...source, count: amount };
     take(inv, from, amount);
     return;
@@ -259,7 +299,11 @@ export function moveItem(inv: Inventory, from: SlotRef, to: SlotRef, count?: num
   }
   // Échange : seulement des piles entières, et chacune doit être acceptée dans sa nouvelle case.
   if (amount !== source.count) throw new InventoryError("not_allowed");
-  if (!accepts(to.area, to.slot, source.item) || !accepts(from.area, from.slot, target.item)) {
+  if (
+    (to.area === "armor" && isBound(target)) ||
+    !accepts(to.area, to.slot, source.item, source.enchants) ||
+    !accepts(from.area, from.slot, target.item, target.enchants)
+  ) {
     throw new InventoryError("not_allowed");
   }
   slots[to.slot] = source;
@@ -275,8 +319,9 @@ function take(inv: Inventory, from: SlotRef, amount: number) {
 function autoMove(inv: Inventory, from: SlotRef, source: Stack, amount: number) {
   const armor = armorInfo(source.item);
   if (from.area === "bag" && armor) {
-    // Équiper : échange avec la pièce déjà portée, s'il y en a une.
-    const worn = inv.armor[armor.slot];
+    // Équiper : échange avec la pièce déjà portée, s'il y en a une (sauf si elle est maudite).
+    const worn = inv.armor[armor.slot] ?? null;
+    if (isBound(worn)) throw new InventoryError("not_allowed");
     inv.armor[armor.slot] = source;
     inv.bag[from.slot] = worn;
     return;
@@ -398,9 +443,9 @@ export function craft(inv: Inventory): Stack {
 // ---- Équipement et effets en course ----
 
 export type Loadout = {
-  /** Chance d'esquiver un malus (0 à 0,37). */
+  /** Chance d'esquiver un malus (0 à 0,5). */
   dodge: number;
-  /** Bonus d'XP (0,3 = +30 %), armure en or et fiole d'expérience. */
+  /** Bonus d'XP (0,3 = +30 %) : armure en or, Fortune et fiole d'expérience. */
   xpBonus: number;
   immuneAll: boolean;
   immuneFog: boolean;
@@ -410,6 +455,12 @@ export type Loadout = {
   noLevelLoss: boolean;
   /** Objet à usage unique utilisé pour cette course. */
   item: ItemId | null;
+  /** Respiration : le brouillard dure moins longtemps (ms retirées). */
+  fogReductionMs: number;
+  /** Chute amortie : chance de bloquer « +3 mots ». */
+  plusWordsBlock: number;
+  /** Épines : chance de renvoyer du brouillard à l'envoyeur d'un malus. */
+  thorns: number;
 };
 
 export const NO_LOADOUT: Loadout = {
@@ -420,9 +471,15 @@ export const NO_LOADOUT: Loadout = {
   shield: 0,
   noLevelLoss: false,
   item: null,
+  fogReductionMs: 0,
+  plusWordsBlock: 0,
+  thorns: 0,
 };
 
-/** Effets de l'armure portée et de l'objet activé, figés au départ d'une course. */
+/** Esquive maximale, armure et enchantements compris. */
+export const MAX_DODGE = 0.5;
+
+/** Effets de l'armure portée (et de ses enchantements) et de l'objet activé, figés au départ d'une course. */
 export function computeLoadout(armor: readonly Slot[], activeItem: ItemId | null): Loadout {
   const materials = armor.map((s) => (s ? armorInfo(s.item)?.material : undefined));
   let dodge = 0;
@@ -438,7 +495,25 @@ export function computeLoadout(armor: readonly Slot[], activeItem: ItemId | null
     if (materials[0] === "gold") xpBonus += GOLD_FULL_SET_XP;
     else dodge += FULL_SET_DODGE;
   }
-  const loadout: Loadout = { ...NO_LOADOUT, dodge: round2(dodge), xpBonus: round2(xpBonus) };
+  let fogReductionMs = 0;
+  let plusWordsBlock = 0;
+  let thorns = 0;
+  for (const s of armor) {
+    if (!s?.enchants) continue;
+    dodge += enchantLevel(s.enchants, "protection") * PROTECTION_DODGE_PER_LEVEL;
+    xpBonus += enchantLevel(s.enchants, "fortune") * FORTUNE_XP_PER_LEVEL;
+    fogReductionMs += enchantLevel(s.enchants, "respiration") * RESPIRATION_FOG_MS_PER_LEVEL;
+    plusWordsBlock += enchantLevel(s.enchants, "feather_falling") * FEATHER_BLOCK_PER_LEVEL;
+    thorns += enchantLevel(s.enchants, "thorns") * THORNS_PER_LEVEL;
+  }
+  const loadout: Loadout = {
+    ...NO_LOADOUT,
+    dodge: round2(Math.min(MAX_DODGE, dodge)),
+    xpBonus: round2(xpBonus),
+    fogReductionMs,
+    plusWordsBlock: round2(plusWordsBlock),
+    thorns: round2(thorns),
+  };
   if (activeItem && isConsumable(activeItem)) {
     const effect = CONSUMABLE_EFFECT[activeItem];
     loadout.item = activeItem;
@@ -455,11 +530,16 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Usure après une course : chaque pièce portée perd 1 ; à 0 elle se brise. Renvoie les pièces brisées. */
-export function wearArmor(inv: Inventory): ItemId[] {
+/**
+ * Usure après une course : chaque pièce portée perd 1 (Solidité : une chance de ne pas s'user) ; à 0 elle
+ * se brise. `rng` renvoie un nombre dans [0, 1[. Renvoie les pièces brisées.
+ */
+export function wearArmor(inv: Inventory, rng: () => number = Math.random): ItemId[] {
   const broken: ItemId[] = [];
   inv.armor.forEach((s, i) => {
     if (!s || s.durability === null) return;
+    const unbreaking = enchantLevel(s.enchants, "unbreaking");
+    if (unbreaking > 0 && rng() < UNBREAKING_SAVE[unbreaking]!) return;
     s.durability -= 1;
     if (s.durability <= 0) {
       broken.push(s.item);
@@ -467,4 +547,24 @@ export function wearArmor(inv: Inventory): ItemId[] {
     }
   });
   return broken;
+}
+
+/** Réparation : +1 de durabilité aux pièces portées qui l'ont (fin sur le podium). */
+export function mendArmor(inv: Inventory): void {
+  for (const s of inv.armor) {
+    if (!s || s.durability === null || enchantLevel(s.enchants, "mending") === 0) continue;
+    s.durability = Math.min(maxDurability(s.item) ?? s.durability, s.durability + 1);
+  }
+}
+
+/** Malédiction de disparition : à l'abandon, les pièces portées maudites disparaissent. */
+export function vanishArmor(inv: Inventory): ItemId[] {
+  const gone: ItemId[] = [];
+  inv.armor.forEach((s, i) => {
+    if (s && enchantLevel(s.enchants, "vanishing_curse") > 0) {
+      gone.push(s.item);
+      inv.armor[i] = null;
+    }
+  });
+  return gone;
 }

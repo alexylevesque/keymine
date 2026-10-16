@@ -38,7 +38,9 @@ import {
   maxDurability,
   type ItemId,
 } from "@/lib/items";
-import { itemName } from "@/lib/item-text";
+import { enchantList, itemName } from "@/lib/item-text";
+import type { Enchant } from "@/lib/enchants";
+import { levelFromXp } from "@/lib/xp";
 
 // Inventaire façon Minecraft (fonctionnalité ajoutée) : armure, table de craft 3 × 3, four, sac de 27
 // cases, poubelle et case « prochaine course ». Comme dans Minecraft, l'objet pris suit la souris :
@@ -54,6 +56,7 @@ const AREA_LABEL: Record<Area, DictKey> = {
   furnace_in: "inv.furnace_in",
   furnace_fuel: "inv.furnace_fuel",
   furnace_out: "inv.furnace_out",
+  enchant: "inv.enchant_slot",
 };
 
 /** Objet tenu : une partie (ou toute) la pile d'une case ; il y reste tant qu'on ne l'a pas posé. */
@@ -216,6 +219,15 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     else void place(ref, 1);
   }
 
+  async function enchant(option: number) {
+    if (held) return;
+    const data = (await apply({ action: "enchant", option })) as
+      (InventoryView & { enchanted?: { item: ItemId; enchants: Enchant[] } }) | null;
+    if (data?.enchanted) {
+      setNotice(t("inv.enchanted", { list: enchantList(t, data.enchanted.enchants) }));
+    }
+  }
+
   async function craftOnce() {
     if (held) return;
     const data = await apply({ action: "craft" });
@@ -261,6 +273,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     }
   }
 
+  const level = levelFromXp(view.xp).level;
   const recipe = useMemo(() => findRecipe(inv.craft.map((s) => s?.item ?? null)), [inv.craft]);
   const loadout = computeLoadout(inv.armor, view.activeItem);
   const furnaceProgress = view.furnaceActive
@@ -409,31 +422,85 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
         </PixelPanel>
       </div>
 
-      <PixelPanel className="p-4">
-        <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.furnace")}</h2>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="grid gap-1">
-            <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
-            <span aria-hidden="true" className="pixel-flame mx-auto" data-on={view.furnaceActive} />
-            <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PixelPanel className="p-4">
+          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.furnace")}</h2>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="grid gap-1">
+              <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
+              <span
+                aria-hidden="true"
+                className="pixel-flame mx-auto"
+                data-on={view.furnaceActive}
+              />
+              <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
+            </div>
+            <span
+              role="progressbar"
+              aria-label={t("inv.furnace")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(furnaceProgress * 100)}
+              className="pixel-arrow"
+              style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
+            />
+            <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
+            <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
+              {view.furnaceActive
+                ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
+                : t("inv.furnace_off")}
+            </p>
           </div>
-          <span
-            role="progressbar"
-            aria-label={t("inv.furnace")}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(furnaceProgress * 100)}
-            className="pixel-arrow"
-            style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
-          />
-          <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
-          <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
-            {view.furnaceActive
-              ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
-              : t("inv.furnace_off")}
-          </p>
-        </div>
-      </PixelPanel>
+        </PixelPanel>
+
+        <PixelPanel className="p-4">
+          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.enchant")}</h2>
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="w-16">
+              {slot(
+                { area: "enchant", slot: 0 },
+                {
+                  label: t("inv.enchant_slot"),
+                  placeholder: (
+                    <ItemIcon
+                      item="diamond_chestplate"
+                      className="h-3/4 w-3/4 opacity-25 grayscale"
+                    />
+                  ),
+                },
+              )}
+            </div>
+            {view.enchantOptions.length === 0 ? (
+              <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
+                {inv.enchant[0]?.enchants?.length ? t("inv.enchant_done") : t("inv.enchant_none")}
+              </p>
+            ) : (
+              <ol className="flex min-w-56 flex-1 list-none flex-col gap-2">
+                {view.enchantOptions.map((option, i) => {
+                  const locked = level < option.minLevel || level < option.cost;
+                  return (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        disabled={locked || busy || !!held}
+                        onClick={() => void enchant(i)}
+                        className="inv-enchant-option w-full text-left"
+                      >
+                        <span className="block text-2xl leading-tight">
+                          {t("inv.enchant_option", { hint: enchantList(t, [option.hint]) })}
+                        </span>
+                        <span className="block text-lg leading-tight">
+                          {t("inv.enchant_cost", { n: option.cost, min: option.minLevel })}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+        </PixelPanel>
+      </div>
 
       <PixelPanel className="p-4">
         <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.bag")}</h2>
@@ -494,6 +561,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
           >
             <ItemIcon
               item={heldStack.item}
+              enchanted={!!heldStack.enchants?.length}
               className="h-full w-full drop-shadow-[2px_2px_0_#000]"
             />
             {held.count > 1 && <span className="inv-count">{held.count}</span>}
@@ -538,7 +606,11 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
             </h2>
             <div className="mb-4 flex items-center gap-3">
               <span className="pixel-slot flex h-12 w-12 shrink-0 items-center justify-center">
-                <ItemIcon item={heldStack.item} className="h-9 w-9" />
+                <ItemIcon
+                  item={heldStack.item}
+                  enchanted={!!heldStack.enchants?.length}
+                  className="h-9 w-9"
+                />
               </span>
               <p className="text-2xl leading-tight text-[#2b2b2b]">
                 {t("inv.discard_text", {
@@ -572,6 +644,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
       <ItemInfoDialog
         item={info?.item ?? null}
         durability={info?.durability ?? null}
+        enchants={info?.enchants ?? []}
         onClose={() => setInfo(null)}
       />
     </div>
@@ -695,7 +768,11 @@ function InventorySlot({
 }) {
   const { t } = useLanguage();
   const max = stack ? maxDurability(stack.item) : null;
-  const content = stack ? `${itemName(t, stack.item)} × ${stack.count}` : t("inv.empty_slot");
+  const content = stack
+    ? `${itemName(t, stack.item)} × ${stack.count}${
+        stack.enchants?.length ? ` (${enchantList(t, stack.enchants)})` : ""
+      }`
+    : t("inv.empty_slot");
   return (
     <div className="relative aspect-square w-full max-w-14" data-area={refKey.area}>
       <button
@@ -705,7 +782,15 @@ function InventorySlot({
         data-target={target}
         className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
       >
-        {stack ? <ItemIcon item={stack.item} className="h-3/4 w-3/4" /> : placeholder}
+        {stack ? (
+          <ItemIcon
+            item={stack.item}
+            enchanted={!!stack.enchants?.length}
+            className="h-3/4 w-3/4"
+          />
+        ) : (
+          placeholder
+        )}
         {stack && stack.count > 1 && <span className="inv-count">{stack.count}</span>}
         {stack && max !== null && stack.durability !== null && stack.durability < max && (
           <span

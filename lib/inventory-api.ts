@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getIdentity } from "@/lib/auth/identity";
 import { msg, type ErrorKey } from "@/lib/api-messages";
 import { InventoryError } from "@/lib/inventory";
-import { ItemRefusal, ShopRefusal } from "@/lib/inventory-store";
+import { EnchantRefusal, ItemRefusal, ShopRefusal } from "@/lib/inventory-store";
 
 // Outils communs aux routes de l'inventaire et de la boutique : seul un compte en a un (les invités
 // n'ont pas d'XP), et les refus de la logique deviennent des messages traduits (I18N-01).
@@ -42,6 +42,11 @@ const SHOP_KEYS: Record<ShopRefusal["code"], ErrorKey> = {
   inventory_full: "shop_inventory_full",
 };
 
+const ENCHANT_KEYS: Record<EnchantRefusal["code"], ErrorKey> = {
+  nothing_to_enchant: "ench_nothing",
+  level_too_low: "ench_level_too_low",
+};
+
 /** Un refus attendu (case invalide, XP insuffisante…) → 409 avec un message traduit ; le reste remonte. */
 export async function refusal(error: unknown): Promise<NextResponse> {
   const key =
@@ -51,7 +56,9 @@ export async function refusal(error: unknown): Promise<NextResponse> {
         ? ITEM_KEYS[error.code]
         : error instanceof ShopRefusal
           ? SHOP_KEYS[error.code]
-          : null;
+          : error instanceof EnchantRefusal
+            ? ENCHANT_KEYS[error.code]
+            : null;
   if (!key) throw error;
   return NextResponse.json({ error: await msg(key), code: key }, { status: 409 });
 }

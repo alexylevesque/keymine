@@ -892,14 +892,35 @@ body {
     background: linear-gradient(to top, #f0b429, #e5541b);
   }
 
+  /* Choix de la table d'enchantement. */
+  .inv-enchant-option {
+    padding: 6px 10px;
+    color: #f3e8ff;
+    background: #3b2352;
+    border: 3px solid;
+    border-color: #6d4a8f #1e1129 #1e1129 #6d4a8f;
+    cursor: pointer;
+  }
+
+  .inv-enchant-option:hover:not(:disabled),
+  .inv-enchant-option:focus-visible {
+    background: #5b2a86;
+  }
+
+  .inv-enchant-option:disabled {
+    cursor: not-allowed;
+    color: #b8a8c6;
+    background: #4a4252;
+  }
+
   .item-glow {
-    filter: drop-shadow(0 0 2px #c77dff);
-    animation: item-glow 1.6s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 2px #b45cff) drop-shadow(0 0 4px #c77dff);
+    animation: item-glow 1.4s ease-in-out infinite alternate;
   }
 
   @keyframes item-glow {
     to {
-      filter: drop-shadow(0 0 4px #e0b0ff);
+      filter: drop-shadow(0 0 3px #e0b0ff) drop-shadow(0 0 7px #b45cff);
     }
   }
 

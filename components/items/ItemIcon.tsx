@@ -240,7 +240,16 @@ function shapeFor(item: ItemId): [ShapeName, Palette] {
 /** Lueur des objets enchantés (pomme dorée enchantée). */
 const GLOWING: ReadonlySet<ItemId> = new Set(["enchanted_golden_apple"]);
 
-export function ItemIcon({ item, className = "" }: { item: ItemId; className?: string }) {
+export function ItemIcon({
+  item,
+  className = "",
+  enchanted = false,
+}: {
+  item: ItemId;
+  className?: string;
+  /** Pièce enchantée : petite lueur violette, comme dans Minecraft. */
+  enchanted?: boolean;
+}) {
   const [shape, palette] = shapeFor(item);
   const colors: Palette = { O: OUTLINE, ...palette };
   const rows = SHAPES[shape];
@@ -260,7 +269,7 @@ export function ItemIcon({ item, className = "" }: { item: ItemId; className?: s
       viewBox="0 0 16 16"
       aria-hidden="true"
       shapeRendering="crispEdges"
-      className={`${GLOWING.has(item) ? "item-glow" : ""} ${className}`}
+      className={`${enchanted || GLOWING.has(item) ? "item-glow" : ""} ${className}`}
     >
       {rects}
     </svg>

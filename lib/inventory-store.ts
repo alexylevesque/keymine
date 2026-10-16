@@ -15,17 +15,30 @@ import {
   emptyInventory,
   furnaceActive,
   InventoryError,
+  MAX_DODGE,
+  mendArmor,
   moveItem,
   newStack,
   NO_LOADOUT,
   settleFurnace,
+  vanishArmor,
   wearArmor,
   type Inventory,
   type Loadout,
   type SlotRef,
   type Stack,
 } from "@/lib/inventory";
-import { discardXp, isConsumable, isItemId, type ItemId } from "@/lib/items";
+import { armorInfo, discardXp, isConsumable, isItemId, type ItemId } from "@/lib/items";
+import {
+  enchantOptions,
+  levelCostXp,
+  OPTION_COST,
+  OPTION_MIN_LEVEL,
+  parseEnchants,
+  rollEnchants,
+  type EnchantOption,
+} from "@/lib/enchants";
+import { levelFromXp } from "@/lib/xp";
 import { generateOffers, nextShopReset, shopDay, type Offer } from "@/lib/shop";
 
 type Trx = Transaction<Database>;
@@ -47,7 +60,7 @@ export class ItemRefusal extends Error {
 async function lockUser(trx: Trx, userId: string) {
   return trx
     .selectFrom("users")
-    .select(["id", "xp_total", "active_item"])
+    .select(["id", "xp_total", "active_item", "enchant_seed"])
     .where("id", "=", userId)
     .forUpdate()
     .executeTakeFirstOrThrow();
@@ -58,15 +71,21 @@ async function load(trx: Trx, userId: string, now: Date): Promise<Inventory> {
   const inv = emptyInventory();
   const rows = await trx
     .selectFrom("inventory_items")
-    .select(["area", "slot", "item", "count", "durability"])
+    .select(["area", "slot", "item", "count", "durability", "enchants"])
     .where("user_id", "=", userId)
     .execute();
   for (const row of rows) {
     // Un code d'objet inconnu (retiré du catalogue) est ignoré plutôt que de tout bloquer.
     if (!isItemId(row.item) || !(AREAS as readonly string[]).includes(row.area)) continue;
     const slots = inv[row.area];
-    if (row.slot < slots.length)
-      slots[row.slot] = { item: row.item, count: row.count, durability: row.durability };
+    if (row.slot >= slots.length) continue;
+    const enchants = parseEnchants(row.enchants);
+    slots[row.slot] = {
+      item: row.item,
+      count: row.count,
+      durability: row.durability,
+      ...(enchants.length > 0 ? { enchants } : {}),
+    };
   }
   const furnace = await trx
     .selectFrom("furnaces")
@@ -93,6 +112,7 @@ async function save(trx: Trx, userId: string, inv: Inventory, now: Date) {
               item: s.item,
               count: s.count,
               durability: s.durability,
+              enchants: s.enchants?.length ? JSON.stringify(s.enchants) : null,
             },
           ]
         : [],
@@ -123,15 +143,23 @@ export type InventoryView = {
   xp: number;
   /** Le four cuit en ce moment (le client anime la flèche et se rafraîchit). */
   furnaceActive: boolean;
+  /** Les trois choix de la table d'enchantement pour la pièce posée dessus (la graine reste secrète). */
+  enchantOptions: EnchantOption[];
   serverNow: number;
 };
+
+/** Pièce posée sur la table d'enchantement, si elle peut être enchantée. */
+function enchantable(inv: Inventory): Stack | null {
+  const s = inv.enchant[0];
+  return s && armorInfo(s.item) && !s.enchants?.length ? s : null;
+}
 
 /** Ouvre l'inventaire d'un compte, applique `change`, enregistre et renvoie la vue à jour. */
 async function withInventory<T>(
   userId: string,
   change: (
     inv: Inventory,
-    user: { xp: number; activeItem: string | null },
+    user: { xp: number; activeItem: string | null; enchantSeed: number },
     trx: Trx,
   ) => Promise<T> | T,
   now = new Date(),
@@ -139,11 +167,15 @@ async function withInventory<T>(
   return db.transaction().execute(async (trx) => {
     const user = await lockUser(trx, userId);
     const inv = await load(trx, userId, now);
-    const result = await change(inv, { xp: user.xp_total, activeItem: user.active_item }, trx);
+    const result = await change(
+      inv,
+      { xp: user.xp_total, activeItem: user.active_item, enchantSeed: user.enchant_seed },
+      trx,
+    );
     await save(trx, userId, inv, now);
     const after = await trx
       .selectFrom("users")
-      .select(["xp_total", "active_item"])
+      .select(["xp_total", "active_item", "enchant_seed"])
       .where("id", "=", userId)
       .executeTakeFirstOrThrow();
     return {
@@ -153,6 +185,10 @@ async function withInventory<T>(
         activeItem: isItemId(after.active_item) ? after.active_item : null,
         xp: after.xp_total,
         furnaceActive: furnaceActive(inv),
+        enchantOptions: (() => {
+          const piece = enchantable(inv);
+          return piece ? enchantOptions(piece.item, after.enchant_seed) : [];
+        })(),
         serverNow: now.getTime(),
       },
     };
@@ -200,6 +236,42 @@ export async function discardItem(userId: string, from: SlotRef, count?: number,
           .execute();
       }
       return { item: stack.item, count: amount, xp: gained };
+    },
+    now,
+  );
+}
+
+export class EnchantRefusal extends Error {
+  constructor(readonly code: "nothing_to_enchant" | "level_too_low") {
+    super(code);
+  }
+}
+
+/**
+ * Enchante la pièce posée sur la table avec le choix `option` (0, 1 ou 2) : paie 1, 2 ou 3 niveaux (la
+ * barre garde son pourcentage), applique le tirage (définitif) et change la graine pour les prochains choix.
+ */
+export async function enchantItem(userId: string, option: number, now = new Date()) {
+  return withInventory(
+    userId,
+    async (inv, user, trx) => {
+      const piece = enchantable(inv);
+      if (!piece) throw new EnchantRefusal("nothing_to_enchant");
+      const cost = OPTION_COST[option]!;
+      const level = levelFromXp(user.xp).level;
+      if (level < OPTION_MIN_LEVEL[option]! || level < cost)
+        throw new EnchantRefusal("level_too_low");
+      const enchants = rollEnchants(piece.item, user.enchantSeed, option);
+      piece.enchants = enchants;
+      await trx
+        .updateTable("users")
+        .set({
+          xp_total: sql<number>`xp_total - ${levelCostXp(user.xp, cost)}`,
+          enchant_seed: Math.floor(Math.random() * 2_000_000_000),
+        })
+        .where("id", "=", userId)
+        .execute();
+      return { item: piece.item, enchants };
     },
     now,
   );
@@ -348,12 +420,16 @@ export async function snapshotLoadouts(trx: Trx, raceId: string) {
     if (!row.user_id) continue;
     const armorRows = await trx
       .selectFrom("inventory_items")
-      .select(["slot", "item"])
+      .select(["slot", "item", "enchants"])
       .where("user_id", "=", row.user_id)
       .where("area", "=", "armor")
       .execute();
     const armor: (Stack | null)[] = [null, null, null, null];
-    for (const a of armorRows) if (isItemId(a.item) && a.slot < 4) armor[a.slot] = newStack(a.item);
+    for (const a of armorRows) {
+      if (isItemId(a.item) && a.slot < 4) {
+        armor[a.slot] = { ...newStack(a.item), enchants: parseEnchants(a.enchants) };
+      }
+    }
     const active = isItemId(row.active_item) ? row.active_item : null;
     const loadout = computeLoadout(armor, active);
     await trx
@@ -377,13 +453,16 @@ export function parseLoadout(value: unknown): Loadout {
   const num = (n: unknown, max: number) =>
     typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(0, n)) : 0;
   return {
-    dodge: num(v.dodge, 0.37),
+    dodge: num(v.dodge, MAX_DODGE),
     xpBonus: num(v.xpBonus, 1),
     immuneAll: v.immuneAll === true,
     immuneFog: v.immuneFog === true,
     shield: Math.floor(num(v.shield, 3)),
     noLevelLoss: v.noLevelLoss === true,
     item: isItemId(v.item) ? v.item : null,
+    fogReductionMs: Math.floor(num(v.fogReductionMs, 3_000)),
+    plusWordsBlock: num(v.plusWordsBlock, 0.16),
+    thorns: num(v.thorns, 0.3),
   };
 }
 
@@ -395,16 +474,23 @@ function safeJson(text: string): unknown {
   }
 }
 
-/** Fin de course pour un compte : usure de l'armure portée et charbon gagné. Renvoie le charbon reçu. */
+/**
+ * Fin de course pour un compte : usure de l'armure portée (Solidité), Réparation sur le podium, Malédiction
+ * de disparition à l'abandon volontaire, et charbon gagné. Renvoie le charbon reçu.
+ */
 export async function finishRaceForUser(
   userId: string,
   coal: number,
+  outcome: { podium: boolean; abandoned: boolean } = { podium: false, abandoned: false },
   now = new Date(),
+  rng: () => number = Math.random,
 ): Promise<number> {
   const { result } = await withInventory(
     userId,
     (inv) => {
-      wearArmor(inv);
+      if (outcome.abandoned) vanishArmor(inv);
+      wearArmor(inv, rng);
+      if (outcome.podium) mendArmor(inv);
       return coal > 0 ? addToBag(inv, newStack("coal", coal)) : 0;
     },
     now,

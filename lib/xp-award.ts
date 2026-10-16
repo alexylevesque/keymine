@@ -70,7 +70,10 @@ export async function awardRaceXp(
         .where("id", "=", r.userId)
         .execute();
       const won = podiumCoal(r.rank, r.status === "finished", results.length - 1, rng);
-      coal = await finishRaceForUser(r.userId, won);
+      coal = await finishRaceForUser(r.userId, won, {
+        podium: r.status === "finished" && r.rank <= 3,
+        abandoned: r.status === "abandoned" && r.abandonReason === "player",
+      });
     }
     await db
       .updateTable("race_participants")

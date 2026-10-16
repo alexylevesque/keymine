@@ -7,12 +7,16 @@ import {
   craftInInventory,
   deactivateItem,
   discardItem,
+  enchantItem,
+  finishRaceForUser,
   moveInInventory,
   readInventory,
   readShop,
   snapshotLoadouts,
 } from "@/lib/inventory-store";
 import { InventoryError, SMELT_MS } from "@/lib/inventory";
+import { rollEnchants } from "@/lib/enchants";
+import { levelFromXp, totalXpForLevel } from "@/lib/xp";
 import type { RacerResult } from "@/lib/race/engine";
 import { generateOffers, shopDay } from "@/lib/shop";
 import { awardRaceXp } from "@/lib/xp-award";
@@ -185,6 +189,75 @@ describe("inventaire", () => {
     const back = await deactivateItem(u, NOW);
     expect(back.activeItem).toBeNull();
     expect(back.inventory.bag[0]?.count).toBe(2);
+  });
+});
+
+describe("table d'enchantement", () => {
+  it("enchante une fois, paie les niveaux, change la graine ; refuse sans niveau ou deux fois", async () => {
+    const u = await user(totalXpForLevel(30));
+    await put(u, "bag", 0, "diamond_chestplate", 1, 100);
+    const { rows } = await client.query<{ enchant_seed: number }>(
+      `select enchant_seed from users where id = $1`,
+      [u],
+    );
+    const seed = rows[0]!.enchant_seed;
+    const placed = await moveInInventory(
+      u,
+      { area: "bag", slot: 0 },
+      { area: "enchant", slot: 0 },
+      undefined,
+      NOW,
+    );
+    expect(placed.enchantOptions.map((o) => o.hint)).toEqual(
+      [0, 1, 2].map((i) => rollEnchants("diamond_chestplate", seed, i)[0]),
+    );
+
+    const { view, result } = await enchantItem(u, 2, NOW);
+    expect(result.enchants).toEqual(rollEnchants("diamond_chestplate", seed, 2));
+    expect(view.inventory.enchant[0]?.enchants).toEqual(result.enchants);
+    expect(levelFromXp(view.xp).level).toBe(27);
+    expect(view.enchantOptions).toEqual([]); // déjà enchantée : plus de choix
+    await expect(enchantItem(u, 0, NOW)).rejects.toMatchObject({ code: "nothing_to_enchant" });
+    const after = await client.query<{ enchant_seed: number }>(
+      `select enchant_seed from users where id = $1`,
+      [u],
+    );
+    expect(after.rows[0]!.enchant_seed).not.toBe(seed);
+
+    // L'enchantement reste sur la pièce quand on la range.
+    const back = await moveInInventory(
+      u,
+      { area: "enchant", slot: 0 },
+      { area: "bag", slot: -1 },
+      undefined,
+      NOW,
+    );
+    expect(back.inventory.bag[0]?.enchants).toEqual(result.enchants);
+
+    const low = await user(totalXpForLevel(10));
+    await put(low, "enchant", 0, "iron_boots", 1, 50);
+    await expect(enchantItem(low, 1, NOW)).rejects.toMatchObject({ code: "level_too_low" });
+    expect(
+      (await enchantItem(low, 0, NOW)).view.inventory.enchant[0]?.enchants?.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("fin de course : Réparation sur le podium, Disparition à l'abandon", async () => {
+    const u = await user();
+    await client.query(
+      `insert into inventory_items (user_id, area, slot, item, count, durability, enchants) values
+       ($1, 'armor', 0, 'iron_helmet', 1, 10, '[{"id":"mending","level":1}]'),
+       ($1, 'armor', 1, 'iron_chestplate', 1, 50, '[{"id":"vanishing_curse","level":1}]')`,
+      [u],
+    );
+    await finishRaceForUser(u, 0, { podium: true, abandoned: false }, NOW, () => 0.9);
+    let inv = (await readInventory(u, NOW)).inventory;
+    expect(inv.armor[0]?.durability).toBe(10); // −1 d'usure, +1 de réparation
+    expect(inv.armor[1]?.durability).toBe(49);
+    await finishRaceForUser(u, 0, { podium: false, abandoned: true }, NOW, () => 0.9);
+    inv = (await readInventory(u, NOW)).inventory;
+    expect(inv.armor[1]).toBeNull();
+    expect(inv.armor[0]?.durability).toBe(9);
   });
 });
 

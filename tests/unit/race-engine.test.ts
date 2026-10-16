@@ -360,6 +360,33 @@ describe("bonus de remontée dans le moteur (BONUS-01 à BONUS-04)", () => {
     ]);
   });
 
+  it("enchantements : Chute amortie bloque « +3 mots », Respiration raccourcit le brouillard, Épines le renvoie", () => {
+    const none = { dodge: 0, immuneAll: false, immuneFog: false, shield: 0 };
+    const feather = engine(
+      [{ ...human("a"), protection: { ...none, plusWordsBlock: 1 } }, human("b")],
+      {
+        comebackBonus: true,
+        bonusKinds: ["plus_words"],
+      },
+    );
+    advance(feather, { a: 0.9, b: 0.05 });
+    expect(feather.racers.get("b")!.bonuses.every((b) => b.blocked === "feather")).toBe(true);
+    expect(feather.racers.get("a")!.text).toBe(TEXT);
+
+    const fog = engine(
+      [{ ...human("a"), protection: { ...none, fogReductionMs: 3_000, thorns: 1 } }, human("b")],
+      { comebackBonus: true, bonusKinds: ["fog"] },
+    );
+    const t = START + 5_000;
+    fog.applyProgress("a", { progressChars: Math.ceil(TEXT.length * 0.3), errorCount: 0 }, t);
+    fog.tick(t);
+    const a = fog.racers.get("a")!;
+    const b = fog.racers.get("b")!;
+    expect(b.bonuses[0]?.thorns).toBe(true);
+    expect(a.fogUntilMs - t).toBe(2_000); // 5 s − 3 s
+    expect(b.fogUntilMs - t).toBe(2_000); // brouillard renvoyé
+  });
+
   it("l'armure esquive une partie des malus, jamais le bonus « -3 mots » du retardataire", () => {
     let dodged = 0;
     let total = 0;

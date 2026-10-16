@@ -8,6 +8,7 @@ import {
   craftInInventory,
   deactivateItem,
   discardItem,
+  enchantItem,
   moveInInventory,
   readInventory,
 } from "@/lib/inventory-store";
@@ -24,6 +25,7 @@ const body = z.discriminatedUnion("action", [
     count: z.number().int().min(1).max(64).optional(),
   }),
   z.object({ action: z.literal("craft") }),
+  z.object({ action: z.literal("enchant"), option: z.number().int().min(0).max(2) }),
   z.object({
     action: z.literal("discard"),
     from: slotRef.extend({ slot: z.number().int().min(0).max(26) }),
@@ -55,6 +57,10 @@ export async function POST(request: Request) {
       case "craft": {
         const { view, result } = await craftInInventory(who.userId);
         return NextResponse.json({ ...view, crafted: result.item });
+      }
+      case "enchant": {
+        const { view, result } = await enchantItem(who.userId, input.option);
+        return NextResponse.json({ ...view, enchanted: result });
       }
       case "discard": {
         const { view, result } = await discardItem(who.userId, input.from, input.count);

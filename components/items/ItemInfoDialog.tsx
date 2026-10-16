@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { PixelButton } from "@/components/ui";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, type DictKey } from "@/lib/i18n";
 import { itemDescription, itemFacts, itemName } from "@/lib/item-text";
+import { isCurse, roman, type Enchant } from "@/lib/enchants";
 import type { ItemId } from "@/lib/items";
 import { ItemIcon } from "./ItemIcon";
 
@@ -13,10 +14,12 @@ import { ItemIcon } from "./ItemIcon";
 export function ItemInfoDialog({
   item,
   durability = null,
+  enchants = [],
   onClose,
 }: {
   item: ItemId | null;
   durability?: number | null;
+  enchants?: Enchant[];
   onClose: () => void;
 }) {
   const { t, lang } = useLanguage();
@@ -40,7 +43,7 @@ export function ItemInfoDialog({
         <>
           <div className="mb-3 flex items-center gap-3">
             <span className="pixel-slot flex h-14 w-14 shrink-0 items-center justify-center">
-              <ItemIcon item={item} className="h-10 w-10" />
+              <ItemIcon item={item} enchanted={enchants.length > 0} className="h-10 w-10" />
             </span>
             <h2 id="item-info-title" className="text-3xl leading-none text-[#2b2b2b]">
               {itemName(t, item)}
@@ -49,6 +52,19 @@ export function ItemInfoDialog({
           <p className="mb-3 text-2xl leading-tight text-[#2b2b2b]">
             {itemDescription(t, lang, item)}
           </p>
+          {enchants.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xl text-[#3a3a3a]">{t("info.enchants")}</p>
+              <ul className="list-none text-xl leading-tight">
+                {enchants.map((e) => (
+                  <li key={e.id} className={isCurse(e.id) ? "text-[#9b3a2e]" : "text-[#5b2a86]"}>
+                    {t(`ench.${e.id}` as DictKey)}
+                    {!isCurse(e.id) && ` ${roman(e.level)}`} : {t(`ench_info.${e.id}` as DictKey)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <ul className="mb-4 list-none text-xl text-[#3a3a3a]">
             {itemFacts(t, item, durability).map((fact) => (
               <li key={fact}>{fact}</li>

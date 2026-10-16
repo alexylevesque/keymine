@@ -1,5 +1,6 @@
 import type { ErrorMode, Language } from "@/db/types";
 import { createRng } from "@/lib/text/rng";
+import { THORNS_FOG_MS } from "@/lib/enchants";
 import { BotTimeline, isBotLevel, type BotLevelName } from "./bots";
 import {
   appendWords,
@@ -425,9 +426,19 @@ export class RaceEngine {
       }
     }
 
+    // Épines : le malus touche, mais une chance de renvoyer du brouillard au retardataire.
+    if (target !== laggard && (target.protection.thorns ?? 0) > 0) {
+      if (this.rng() < target.protection.thorns!) {
+        record.thorns = true;
+        laggard.fogUntilMs = now + THORNS_FOG_MS;
+      }
+    }
+
     const events: EngineEvent[] = [{ type: "bonus", bonus: record, label: BONUS_LABELS[kind] }];
     if (kind === "fog") {
-      leader.fogUntilMs = now + FOG_DURATION_MS;
+      // Respiration : le brouillard dure moins longtemps (au moins 1 s).
+      leader.fogUntilMs =
+        now + Math.max(1_000, FOG_DURATION_MS - (leader.protection.fogReductionMs ?? 0));
     } else if (kind === "minus_words") {
       events.push(
         this.setText(laggard, removeUpcomingWords(laggard.text, laggard.progress), elapsed, now),

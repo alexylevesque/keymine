@@ -481,6 +481,8 @@ export default function CoursePage() {
                       {/* Inventaire : l'équipement de la cible a arrêté le malus. */}
                       {a.bonus.blocked &&
                         ` ${t(`race.blocked_${a.bonus.blocked}` as DictKey, { name: nameOf(a.bonus.targetId) })}`}
+                      {a.bonus.thorns &&
+                        ` ${t("race.thorns", { name: nameOf(a.bonus.targetId), sender: nameOf(a.bonus.beneficiaryId) })}`}
                     </li>
                   ))}
                 </ul>

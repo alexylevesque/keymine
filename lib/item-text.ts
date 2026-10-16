@@ -1,6 +1,7 @@
 // Textes des objets (nom, description, rareté, prix) à partir du dictionnaire (I18N-01).
 import type { DictKey, SiteLang } from "./i18n-dictionary";
 import { formatPercent } from "./format";
+import { roman, type Enchant } from "./enchants";
 import {
   armorInfo,
   discardXp,
@@ -62,4 +63,14 @@ export function itemFacts(t: T, item: ItemId, durability: number | null): string
   if (maxStack(item) > 1) facts.push(t("info.stack", { max: maxStack(item) }));
   facts.push(t("info.discard", { xp: discardXp(item, 1, durability) }));
   return facts;
+}
+
+/** « Protection IV, Solidité III ». */
+export function enchantList(t: T, enchants: readonly Enchant[]): string {
+  return enchants
+    .map(
+      (e) =>
+        `${t(`ench.${e.id}` as DictKey)}${e.id.endsWith("_curse") ? "" : ` ${roman(e.level)}`}`,
+    )
+    .join(", ");
 }
