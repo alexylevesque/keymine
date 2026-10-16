@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
+import { db } from "@/lib/db";
 import {
   activateItem,
   buyOffer,
@@ -8,11 +9,15 @@ import {
   moveInInventory,
   readInventory,
   readShop,
+  snapshotLoadouts,
 } from "@/lib/inventory-store";
 import { InventoryError, SMELT_MS } from "@/lib/inventory";
+import type { RacerResult } from "@/lib/race/engine";
 import { generateOffers, shopDay } from "@/lib/shop";
+import { awardRaceXp } from "@/lib/xp-award";
+import { raceXp } from "@/lib/xp";
 
-// Inventaire, boutique et four (fonctionnalité ajoutée), contre une vraie base.
+// Inventaire, boutique, four et effets en course (fonctionnalité ajoutée), contre une vraie base.
 const client = new Client({ connectionString: process.env.DATABASE_URL });
 beforeAll(async () => {
   await client.connect();
@@ -163,5 +168,113 @@ describe("inventaire", () => {
     const back = await deactivateItem(u, NOW);
     expect(back.activeItem).toBeNull();
     expect(back.inventory.bag[0]?.count).toBe(2);
+  });
+});
+
+describe("effets en course", () => {
+  const TEXT = Array.from({ length: 40 }, (_, i) => `mot${i}`).join(" ");
+
+  async function raceWith(players: { userId?: string; isBot?: boolean }[]) {
+    const host = await user();
+    const { rows: l } = await client.query<{ id: string }>(
+      `insert into lobbies (code, host_user_id, name, complexity) values ($1, $2, 'inv', 'easy') returning id`,
+      [`I${suffix().toUpperCase().slice(0, 5)}`, host],
+    );
+    const { rows } = await client.query<{ id: string }>(
+      `insert into races (lobby_id, text_content, language, status, starts_at, duration_seconds, settings)
+       values ($1, $2, 'fr', 'finished', now(), 60, '{"complexity":"easy"}') returning id`,
+      [l[0]!.id, TEXT],
+    );
+    const raceId = rows[0]!.id;
+    const ids: string[] = [];
+    for (const p of players) {
+      const { rows: r } = await client.query<{ id: string }>(
+        `insert into race_participants (race_id, user_id, display_name, is_bot, bot_level)
+         values ($1, $2, 'p', $3, $4) returning id`,
+        [raceId, p.userId ?? null, !!p.isBot, p.isBot ? "noob" : null],
+      );
+      ids.push(r[0]!.id);
+    }
+    return { raceId, ids };
+  }
+
+  function result(id: string, p: Partial<RacerResult>): RacerResult {
+    return {
+      id,
+      isBot: false,
+      botLevel: null,
+      userId: null,
+      guestId: null,
+      rank: 1,
+      status: "finished",
+      abandonReason: null,
+      accuracy: 90,
+      ...p,
+    } as RacerResult;
+  }
+
+  it("fige l'armure et l'objet au départ, consomme l'objet, puis applique l'XP, l'usure et le charbon", async () => {
+    const gold = await user();
+    for (const [slot, part] of ["helmet", "chestplate", "leggings", "boots"].entries()) {
+      await put(gold, "armor", slot, `gold_${part}`, 1, slot === 3 ? 1 : 25);
+    }
+    await client.query(`update users set active_item = 'xp_bottle' where id = $1`, [gold]);
+    const { raceId, ids } = await raceWith([{ userId: gold }, { isBot: true }]);
+
+    await db.transaction().execute((trx) => snapshotLoadouts(trx, raceId));
+    const { rows } = await client.query<{
+      loadout: { xpBonus: number; item: string; dodge: number };
+    }>(`select loadout from race_participants where id = $1`, [ids[0]]);
+    expect(rows[0]!.loadout).toMatchObject({ xpBonus: 0.8, item: "xp_bottle", dodge: 0.12 });
+    expect(
+      (await client.query(`select active_item from users where id = $1`, [gold])).rows[0]
+        .active_item,
+    ).toBeNull();
+
+    const results = [
+      result(ids[0]!, { userId: gold, rank: 1 }),
+      result(ids[1]!, { isBot: true, botLevel: "noob", rank: 2 }),
+    ];
+    const rolls = [0, 0.9]; // gagne (0 < 60 %), puis le 2e tirage donne 2 charbons
+    await awardRaceXp(raceId, results, () => rolls.shift() ?? 0);
+    const base = raceXp({
+      complexity: "easy",
+      words: 40,
+      opponents: [{ isBot: true, botLevel: "noob" }],
+      status: "finished",
+      rank: 1,
+      accuracy: 90,
+    });
+    expect(await xpOf(gold)).toBe(Math.round(base * 1.8));
+
+    const inv = await readInventory(gold);
+    expect(inv.inventory.armor[0]?.durability).toBe(24);
+    expect(inv.inventory.armor[3]).toBeNull(); // les bottes avaient 1 de durabilité : brisées
+    expect(inv.inventory.bag[0]).toMatchObject({ item: "coal", count: 2 });
+    const { rows: gained } = await client.query<{ coal_gained: number | null }>(
+      `select coal_gained from race_participants where race_id = $1 order by is_bot`,
+      [raceId],
+    );
+    expect(gained.map((g) => g.coal_gained)).toEqual([2, null]);
+  });
+
+  it("le totem évite la perte de niveau à l'abandon ; pas de charbon sans podium", async () => {
+    const quitter = await user(500);
+    await client.query(`update users set active_item = 'totem' where id = $1`, [quitter]);
+    const { raceId, ids } = await raceWith([{ userId: quitter }, { isBot: true }]);
+    await db.transaction().execute((trx) => snapshotLoadouts(trx, raceId));
+    await awardRaceXp(
+      raceId,
+      [
+        result(ids[0]!, { userId: quitter, rank: 2, status: "abandoned", abandonReason: "player" }),
+        result(ids[1]!, { isBot: true, botLevel: "noob", rank: 1 }),
+      ],
+      () => 0,
+    );
+    expect(await xpOf(quitter)).toBe(500);
+    const { rows } = await client.query(`select coal_gained from race_participants where id = $1`, [
+      ids[0],
+    ]);
+    expect(rows[0].coal_gained).toBe(0);
   });
 });

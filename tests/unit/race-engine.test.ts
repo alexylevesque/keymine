@@ -186,7 +186,11 @@ describe("fin de course et classement (COURSE-09, COURSE-10)", () => {
     expect(e.isFinalized).toBe(false);
     for (const id of ["a", "b"]) {
       for (let s = 1; s * 20 < TEXT.length; s++) {
-        e.applyProgress(id, { progressChars: s * 20, errorCount: 0 }, START + 3_600_000 + s * 1_000);
+        e.applyProgress(
+          id,
+          { progressChars: s * 20, errorCount: 0 },
+          START + 3_600_000 + s * 1_000,
+        );
       }
       e.applyProgress(id, { progressChars: TEXT.length, errorCount: 0 }, START + 3_700_000);
     }
@@ -299,15 +303,88 @@ describe("bonus de remontée dans le moteur (BONUS-01 à BONUS-04)", () => {
   });
 
   it("n'attribue que les types de bonus permis par la salle (CONF-09)", () => {
-    for (const kinds of [["fog"], ["plus_words"], ["minus_words"], ["fog", "plus_words"]] as const) {
+    for (const kinds of [
+      ["fog"],
+      ["plus_words"],
+      ["minus_words"],
+      ["fog", "plus_words"],
+    ] as const) {
       for (let seed = 1; seed <= 6; seed++) {
-        const e = engine([human("a"), human("b")], { comebackBonus: true, bonusKinds: kinds, seed });
+        const e = engine([human("a"), human("b")], {
+          comebackBonus: true,
+          bonusKinds: kinds,
+          seed,
+        });
         advance(e, { a: 0.9, b: 0.05 });
         const given = e.racers.get("b")!.bonuses;
         expect(given.length).toBeGreaterThan(0);
         for (const bonus of given) expect(kinds).toContain(bonus.kind);
       }
     }
+  });
+
+  it("l'équipement du meneur arrête les malus : pomme, vision nocturne, bouclier (inventaire)", () => {
+    const leader = (protection: RacerInit["protection"]): RacerInit => ({
+      ...human("a"),
+      protection,
+    });
+    const none = { dodge: 0, immuneAll: false, immuneFog: false, shield: 0 };
+
+    const apple = engine([leader({ ...none, immuneAll: true }), human("b")], {
+      comebackBonus: true,
+      bonusKinds: ["plus_words", "fog"],
+    });
+    advance(apple, { a: 0.9, b: 0.05 });
+    const blocked = apple.racers.get("b")!.bonuses;
+    expect(blocked).toHaveLength(3); // le retardataire joue quand même ses bonus
+    expect(blocked.every((b) => b.blocked === "apple")).toBe(true);
+    expect(apple.racers.get("a")!.text).toBe(TEXT); // aucun mot ajouté
+    expect(apple.racers.get("a")!.fogUntilMs).toBe(0);
+
+    const vision = engine([leader({ ...none, immuneFog: true }), human("b")], {
+      comebackBonus: true,
+      bonusKinds: ["fog"],
+    });
+    advance(vision, { a: 0.9, b: 0.05 });
+    expect(vision.racers.get("b")!.bonuses.every((b) => b.blocked === "night_vision")).toBe(true);
+
+    const shield = engine([leader({ ...none, shield: 1 }), human("b")], {
+      comebackBonus: true,
+      bonusKinds: ["plus_words"],
+    });
+    advance(shield, { a: 0.9, b: 0.05 });
+    expect(shield.racers.get("b")!.bonuses.map((b) => b.blocked ?? null)).toEqual([
+      "shield",
+      null,
+      null,
+    ]);
+  });
+
+  it("l'armure esquive une partie des malus, jamais le bonus « -3 mots » du retardataire", () => {
+    let dodged = 0;
+    let total = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const e = engine(
+        [
+          {
+            ...human("a"),
+            protection: { dodge: 0.37, immuneAll: false, immuneFog: false, shield: 0 },
+          },
+          human("b"),
+        ],
+        { comebackBonus: true, seed },
+      );
+      advance(e, { a: 0.9, b: 0.05 });
+      for (const b of e.racers.get("b")!.bonuses) {
+        if (b.kind === "minus_words") expect(b.blocked).toBeUndefined();
+        else {
+          total++;
+          if (b.blocked === "dodge") dodged++;
+        }
+      }
+    }
+    expect(dodged / total).toBeGreaterThan(0.2);
+    expect(dodged / total).toBeLessThan(0.55);
   });
 
   it("sans aucun type permis, aucun bonus n'est donné même si l'interrupteur est actif", () => {

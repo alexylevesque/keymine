@@ -23,13 +23,41 @@ export const BONUS_LABELS: Record<BonusKind, string> = {
   fog: "Brouillard sur le meneur",
 };
 
+/** Pourquoi un malus n'a pas touché sa cible (équipement de l'inventaire). */
+export type BonusBlock = "apple" | "night_vision" | "shield" | "dodge";
+
 export type BonusRecord = {
   kind: BonusKind;
   checkpoint: number; // 0.25, 0.5 ou 0.75
   atMs: number; // instant de la course (ms depuis le départ)
   beneficiaryId: string; // le retardataire qui reçoit le bonus
   targetId: string; // le participant dont le texte/affichage est modifié
+  /** Malus arrêté par l'équipement de la cible : le texte et l'affichage ne changent pas. */
+  blocked?: BonusBlock;
 };
+
+/** Protection d'un joueur contre les malus, figée au départ (voir lib/inventory.ts). */
+export type Protection = {
+  dodge: number;
+  immuneAll: boolean;
+  immuneFog: boolean;
+  shield: number;
+};
+
+/**
+ * Le malus `kind` est-il arrêté ? Pomme : tout ; vision nocturne : le brouillard ; bouclier : le premier
+ * malus (une charge) ; sinon l'armure donne une chance d'esquive (`roll` renvoie un nombre dans [0, 1[ ;
+ * il n'est tiré que si le joueur porte de l'armure, pour ne pas changer les tirages des autres courses).
+ */
+export function blockMalus(kind: BonusKind, p: Protection, roll: () => number): BonusBlock | null {
+  if (p.immuneAll) return "apple";
+  if (kind === "fog" && p.immuneFog) return "night_vision";
+  if (p.shield > 0) {
+    p.shield -= 1;
+    return "shield";
+  }
+  return p.dodge > 0 && roll() < p.dodge ? "dodge" : null;
+}
 
 export type ProgressView = { id: string; fraction: number };
 
@@ -45,7 +73,8 @@ export function findLaggards<T extends ProgressView>(racers: readonly T[], leade
   if (racers.length < 2) return [];
   const min = Math.min(...racers.map((r) => r.fraction));
   return racers.filter(
-    (r) => r.id !== leader.id && (r.fraction === min || leader.fraction - r.fraction > LAG_THRESHOLD),
+    (r) =>
+      r.id !== leader.id && (r.fraction === min || leader.fraction - r.fraction > LAG_THRESHOLD),
   );
 }
 

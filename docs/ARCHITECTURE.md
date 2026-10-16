@@ -207,6 +207,20 @@ Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16
 - **Historique** : le seed calcule une fois l'XP des courses jouées avant l'ajout (anciens abandons sans perte).
 - **Affichage** : barre style Minecraft (niveau vert, 18 segments) dans l'en-tête et en grand sur le profil, colonne « XP » dans le classement des résultats.
 
+### Inventaire, boutique, craft et four (fonctionnalité ajoutée)
+
+Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16 octobre 2026). Code : `lib/items.ts` (catalogue, prix, effets), `lib/inventory.ts` (cases, déplacements, recettes 3 × 3, four, effets de l'équipement : logique pure, testée), `lib/shop.ts` (offres du jour), `lib/inventory-store.ts` (base de données, transactions), routes `app/api/inventory` et `app/api/shop` (Zod), pages `/inventaire` et `/boutique`, migration `0014_inventaire.sql`. Les icônes sont des dessins pixel originaux (`components/items/ItemIcon.tsx`), pas les textures de Minecraft.
+
+- **Serveur autoritaire** : le client envoie une intention (déplacer, fabriquer, acheter, activer) ; le serveur verrouille la ligne du compte (`select … for update`), valide avec la logique pure, puis enregistre. Un refus (case interdite, sac plein, XP insuffisante) ne change rien.
+- **Inventaire** : 4 cases d'armure, table de craft 3 × 3, four (minerai, charbon, sortie), sac de 27 cases ; piles de 64 (armure, totem, bouclier, potion : 1). Déplacement au clic ou toucher (prendre puis poser, avec TOUT / MOITIÉ / 1), au clavier (Entrée, Échap) ou par glisser-déposer. Chaque case a un petit (i) qui ouvre la fiche de l'objet.
+- **Recettes** (comme Minecraft, motif n'importe où sur la table) : casque 5, plastron 8, jambières 7, bottes 4 matériaux (cuir, lingot de cuivre, de fer, d'or, diamant) ; lingot de netherite = 4 fragments + 4 lingots d'or ; pièce en netherite = pièce en diamant + 1 lingot de netherite.
+- **Four** : minerai + charbon → lingot (débris antique → fragment de netherite), 10 s par objet, 8 objets par charbon. La cuisson continue page fermée : à chaque lecture, le serveur rattrape le temps écoulé depuis `furnaces.updated_at` (pas de tâche de fond).
+- **Boutique** : 6 offres par jour et par compte, tirées au premier passage (graine = compte + jour : testable), renouvelées à minuit heure de Toronto. Raretés : commun 60 % (8 achats par jour), peu commun 25 % (4), rare 12 % (2), épique 3 % (1). Payé en XP : le niveau peut baisser. Pièce d'armure « déjà faite » : environ 70 % du coût de ses matériaux, jamais en netherite.
+- **Effets en course** : au départ, l'armure portée et l'objet activé sont figés dans `race_participants.loadout` (l'objet est consommé). Esquive d'un malus (+3 mots, brouillard) par pièce : cuir 2 %, cuivre 3 %, fer 4 %, or 3 %, diamant 6 %, netherite 8 % ; armure complète +5 % (maximum 37 %). L'or donne +5 % d'XP par pièce, +10 % pour l'armure complète (maximum +30 %). Objets à usage unique : pomme dorée enchantée (tous les malus bloqués), vision nocturne (brouillard), bouclier (premier malus), fiole d'expérience (+50 % d'XP), totem d'immortalité (pas de perte de niveau à l'abandon). Un malus arrêté est annoncé dans la course (`blocked` dans le bonus) ; le retardataire a quand même joué son bonus. Le tirage d'esquive utilise le générateur de la course, seulement si la cible porte de l'armure.
+- **Usure** : chaque course jouée enlève 1 de durabilité aux pièces portées (cuir 20, cuivre 30, fer 50, or 25, diamant 100, netherite 150) ; à 0, la pièce se brise.
+- **Charbon au podium** : sur le podium d'une course finie avec au moins un adversaire, 60 % de chance au 1er (1 ou 2 charbons), 40 % au 2e et 25 % au 3e (1 charbon). Annoncé dans les résultats ; perdu si le sac est plein.
+- **Qui** : comptes seulement, comme l'XP (les invités voient une invitation à créer un compte).
+
 ## 9. Authentification et sécurité
 
 - Comptes : mot de passe haché (bcrypt), session JWT en cookie `httpOnly`, `sameSite=lax`, `secure` en production ; verrouillage temporaire après des échecs répétés ; OAuth Discord/GitHub optionnels.

@@ -10,7 +10,7 @@ import { levelFromXp } from "@/lib/xp";
 import type { RaceState } from "@/components/race/types";
 import { useRaceConnection } from "@/components/race/useRaceConnection";
 import { PixelButton, PixelPanel } from "@/components/ui";
-import { useLanguage } from "@/lib/i18n";
+import { useLanguage, type DictKey } from "@/lib/i18n";
 import { formatClock, formatNumber, formatPercent } from "@/lib/format";
 import { createThrottle, type Throttle } from "@/lib/race/throttle";
 
@@ -194,7 +194,10 @@ export default function CoursePage() {
     throttle.current = t;
     return () => t.cancel();
   }, []);
-  const scheduleSend = useCallback((immediate: boolean) => throttle.current?.schedule(immediate), []);
+  const scheduleSend = useCallback(
+    (immediate: boolean) => throttle.current?.schedule(immediate),
+    [],
+  );
 
   // Frappe au clavier : pas de retour arrière, pas de collage (COURSE-04).
   useEffect(() => {
@@ -313,11 +316,13 @@ export default function CoursePage() {
       (a.bonus.targetId === info.meId && a.bonus.kind !== "minus_words"),
   );
   const personalText = personalBanner
-    ? personalBanner.bonus.kind === "minus_words"
-      ? t("race.bonus_you_minus")
-      : personalBanner.bonus.kind === "plus_words"
-        ? t("race.bonus_you_plus")
-        : t("race.bonus_you_fog")
+    ? personalBanner.bonus.blocked
+      ? t("race.bonus_you_blocked")
+      : personalBanner.bonus.kind === "minus_words"
+        ? t("race.bonus_you_minus")
+        : personalBanner.bonus.kind === "plus_words"
+          ? t("race.bonus_you_plus")
+          : t("race.bonus_you_fog")
     : null;
   const pct = raceText.length ? Math.round((view.index / raceText.length) * 100) : 0;
 
@@ -364,7 +369,9 @@ export default function CoursePage() {
             </div>
             <div className="pixel-slot flex w-36 flex-col gap-1 px-4 py-2">
               <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.accuracy")}</b>
-              <span className="text-3xl text-white">{formatPercent(lang, me?.accuracy ?? 100)}</span>
+              <span className="text-3xl text-white">
+                {formatPercent(lang, me?.accuracy ?? 100)}
+              </span>
             </div>
             <div className="pixel-slot flex w-32 flex-col gap-1 px-4 py-2">
               <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.errors")}</b>
@@ -471,6 +478,9 @@ export default function CoursePage() {
                         : a.bonus.kind === "plus_words"
                           ? t("race.bonus_plus", { name: nameOf(a.bonus.beneficiaryId) })
                           : t("race.bonus_fog", { name: nameOf(a.bonus.beneficiaryId) })}
+                      {/* Inventaire : l'équipement de la cible a arrêté le malus. */}
+                      {a.bonus.blocked &&
+                        ` ${t(`race.blocked_${a.bonus.blocked}` as DictKey, { name: nameOf(a.bonus.targetId) })}`}
                     </li>
                   ))}
                 </ul>
@@ -501,7 +511,10 @@ export default function CoursePage() {
             </h2>
             <p className="text-2xl text-[#2b2b2b]">{t("race.abandon_text")}</p>
             {viewerLevel > 0 && (
-              <p className="border-2 border-black bg-[#ffd84a] px-3 py-2 text-2xl text-[#1b1b1b]" data-testid="abandon-xp">
+              <p
+                className="border-2 border-black bg-[#ffd84a] px-3 py-2 text-2xl text-[#1b1b1b]"
+                data-testid="abandon-xp"
+              >
                 {t("race.abandon_xp", { from: viewerLevel, to: viewerLevel - 1 })}
               </p>
             )}

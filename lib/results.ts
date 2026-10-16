@@ -32,6 +32,8 @@ export type ResultRow = {
   avatarUrl: string | null;
   /** XP gagnée (négative : abandon volontaire) ; null pour les bots et les invités. */
   xp: number | null;
+  /** Charbon gagné au podium (inventaire) ; null pour les bots et les invités. */
+  coal: number | null;
 };
 
 export type RaceResults = {
@@ -89,6 +91,7 @@ export async function loadRaceResults(raceId: string): Promise<RaceResults | nul
       "race_participants.key_correct",
       "race_participants.key_errors",
       "race_participants.xp_gained",
+      "race_participants.coal_gained",
       "users.avatar_url",
     ])
     .where("race_participants.race_id", "=", raceId)
@@ -129,6 +132,7 @@ export async function loadRaceResults(raceId: string): Promise<RaceResults | nul
       keyErrors: (r.key_errors as Record<string, number> | null) ?? {},
       avatarUrl: r.avatar_url,
       xp: r.xp_gained,
+      coal: r.coal_gained,
     })),
     spectatorKeys: rows
       .filter((r) => r.role === "spectator")

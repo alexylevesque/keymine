@@ -1,3 +1,4 @@
+import { ItemIcon } from "@/components/items/ItemIcon";
 import { PixelShell } from "@/components/PixelShell";
 import { participantName } from "@/lib/bot-name";
 import { PixelAvatar, PixelDisclosure, PixelKeyboard, PixelPanel } from "@/components/ui";
@@ -203,6 +204,12 @@ export default async function ResultatsPage({
                   ★ {t("res.record")}
                 </p>
               )}
+              {me.coal !== null && me.coal > 0 && (
+                <p className="mt-3 flex items-center gap-2 border-4 border-black bg-[#2b2b2b] px-2 py-1 text-2xl text-white">
+                  <ItemIcon item="coal" className="h-8 w-8 shrink-0" />
+                  {me.coal === 1 ? t("res.coal_won_one") : t("res.coal_won_many", { n: me.coal })}
+                </p>
+              )}
               <div className="mt-3 grid grid-cols-3 gap-2.5">
                 <div className="pixel-slot px-3 py-2 leading-none">
                   <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.speed")}</div>
@@ -227,7 +234,12 @@ export default async function ResultatsPage({
           <PixelPanel className="p-5">
             <PixelDisclosure title={t("res.ranking")} defaultOpen>
               {/* Sur écran étroit le tableau défile : la zone doit être atteignable au clavier (A11Y-04). */}
-              <div className="overflow-x-auto" role="region" aria-label={t("res.ranking")} tabIndex={0}>
+              <div
+                className="overflow-x-auto"
+                role="region"
+                aria-label={t("res.ranking")}
+                tabIndex={0}
+              >
                 <table className="w-full min-w-[40rem] border-collapse text-left text-xl leading-tight">
                   <caption className="sr-only">{t("res.ranking")}</caption>
                   <thead>

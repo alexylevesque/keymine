@@ -6,6 +6,7 @@ import {
   BONUS_KINDS,
   BONUS_LABELS,
   BONUS_WORDS,
+  blockMalus,
   CHECKPOINTS,
   findLaggards,
   findLeader,
@@ -15,6 +16,7 @@ import {
   wordsAfterCurrent,
   type BonusKind,
   type BonusRecord,
+  type Protection,
 } from "./bonus";
 import {
   accuracy as accuracyOf,
@@ -64,6 +66,8 @@ export type RacerInit = {
   /** Avancement déjà enregistré (reprise après redémarrage du serveur). */
   progress?: number;
   errors?: number;
+  /** Protection contre les malus (armure et objet de l'inventaire). */
+  protection?: Protection;
 };
 
 export type Racer = {
@@ -92,6 +96,7 @@ export type Racer = {
   series: { t: number; wpm: number }[];
   rank: number | null;
   bot: BotTimeline | null;
+  protection: Protection;
 };
 
 export type ProgressInput = {
@@ -209,6 +214,9 @@ export class RaceEngine {
         bot: botLevel
           ? new BotTimeline(botLevel, config.seed * 1_000 + index + 1, init.text, config.errorMode)
           : null,
+        protection: init.protection
+          ? { ...init.protection }
+          : { dodge: 0, immuneAll: false, immuneFog: false, shield: 0 },
       });
     });
   }
@@ -407,6 +415,15 @@ export class RaceEngine {
       targetId: target.id,
     };
     laggard.bonuses.push(record);
+
+    // Un malus vise le meneur : son équipement peut l'arrêter (le retardataire a quand même joué son bonus).
+    if (target !== laggard) {
+      const blocked = blockMalus(kind, target.protection, this.rng);
+      if (blocked) {
+        record.blocked = blocked;
+        return [{ type: "bonus", bonus: record, label: BONUS_LABELS[kind] }];
+      }
+    }
 
     const events: EngineEvent[] = [{ type: "bonus", bonus: record, label: BONUS_LABELS[kind] }];
     if (kind === "fog") {

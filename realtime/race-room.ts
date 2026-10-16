@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
 import { handOverHostDuringRace } from "@/lib/lobby-sweep";
 import { awardRaceXp } from "@/lib/xp-award";
+import { parseLoadout } from "@/lib/inventory-store";
 import { assertTransition } from "@/lib/race/state";
 import { RaceEngine, type EngineEvent, type RacerInit } from "@/lib/race/engine";
 import { isBotLevel } from "@/lib/race/bots";
@@ -99,6 +100,7 @@ async function createRoom(raceId: string): Promise<Room | null> {
       "race_participants.role",
       "race_participants.progress_chars",
       "race_participants.error_count",
+      "race_participants.loadout",
       "users.avatar_url",
     ])
     .where("race_id", "=", raceId)
@@ -121,6 +123,7 @@ async function createRoom(raceId: string): Promise<Room | null> {
         guestId: row.guest_id,
         progress: row.progress_chars,
         errors: row.error_count,
+        protection: parseLoadout(row.loadout),
       });
       avatars.set(row.id, row.avatar_url);
       if (key) members.set(key, { racerId: row.id });
