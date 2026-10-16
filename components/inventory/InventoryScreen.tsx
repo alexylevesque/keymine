@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { InfoButton, ItemInfoDialog } from "@/components/items/ItemInfoDialog";
@@ -19,7 +27,14 @@ import {
   type Stack,
 } from "@/lib/inventory";
 import type { InventoryView } from "@/lib/inventory-store";
-import { ARMOR_PARTS, armorInfo, isConsumable, maxDurability, type ItemId } from "@/lib/items";
+import {
+  ARMOR_PARTS,
+  armorInfo,
+  discardXp,
+  isConsumable,
+  maxDurability,
+  type ItemId,
+} from "@/lib/items";
 import { itemName } from "@/lib/item-text";
 
 // Inventaire façon Minecraft (fonctionnalité ajoutée) : armure, table de craft 3 × 3, four, sac de 27
@@ -55,13 +70,14 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [info, setInfo] = useState<Stack | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const discardDialog = useRef<HTMLDialogElement>(null);
 
   const inv = view.inventory;
   const stackAt = useCallback((ref: SlotRef): Slot => inv[ref.area][ref.slot] ?? null, [inv]);
   const heldStack = held ? stackAt(held) : null;
 
   const apply = useCallback(
-    async (payload: unknown): Promise<(InventoryView & { crafted?: ItemId }) | null> => {
+    async (payload: unknown): Promise<(InventoryView & Record<string, unknown>) | null> => {
       setBusy(true);
       setError(null);
       setNotice(null);
@@ -107,7 +123,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   useEffect(() => {
     if (!held) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !info) setHeld(null);
+      if (e.key === "Escape" && !info && !discardDialog.current?.open) setHeld(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -137,7 +153,27 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
 
   async function craftOnce() {
     const data = await apply({ action: "craft" });
-    if (data?.crafted) setNotice(t("inv.crafted", { item: itemName(t, data.crafted) }));
+    const crafted = data?.crafted as ItemId | undefined;
+    if (crafted) setNotice(t("inv.crafted", { item: itemName(t, crafted) }));
+  }
+
+  async function discard() {
+    if (!held || !heldStack) return;
+    const from = held;
+    const count = amountOf(amount, heldStack.count);
+    discardDialog.current?.close();
+    setHeld(null);
+    const data = (await apply({ action: "discard", from, count })) as
+      (InventoryView & { discarded?: { item: ItemId; count: number; xp: number } }) | null;
+    if (data?.discarded) {
+      setNotice(
+        t("inv.discarded", {
+          item: itemName(t, data.discarded.item),
+          count: data.discarded.count,
+          xp: data.discarded.xp,
+        }),
+      );
+    }
   }
 
   async function activate(slot: number) {
@@ -255,6 +291,13 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               className="h-9 px-3 text-[9px]"
             >
               (i)
+            </PixelButton>
+            <PixelButton
+              variant="red"
+              onClick={() => discardDialog.current?.showModal()}
+              className="h-9 px-3 text-[9px]"
+            >
+              {t("inv.discard")}
             </PixelButton>
             <PixelButton
               variant="slate"
@@ -408,6 +451,53 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
           <p>{t("inv.recipes_furnace")}</p>
         </div>
       </PixelDisclosure>
+
+      <dialog
+        ref={discardDialog}
+        aria-labelledby="discard-title"
+        className="pixel-panel m-auto w-[calc(100%-2rem)] max-w-md p-5 backdrop:bg-black/70"
+      >
+        {heldStack && (
+          <>
+            <h2 id="discard-title" className="font-pixel mb-3 text-sm text-[#2b2b2b]">
+              {t("inv.discard_title")}
+            </h2>
+            <div className="mb-4 flex items-center gap-3">
+              <span className="pixel-slot flex h-12 w-12 shrink-0 items-center justify-center">
+                <ItemIcon item={heldStack.item} className="h-9 w-9" />
+              </span>
+              <p className="text-2xl leading-tight text-[#2b2b2b]">
+                {t("inv.discard_text", {
+                  item: itemName(t, heldStack.item),
+                  count: amountOf(amount, heldStack.count),
+                  xp: discardXp(
+                    heldStack.item,
+                    amountOf(amount, heldStack.count),
+                    heldStack.durability,
+                  ),
+                })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <PixelButton
+                variant="red"
+                disabled={busy}
+                onClick={() => void discard()}
+                className="h-12 flex-1 text-[11px]"
+              >
+                {t("inv.discard_confirm")}
+              </PixelButton>
+              <PixelButton
+                variant="slate"
+                onClick={() => discardDialog.current?.close()}
+                className="h-12 flex-1 text-[11px]"
+              >
+                {t("inv.cancel")}
+              </PixelButton>
+            </div>
+          </>
+        )}
+      </dialog>
 
       <ItemInfoDialog
         item={info?.item ?? null}

@@ -17,7 +17,9 @@ import {
 } from "@/lib/inventory";
 import {
   armorInfo,
+  discardXp,
   ITEM_IDS,
+  itemValue,
   maxStack,
   podiumCoal,
   readyMadePrice,
@@ -352,5 +354,30 @@ describe("boutique", () => {
     expect(nextShopReset(new Date("2026-11-01T12:00:00Z")).toISOString()).toBe(
       "2026-11-02T05:00:00.000Z",
     );
+  });
+});
+
+describe("jeter un objet", () => {
+  it("rend 25 % de sa valeur, arrondi vers le bas", () => {
+    expect(itemValue("diamond")).toBe(60);
+    expect(discardXp("diamond", 1, null)).toBe(15);
+    expect(discardXp("coal", 1, null)).toBe(0); // 2,5 XP la pièce : un seul ne rapporte rien
+    expect(discardXp("coal", 4, null)).toBe(2);
+    expect(itemValue("iron_helmet")).toBe(65); // 5 lingots de fer
+    expect(discardXp("iron_helmet", 1, 50)).toBe(16);
+    expect(itemValue("netherite_ingot")).toBe(676); // 4 fragments + 4 lingots d'or
+    expect(itemValue("netherite_boots")).toBe(4 * 60 + 676);
+  });
+
+  it("une armure usée rend moins", () => {
+    expect(discardXp("diamond_chestplate", 1, 50)).toBe(Math.floor(0.25 * 480 * 0.5));
+    expect(discardXp("diamond_chestplate", 1, 100)).toBe(120);
+  });
+
+  it("n'est jamais rentable : on récupère moins que le prix payé", () => {
+    for (const id of ITEM_IDS) {
+      const price = shopPrice(id);
+      if (price) expect(discardXp(id, price.count, null)).toBeLessThan(price.price);
+    }
   });
 });

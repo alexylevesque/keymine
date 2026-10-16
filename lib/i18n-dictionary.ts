@@ -517,7 +517,8 @@ export const DICTIONARY = {
     "item.xp_bottle": "Fiole d'expérience",
     "item.shield": "Bouclier",
     "item.night_vision": "Potion de vision nocturne",
-    "info.coal": "Combustible du four : un charbon fait 8 cuissons. Tu peux aussi en gagner en finissant sur le podium.",
+    "info.coal":
+      "Combustible du four : un charbon fait 8 cuissons. Tu peux aussi en gagner en finissant sur le podium.",
     "info.leather": "Sert à fabriquer l'armure de cuir.",
     "info.copper_ore": "À cuire au four (avec du charbon) pour obtenir un lingot de cuivre.",
     "info.iron_ore": "À cuire au four (avec du charbon) pour obtenir un lingot de fer.",
@@ -526,16 +527,23 @@ export const DICTIONARY = {
     "info.iron_ingot": "Sert à fabriquer l'armure de fer.",
     "info.gold_ingot": "Sert à fabriquer l'armure d'or, et le lingot de netherite.",
     "info.diamond": "Sert à fabriquer l'armure de diamant.",
-    "info.ancient_debris": "À cuire au four (avec du charbon) pour obtenir un fragment de netherite.",
-    "info.netherite_scrap": "4 fragments + 4 lingots d'or, n'importe où sur la table, donnent un lingot de netherite.",
+    "info.ancient_debris":
+      "À cuire au four (avec du charbon) pour obtenir un fragment de netherite.",
+    "info.netherite_scrap":
+      "4 fragments + 4 lingots d'or, n'importe où sur la table, donnent un lingot de netherite.",
     "info.netherite_ingot": "Avec une pièce d'armure en diamant, donne la même pièce en netherite.",
-    "info.enchanted_golden_apple": "À activer. Pendant ta prochaine course, aucun malus ne te touche (+3 mots, brouillard). Ne change pas tes bonus.",
-    "info.totem": "À activer. Pendant ta prochaine course, si tu abandonnes, tu ne perds pas de niveau.",
+    "info.enchanted_golden_apple":
+      "À activer. Pendant ta prochaine course, aucun malus ne te touche (+3 mots, brouillard). Ne change pas tes bonus.",
+    "info.totem":
+      "À activer. Pendant ta prochaine course, si tu abandonnes, tu ne perds pas de niveau.",
     "info.xp_bottle": "À activer. Ta prochaine course rapporte 50 % d'XP en plus.",
-    "info.shield": "À activer. Pendant ta prochaine course, le premier malus qui te vise est bloqué.",
+    "info.shield":
+      "À activer. Pendant ta prochaine course, le premier malus qui te vise est bloqué.",
     "info.night_vision": "À activer. Pendant ta prochaine course, le brouillard ne te touche pas.",
-    "info.armor": "Se porte dans la case « {part} ». Chaque pièce te donne {dodge} de chance d'esquiver un malus ; l'armure complète du même matériau ajoute {set}. S'use d'une course à la fois.",
-    "info.armor_gold": "Se porte dans la case « {part} ». Chaque pièce te donne {dodge} de chance d'esquiver un malus et {xp} d'XP en plus ; l'armure d'or complète ajoute {set} d'XP. S'use d'une course à la fois.",
+    "info.armor":
+      "Se porte dans la case « {part} ». Chaque pièce te donne {dodge} de chance d'esquiver un malus ; l'armure complète du même matériau ajoute {set}. S'use d'une course à la fois.",
+    "info.armor_gold":
+      "Se porte dans la case « {part} ». Chaque pièce te donne {dodge} de chance d'esquiver un malus et {xp} d'XP en plus ; l'armure d'or complète ajoute {set} d'XP. S'use d'une course à la fois.",
     "info.rarity": "Rareté : {rarity}",
     "info.price": "En boutique : {count} pour {price} XP",
     "info.not_sold": "Ne s'achète pas : se fabrique ou se cuit au four.",
@@ -576,7 +584,8 @@ export const DICTIONARY = {
     "inv.furnace_on": "Cuisson en cours · encore {left} cuisson(s) avec ce charbon",
     "inv.furnace_off": "Le four est éteint : mets un minerai et du charbon.",
     "inv.bag": "SAC",
-    "inv.hint": "Clique ou touche un objet, puis la case où le poser (tu peux aussi le glisser). Au clavier : Entrée prend, Entrée pose, Échap annule.",
+    "inv.hint":
+      "Clique ou touche un objet, puis la case où le poser (tu peux aussi le glisser). Au clavier : Entrée prend, Entrée pose, Échap annule.",
     "inv.selected": "En main : {item} × {count}",
     "inv.amount": "Quantité",
     "inv.amount_all": "TOUT",
@@ -588,21 +597,26 @@ export const DICTIONARY = {
     "inv.use": "ACTIVER",
     "inv.cancel": "ANNULER",
     "inv.active_title": "PROCHAINE COURSE",
-    "inv.active_none": "Aucun objet activé. Active une pomme, un totem, une fiole, un bouclier ou une potion pour ta prochaine course.",
+    "inv.active_none":
+      "Aucun objet activé. Active une pomme, un totem, une fiole, un bouclier ou une potion pour ta prochaine course.",
     "inv.active_item": "{item} agira pendant ta prochaine course.",
     "inv.unuse": "RETIRER",
     "inv.stats": "Esquive des malus : {dodge} · Bonus d'XP : {xp}",
     "inv.empty_slot": "case vide",
     "inv.slot_label": "{area}, case {n} : {content}",
     "inv.recipes": "RECETTES",
-    "inv.recipes_armor": "Armure : pose le matériau (cuir, lingot ou diamant) en suivant le motif. Le motif peut être n'importe où sur la table.",
+    "inv.recipes_armor":
+      "Armure : pose le matériau (cuir, lingot ou diamant) en suivant le motif. Le motif peut être n'importe où sur la table.",
     "inv.recipes_netherite": "Lingot de netherite : 4 fragments + 4 lingots d'or, n'importe où.",
-    "inv.recipes_netherite_piece": "Pièce en netherite : la pièce en diamant + 1 lingot de netherite.",
-    "inv.recipes_furnace": "Four : minerai + charbon donne un lingot (10 s par objet, 8 objets par charbon). La cuisson continue même page fermée.",
+    "inv.recipes_netherite_piece":
+      "Pièce en netherite : la pièce en diamant + 1 lingot de netherite.",
+    "inv.recipes_furnace":
+      "Four : minerai + charbon donne un lingot (10 s par objet, 8 objets par charbon). La cuisson continue même page fermée.",
     "inv.crafted": "Fabriqué : {item}.",
     "shop.title": "BOUTIQUE",
     "shop.login": "Il faut un compte pour acheter : on paie en XP.",
-    "shop.subtitle": "6 offres par jour, rien que pour toi. On paie en XP : ton niveau peut baisser.",
+    "shop.subtitle":
+      "6 offres par jour, rien que pour toi. On paie en XP : ton niveau peut baisser.",
     "shop.reset": "Nouvelles offres dans {time}",
     "shop.your_xp": "Ton XP : {xp} · niveau {level}",
     "shop.buy": "ACHETER",
@@ -633,6 +647,13 @@ export const DICTIONARY = {
     "err.shop_sold_out": "Cette offre est épuisée pour aujourd'hui.",
     "err.shop_not_enough_xp": "Pas assez d'XP.",
     "err.shop_inventory_full": "Ton sac est plein : fais de la place avant d'acheter.",
+    "inv.discard": "JETER",
+    "inv.discard_title": "JETER CET OBJET ?",
+    "inv.discard_text":
+      "Es-tu sûr ? {item} × {count} sera détruit pour de bon. Tu récupères {xp} XP (25 % de sa valeur).",
+    "inv.discard_confirm": "OUI, JETER",
+    "inv.discarded": "{item} × {count} jeté : +{xp} XP.",
+    "info.discard": "Si tu le jettes : {xp} XP rendus (25 % de sa valeur).",
   },
   en: {
     "meta.description": "Real-time typing races for the classroom.",
@@ -963,8 +984,7 @@ export const DICTIONARY = {
     "set.opt_Ponctuation": "Punctuation",
     "set.opt_Nombres": "Numbers",
     "set.opt_Accents": "Accents",
-    "set.options_note":
-      "Random text: each option adds that kind of character to the drawn words.",
+    "set.options_note": "Random text: each option adds that kind of character to the drawn words.",
     "set.letters": "LETTERS",
     "set.digits": "Numbers",
     "set.letters_note":
@@ -1140,7 +1160,8 @@ export const DICTIONARY = {
     "item.xp_bottle": "Bottle of experience",
     "item.shield": "Shield",
     "item.night_vision": "Potion of night vision",
-    "info.coal": "Furnace fuel: one coal smelts 8 items. You can also win some by finishing on the podium.",
+    "info.coal":
+      "Furnace fuel: one coal smelts 8 items. You can also win some by finishing on the podium.",
     "info.leather": "Used to craft leather armor.",
     "info.copper_ore": "Smelt it in the furnace (with coal) to get a copper ingot.",
     "info.iron_ore": "Smelt it in the furnace (with coal) to get an iron ingot.",
@@ -1150,15 +1171,19 @@ export const DICTIONARY = {
     "info.gold_ingot": "Used to craft gold armor and netherite ingots.",
     "info.diamond": "Used to craft diamond armor.",
     "info.ancient_debris": "Smelt it in the furnace (with coal) to get netherite scrap.",
-    "info.netherite_scrap": "4 scraps + 4 gold ingots, anywhere on the table, make a netherite ingot.",
+    "info.netherite_scrap":
+      "4 scraps + 4 gold ingots, anywhere on the table, make a netherite ingot.",
     "info.netherite_ingot": "With a diamond armor piece, makes the same piece in netherite.",
-    "info.enchanted_golden_apple": "Activate it. During your next race, no penalty can hit you (+3 words, fog). Your own bonuses stay the same.",
+    "info.enchanted_golden_apple":
+      "Activate it. During your next race, no penalty can hit you (+3 words, fog). Your own bonuses stay the same.",
     "info.totem": "Activate it. During your next race, if you quit, you do not lose a level.",
     "info.xp_bottle": "Activate it. Your next race gives 50% more XP.",
     "info.shield": "Activate it. During your next race, the first penalty aimed at you is blocked.",
     "info.night_vision": "Activate it. During your next race, fog cannot hit you.",
-    "info.armor": "Worn in the \"{part}\" slot. Each piece gives you a {dodge} chance to dodge a penalty; a full set of the same material adds {set}. Wears down by one per race.",
-    "info.armor_gold": "Worn in the \"{part}\" slot. Each piece gives you a {dodge} chance to dodge a penalty and {xp} more XP; a full gold set adds {set} XP. Wears down by one per race.",
+    "info.armor":
+      'Worn in the "{part}" slot. Each piece gives you a {dodge} chance to dodge a penalty; a full set of the same material adds {set}. Wears down by one per race.',
+    "info.armor_gold":
+      'Worn in the "{part}" slot. Each piece gives you a {dodge} chance to dodge a penalty and {xp} more XP; a full gold set adds {set} XP. Wears down by one per race.',
     "info.rarity": "Rarity: {rarity}",
     "info.price": "In the shop: {count} for {price} XP",
     "info.not_sold": "Not for sale: craft it or smelt it.",
@@ -1199,7 +1224,8 @@ export const DICTIONARY = {
     "inv.furnace_on": "Smelting · {left} smelt(s) left from this coal",
     "inv.furnace_off": "The furnace is off: add an ore and some coal.",
     "inv.bag": "BAG",
-    "inv.hint": "Click or tap an item, then the slot where it goes (you can also drag it). Keyboard: Enter picks up, Enter drops, Escape cancels.",
+    "inv.hint":
+      "Click or tap an item, then the slot where it goes (you can also drag it). Keyboard: Enter picks up, Enter drops, Escape cancels.",
     "inv.selected": "Holding: {item} × {count}",
     "inv.amount": "Amount",
     "inv.amount_all": "ALL",
@@ -1211,17 +1237,20 @@ export const DICTIONARY = {
     "inv.use": "ACTIVATE",
     "inv.cancel": "CANCEL",
     "inv.active_title": "NEXT RACE",
-    "inv.active_none": "No item activated. Activate an apple, a totem, a bottle, a shield or a potion for your next race.",
+    "inv.active_none":
+      "No item activated. Activate an apple, a totem, a bottle, a shield or a potion for your next race.",
     "inv.active_item": "{item} will work during your next race.",
     "inv.unuse": "REMOVE",
     "inv.stats": "Penalty dodge: {dodge} · XP bonus: {xp}",
     "inv.empty_slot": "empty",
     "inv.slot_label": "{area}, slot {n}: {content}",
     "inv.recipes": "RECIPES",
-    "inv.recipes_armor": "Armor: place the material (leather, ingot or diamond) following the pattern. The pattern can be anywhere on the table.",
+    "inv.recipes_armor":
+      "Armor: place the material (leather, ingot or diamond) following the pattern. The pattern can be anywhere on the table.",
     "inv.recipes_netherite": "Netherite ingot: 4 scraps + 4 gold ingots, anywhere.",
     "inv.recipes_netherite_piece": "Netherite piece: the diamond piece + 1 netherite ingot.",
-    "inv.recipes_furnace": "Furnace: ore + coal gives an ingot (10 s per item, 8 items per coal). Smelting goes on even with the page closed.",
+    "inv.recipes_furnace":
+      "Furnace: ore + coal gives an ingot (10 s per item, 8 items per coal). Smelting goes on even with the page closed.",
     "inv.crafted": "Crafted: {item}.",
     "shop.title": "SHOP",
     "shop.login": "You need an account to buy: you pay with XP.",
@@ -1256,6 +1285,13 @@ export const DICTIONARY = {
     "err.shop_sold_out": "This offer is sold out for today.",
     "err.shop_not_enough_xp": "Not enough XP.",
     "err.shop_inventory_full": "Your bag is full: make room before buying.",
+    "inv.discard": "DISCARD",
+    "inv.discard_title": "DISCARD THIS ITEM?",
+    "inv.discard_text":
+      "Are you sure? {item} × {count} will be destroyed for good. You get {xp} XP back (25% of its value).",
+    "inv.discard_confirm": "YES, DISCARD",
+    "inv.discarded": "{item} × {count} discarded: +{xp} XP.",
+    "info.discard": "If you discard it: {xp} XP back (25% of its value).",
   },
 } as const;
 

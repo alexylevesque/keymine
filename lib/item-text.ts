@@ -3,6 +3,7 @@ import type { DictKey, SiteLang } from "./i18n-dictionary";
 import { formatPercent } from "./format";
 import {
   armorInfo,
+  discardXp,
   DODGE_PER_PIECE,
   FULL_SET_DODGE,
   GOLD_FULL_SET_XP,
@@ -59,5 +60,6 @@ export function itemFacts(t: T, item: ItemId, durability: number | null): string
   const max = maxDurability(item);
   if (max !== null) facts.push(t("info.durability", { left: durability ?? max, max }));
   if (maxStack(item) > 1) facts.push(t("info.stack", { max: maxStack(item) }));
+  facts.push(t("info.discard", { xp: discardXp(item, 1, durability) }));
   return facts;
 }

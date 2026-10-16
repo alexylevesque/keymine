@@ -25,7 +25,7 @@ import {
   type SlotRef,
   type Stack,
 } from "@/lib/inventory";
-import { isConsumable, isItemId, type ItemId } from "@/lib/items";
+import { discardXp, isConsumable, isItemId, type ItemId } from "@/lib/items";
 import { generateOffers, nextShopReset, shopDay, type Offer } from "@/lib/shop";
 
 type Trx = Transaction<Database>;
@@ -175,6 +175,34 @@ export async function moveInInventory(
 
 export async function craftInInventory(userId: string, now = new Date()) {
   return withInventory(userId, (inv) => craft(inv), now);
+}
+
+/** Jette des objets d'une case (définitif) et rend une partie de leur valeur en XP. */
+export async function discardItem(userId: string, from: SlotRef, count?: number, now = new Date()) {
+  return withInventory(
+    userId,
+    async (inv, _user, trx) => {
+      const slots = inv[from.area];
+      if (!Number.isInteger(from.slot) || from.slot < 0 || from.slot >= slots.length) {
+        throw new InventoryError("bad_slot");
+      }
+      const stack = slots[from.slot];
+      if (!stack) throw new InventoryError("empty_slot");
+      const amount = Math.min(stack.count, Math.max(1, Math.floor(count ?? stack.count)));
+      const gained = discardXp(stack.item, amount, stack.durability);
+      stack.count -= amount;
+      if (stack.count === 0) slots[from.slot] = null;
+      if (gained > 0) {
+        await trx
+          .updateTable("users")
+          .set({ xp_total: sql<number>`xp_total + ${gained}` })
+          .where("id", "=", userId)
+          .execute();
+      }
+      return { item: stack.item, count: amount, xp: gained };
+    },
+    now,
+  );
 }
 
 /** Active un objet à usage unique du sac pour la prochaine course (un seul à la fois). */

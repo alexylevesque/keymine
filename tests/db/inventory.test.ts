@@ -6,6 +6,7 @@ import {
   buyOffer,
   craftInInventory,
   deactivateItem,
+  discardItem,
   moveInInventory,
   readInventory,
   readShop,
@@ -131,6 +132,22 @@ describe("inventaire", () => {
     expect((await readInventory(u, NOW)).inventory.bag[0]).toMatchObject({
       item: "leather",
       count: 3,
+    });
+  });
+
+  it("jeter détruit les objets et rend 25 % de leur valeur en XP", async () => {
+    const u = await user(100);
+    await put(u, "bag", 0, "diamond", 3);
+    await put(u, "armor", 1, "diamond_chestplate", 1, 50);
+    const { view, result } = await discardItem(u, { area: "bag", slot: 0 }, 2, NOW);
+    expect(result).toEqual({ item: "diamond", count: 2, xp: 30 });
+    expect(view.inventory.bag[0]?.count).toBe(1);
+    expect(view.xp).toBe(130);
+    const worn = await discardItem(u, { area: "armor", slot: 1 }, undefined, NOW);
+    expect(worn.result.xp).toBe(60); // à moitié usé : la moitié de 25 % de 480
+    expect(worn.view.inventory.armor[1]).toBeNull();
+    await expect(discardItem(u, { area: "bag", slot: 5 }, undefined, NOW)).rejects.toMatchObject({
+      code: "empty_slot",
     });
   });
 

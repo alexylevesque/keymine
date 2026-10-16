@@ -7,6 +7,7 @@ import {
   activateItem,
   craftInInventory,
   deactivateItem,
+  discardItem,
   moveInInventory,
   readInventory,
 } from "@/lib/inventory-store";
@@ -23,6 +24,11 @@ const body = z.discriminatedUnion("action", [
     count: z.number().int().min(1).max(64).optional(),
   }),
   z.object({ action: z.literal("craft") }),
+  z.object({
+    action: z.literal("discard"),
+    from: slotRef.extend({ slot: z.number().int().min(0).max(26) }),
+    count: z.number().int().min(1).max(64).optional(),
+  }),
   z.object({ action: z.literal("use"), slot: z.number().int().min(0).max(26) }),
   z.object({ action: z.literal("unuse") }),
 ]);
@@ -49,6 +55,10 @@ export async function POST(request: Request) {
       case "craft": {
         const { view, result } = await craftInInventory(who.userId);
         return NextResponse.json({ ...view, crafted: result.item });
+      }
+      case "discard": {
+        const { view, result } = await discardItem(who.userId, input.from, input.count);
+        return NextResponse.json({ ...view, discarded: result });
       }
       case "use":
         return NextResponse.json(await activateItem(who.userId, input.slot));

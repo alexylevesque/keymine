@@ -209,6 +209,40 @@ export function shopPrice(id: ItemId): { count: number; price: number } | null {
   return null;
 }
 
+// ---- Jeter un objet ----
+
+/** Jeter un objet rend 25 % de sa valeur en XP (arrondi vers le bas). */
+export const DISCARD_RATIO = 0.25;
+
+/** Valeur des objets qui ne s'achètent pas : celle de leurs matériaux. */
+const CRAFTED_VALUE: Partial<Record<ItemId, number>> = {
+  copper_ingot: MATERIAL_UNIT_XP.copper,
+  netherite_scrap: 150, // un débris antique
+  netherite_ingot: 4 * 150 + 4 * MATERIAL_UNIT_XP.gold, // 4 fragments + 4 lingots d'or
+};
+
+/** Valeur d'une unité en XP : prix en boutique, sinon coût de ses matériaux (armure neuve). */
+export function itemValue(id: ItemId): number {
+  const armor = armorInfo(id);
+  if (armor) {
+    if (armor.material === "netherite") {
+      return itemValue(`diamond_${armor.part}`) + itemValue("netherite_ingot");
+    }
+    return PART_COST[armor.part] * MATERIAL_UNIT_XP[armor.material];
+  }
+  const crafted = CRAFTED_VALUE[id];
+  if (crafted !== undefined) return crafted;
+  const price = shopPrice(id);
+  return price ? price.price / price.count : 0;
+}
+
+/** XP rendue en jetant `count` objets ; l'armure rend moins quand elle est usée. */
+export function discardXp(id: ItemId, count: number, durability: number | null): number {
+  const max = maxDurability(id);
+  const wear = max && durability !== null ? Math.min(1, durability / max) : 1;
+  return Math.floor(DISCARD_RATIO * itemValue(id) * count * wear);
+}
+
 // ---- Objets à usage unique ----
 
 export const CONSUMABLE_EFFECT: Record<
