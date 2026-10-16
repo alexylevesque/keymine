@@ -5,7 +5,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 export type Viewer =
-  | { kind: "user"; name: string; avatarUrl: string | null }
+  | { kind: "user"; name: string; avatarUrl: string | null; xp: number }
   | { kind: "guest"; name: string }
   | null;
 

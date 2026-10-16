@@ -2,6 +2,7 @@ import { PixelShell } from "@/components/PixelShell";
 import { participantName } from "@/lib/bot-name";
 import { PixelAvatar, PixelDisclosure, PixelKeyboard, PixelPanel } from "@/components/ui";
 import { ResultsActions } from "@/components/results/ResultsActions";
+import { RefreshOnMount } from "@/components/RefreshOnMount";
 import { WpmChart } from "@/components/results/WpmChart";
 import { HIDDEN_FIRST_SECONDS } from "@/components/results/chart-config";
 import { peekIdentity } from "@/lib/auth/identity";
@@ -139,6 +140,7 @@ export default async function ResultatsPage({
 
   return (
     <PixelShell active="lobbys">
+      <RefreshOnMount />
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="font-pixel text-xl text-white [text-shadow:4px_4px_0_#000]">
           {t("res.title")}
@@ -240,6 +242,7 @@ export default async function ResultatsPage({
                           "res.col_errors",
                           "res.col_time",
                           "res.col_status",
+                          "xp.column",
                           "res.col_bonus",
                         ] as const
                       ).map((key) => (
@@ -279,6 +282,16 @@ export default async function ResultatsPage({
                           )}
                         </td>
                         <td className="pr-2.5">{t(STATUS_KEY[p.status] ?? "res.status_other")}</td>
+                        <td className="pr-2.5 whitespace-nowrap" data-testid="xp-cell">
+                          {p.xp === null ? (
+                            "—"
+                          ) : (
+                            <span className="font-bold">
+                              {p.xp > 0 ? "+" : p.xp < 0 ? "−" : ""}
+                              {formatNumber(lang, Math.abs(p.xp))}
+                            </span>
+                          )}
+                        </td>
                         <td>{bonusSummary(lang, p)}</td>
                       </tr>
                     ))}

@@ -605,6 +605,79 @@ body {
     text-shadow: none;
   }
 
+  /* Barre d'expérience façon Minecraft : niveau vert contouré de noir, barre verte en 18 segments. */
+  .pixel-xp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+  }
+  .pixel-xp-level {
+    font-family: var(--font-pixel), monospace;
+    font-size: 11px;
+    line-height: 1;
+    color: #80ff20;
+    text-shadow:
+      -2px 0 0 #000,
+      2px 0 0 #000,
+      0 -2px 0 #000,
+      0 2px 0 #000,
+      2px 2px 0 #3f3f00;
+  }
+  .pixel-xp-track {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    border: 2px solid #000;
+    background: #2b2b2b;
+    box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+  }
+  .pixel-xp-fill {
+    height: 100%;
+    background: linear-gradient(#b6ff6a 0 30%, #80ff20 30% 70%, #4fa312 70% 100%);
+    transition: width 600ms steps(12);
+  }
+  /* Encoches des 18 segments, par-dessus le remplissage. */
+  .pixel-xp-track::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 calc(100% / 18 - 2px),
+      rgba(0, 0, 0, 0.75) calc(100% / 18 - 2px) calc(100% / 18)
+    );
+    pointer-events: none;
+  }
+  .pixel-xp[data-size="lg"] {
+    gap: 6px;
+  }
+  .pixel-xp[data-size="lg"] .pixel-xp-level {
+    font-size: 26px;
+    text-shadow:
+      -3px 0 0 #000,
+      3px 0 0 #000,
+      0 -3px 0 #000,
+      0 3px 0 #000,
+      3px 3px 0 #3f3f00;
+  }
+  .pixel-xp[data-size="lg"] .pixel-xp-track {
+    height: 20px;
+    border-width: 3px;
+  }
+  .pixel-xp-caption {
+    font-family: var(--font-pixel), monospace;
+    font-size: 10px;
+    color: #2b2b2b;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pixel-xp-fill {
+      transition: none;
+    }
+  }
+
   /* Bouton « hamburger » (moins de 1024 px) : trois barres en pixels, croix quand le menu est ouvert. */
   .pixel-menu-toggle {
     display: inline-flex;

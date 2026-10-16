@@ -209,3 +209,36 @@ test("le formulaire propose « Sans limite » puis de 30 s à 10 min (CONF-01)",
   expect(options.at(-1)).toMatch(/^10\sminutes$/);
   expect(options).not.toContain("15 secondes");
 });
+
+// Expérience : une course gagnée rapporte de l'XP (colonne des résultats et barre de l'en-tête) ;
+// la fenêtre d'abandon prévient qu'on perd un niveau.
+test("une course rapporte de l'XP et l'abandon prévient de la perte d'un niveau", async ({ page }) => {
+  test.setTimeout(120_000);
+  // Le bot noob finit lentement : la course se termine au plus tard à la fin des 30 s.
+  const { code, box } = await startRace(page, { textLength: 10, durationSeconds: 30 });
+  for (let i = 0; i < 400 && !page.url().includes(`/resultats/${code}`); i++) {
+    const index = await cursorIndex(page).catch(() => -1);
+    if (index < 0) break;
+    const text = (await box.textContent().catch(() => "")) ?? "";
+    await pressChar(page, text[index]!);
+    await page.waitForTimeout(70);
+  }
+  await expect(page).toHaveURL(new RegExp(`/resultats/${code}`), { timeout: 45_000 });
+  const myRow = page.getByRole("table").locator("tbody tr").filter({ has: page.locator("td.font-bold") });
+  await expect(myRow.getByTestId("xp-cell")).toHaveText(/^\+\d+$/);
+  // La barre de l'en-tête se met à jour sans recharger la page.
+  await expect(page.getByRole("banner").getByRole("progressbar")).toHaveAccessibleName(/^Niveau [1-9]\d* :/, {
+    timeout: 10_000,
+  });
+
+  // Nouvelle course : la fenêtre d'abandon annonce la perte d'un niveau.
+  await page.request.post(`/api/lobbies/${code}/leave`);
+  const second = await createRoomViaApi(page.request, { durationSeconds: 60, textLength: 10 });
+  await addBotViaApi(page.request, second, "noob");
+  await page.goto(`/jouer/${second}`);
+  await page.getByRole("button", { name: "DEMARRER" }).click();
+  await expect(page).toHaveURL(new RegExp(`/course/${second}`), { timeout: 15_000 });
+  await expect(page.getByText("La course commence…")).toBeHidden({ timeout: 15_000 });
+  await page.getByRole("button", { name: "ABANDONNER" }).click();
+  await expect(page.getByTestId("abandon-xp")).toContainText("perdre un niveau d'expérience complet");
+});

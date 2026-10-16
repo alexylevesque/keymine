@@ -5,6 +5,8 @@ import { participantName } from "@/lib/bot-name";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Track } from "@/components/race/Track";
 import { LanguageSelect } from "@/components/LanguageSelect";
+import { useViewer } from "@/lib/viewer";
+import { levelFromXp } from "@/lib/xp";
 import type { RaceState } from "@/components/race/types";
 import { useRaceConnection } from "@/components/race/useRaceConnection";
 import { PixelButton, PixelPanel } from "@/components/ui";
@@ -61,6 +63,9 @@ function useNow(stepMs: number): number {
 export default function CoursePage() {
   const router = useRouter();
   const { t, lang } = useLanguage();
+  const viewer = useViewer();
+  // Abandon volontaire : on perd un niveau d'expérience complet (comptes seulement).
+  const viewerLevel = viewer?.kind === "user" ? levelFromXp(viewer.xp).level : 0;
   const params = useParams<{ code: string }>();
   const code = params.code.toUpperCase();
   const narrow = useIsNarrow();
@@ -495,6 +500,11 @@ export default function CoursePage() {
               {t("race.abandon_title")}
             </h2>
             <p className="text-2xl text-[#2b2b2b]">{t("race.abandon_text")}</p>
+            {viewerLevel > 0 && (
+              <p className="border-2 border-black bg-[#ffd84a] px-3 py-2 text-2xl text-[#1b1b1b]" data-testid="abandon-xp">
+                {t("race.abandon_xp", { from: viewerLevel, to: viewerLevel - 1 })}
+              </p>
+            )}
             <div className="flex flex-col gap-3 sm:flex-row">
               <PixelButton
                 type="button"

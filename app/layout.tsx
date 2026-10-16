@@ -39,8 +39,12 @@ async function loadViewer(): Promise<Viewer> {
   const identity = await peekIdentity();
   if (!identity) return null;
   if (identity.kind === "guest") return { kind: "guest", name: identity.displayName };
-  const row = await db.selectFrom("users").select("avatar_url").where("id", "=", identity.userId).executeTakeFirst();
-  return { kind: "user", name: identity.displayName, avatarUrl: row?.avatar_url ?? null };
+  const row = await db
+    .selectFrom("users")
+    .select(["avatar_url", "xp_total"])
+    .where("id", "=", identity.userId)
+    .executeTakeFirst();
+  return { kind: "user", name: identity.displayName, avatarUrl: row?.avatar_url ?? null, xp: row?.xp_total ?? 0 };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

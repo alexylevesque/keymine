@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { PixelAvatar } from "./ui";
 import { LanguageSelect } from "./LanguageSelect";
+import { XpBar } from "./XpBar";
 import { useLanguage } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
 
@@ -134,7 +135,10 @@ export function PixelShell({
           <nav aria-label={t("a11y.main_nav")} className="hidden flex-grow gap-1.5 lg:flex">
             {navLinks()}
           </nav>
-          <div className="min-w-0 flex-grow lg:hidden" />
+          {/* Expérience : petite barre ; sur petit écran elle prend la place libre entre logo et compte. */}
+          <div className="flex min-w-0 flex-grow justify-end lg:flex-grow-0">
+            {viewer?.kind === "user" && <XpBar totalXp={viewer.xp} className="w-full max-w-44 lg:w-44" />}
+          </div>
 
           <div className="hidden items-center gap-3 lg:flex">
             <LanguageSelect />

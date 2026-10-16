@@ -6,6 +6,7 @@ import { loadProfileStats } from "@/lib/stats";
 import { HistoryCard } from "@/components/history/HistoryCard";
 import { ProgressChart } from "@/components/ProgressChart";
 import { ProfileEditor } from "@/components/ProfileEditor";
+import { XpBar } from "@/components/XpBar";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { translate, type DictKey } from "@/lib/i18n-dictionary";
 import { GuestProfile } from "@/components/GuestProfile";
@@ -92,6 +93,7 @@ export default async function ProfilPage() {
               className="h-32 w-32 border-[5px] text-5xl"
             />
             <h1 className="font-pixel text-lg">{user.display_name.toUpperCase()}</h1>
+            <XpBar totalXp={user.xp_total} size="lg" className="w-full max-w-72" />
             <p className="text-center text-xl leading-tight text-[#3a3a3a]">
               {t("profile.created", { date: formatDate(lang, user.created_at) })}
             </p>
