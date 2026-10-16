@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { InfoButton, ItemInfoDialog } from "@/components/items/ItemInfoDialog";
@@ -67,6 +68,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   const [now, setNow] = useState(() => Date.now());
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const discardDialog = useRef<HTMLDialogElement>(null);
+  const follower = useRef<HTMLDivElement>(null);
 
   const inv = view.inventory;
   const stackAt = useCallback((ref: SlotRef): Slot => inv[ref.area][ref.slot] ?? null, [inv]);
@@ -136,7 +138,11 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   // L'objet tenu suit la souris (ou s'affiche là où on a touché). Échap le repose.
   useEffect(() => {
     if (!heldRaw) return;
-    const onMove = (e: PointerEvent) => setPointer({ x: e.clientX, y: e.clientY });
+    // Déplacé directement (sans nouveau rendu de tout l'inventaire) pour suivre la souris sans retard.
+    const onMove = (e: PointerEvent) => {
+      const el = follower.current;
+      if (el) el.style.transform = `translate(${e.clientX - 24}px, ${e.clientY - 24}px)`;
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !info && !discardDialog.current?.open) setHeld(null);
     };
@@ -147,7 +153,6 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
       window.removeEventListener("keydown", onKey);
     };
   }, [heldRaw, info]);
-
 
   async function place(to: SlotRef, count: number) {
     if (!held) return;
@@ -181,7 +186,10 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
       if (stack) setHeld({ from: ref, count: Math.ceil(stack.count / 2) });
       return;
     }
-    if (!same(held.from, ref)) void place(ref, 1);
+    // Sur la case d'origine, poser un objet revient à le remettre : on en tient un de moins.
+    if (same(held.from, ref))
+      setHeld(held.count > 1 ? { from: held.from, count: held.count - 1 } : null);
+    else void place(ref, 1);
   }
 
   async function craftOnce() {
@@ -257,9 +265,8 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
         key={`${ref.area}-${ref.slot}`}
         refKey={ref}
         stack={shown}
-        infoStack={stack}
-        source={isSource}
-        target={!!held && !isSource}
+        infoStack={shown}
+        target={!!held}
         label={extra?.label ?? t(AREA_LABEL[ref.area])}
         placeholder={extra?.placeholder}
         handlers={press(
@@ -449,17 +456,26 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
         </div>
       </PixelDisclosure>
 
-      {/* L'objet tenu, sous le curseur (style Minecraft). */}
-      {held && heldStack && pointer && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed z-40 h-12 w-12"
-          style={{ left: pointer.x - 24, top: pointer.y - 24 }}
-        >
-          <ItemIcon item={heldStack.item} className="h-full w-full drop-shadow-[2px_2px_0_#000]" />
-          {held.count > 1 && <span className="inv-count">{held.count}</span>}
-        </div>
-      )}
+      {/* L'objet tenu, sous le curseur (style Minecraft). Rendu dans <body> : les panneaux de la page ont une
+          animation de « transform », qui décalerait un élément « fixed » placé à l'intérieur. */}
+      {held &&
+        heldStack &&
+        pointer &&
+        createPortal(
+          <div
+            ref={follower}
+            aria-hidden="true"
+            className="pointer-events-none fixed top-0 left-0 z-40 h-12 w-12"
+            style={{ transform: `translate(${pointer.x - 24}px, ${pointer.y - 24}px)` }}
+          >
+            <ItemIcon
+              item={heldStack.item}
+              className="h-full w-full drop-shadow-[2px_2px_0_#000]"
+            />
+            {held.count > 1 && <span className="inv-count">{held.count}</span>}
+          </div>,
+          document.body,
+        )}
       {/* Pour les lecteurs d'écran et le clavier : ce qu'on tient, annoncé sans rien afficher de plus. */}
       <p className="sr-only" aria-live="polite">
         {held && heldStack
@@ -467,22 +483,24 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
           : ""}
       </p>
 
-      {/* Messages par-dessus la page : rien ne bouge. */}
-      <div
-        aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
-      >
-        {(error || notice) && (
-          <p
-            role={error ? "alert" : undefined}
-            className={`pixel-panel max-w-xl px-4 py-2 text-2xl leading-tight ${
-              error ? "text-[#9b3a2e]" : "text-[#23501a]"
-            }`}
+      {/* Messages par-dessus la page : rien ne bouge (rendus dans <body>, comme l'objet tenu). */}
+      {(error || notice) &&
+        createPortal(
+          <div
+            aria-live="polite"
+            className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
           >
-            {error ?? notice}
-          </p>
+            <p
+              role={error ? "alert" : undefined}
+              className={`pixel-panel max-w-xl px-4 py-2 text-2xl leading-tight ${
+                error ? "text-[#9b3a2e]" : "text-[#23501a]"
+              }`}
+            >
+              {error ?? notice}
+            </p>
+          </div>,
+          document.body,
         )}
-      </div>
 
       <dialog
         ref={discardDialog}
@@ -634,7 +652,6 @@ function InventorySlot({
   refKey,
   stack,
   infoStack,
-  source,
   target,
   label,
   placeholder,
@@ -644,9 +661,8 @@ function InventorySlot({
   refKey: SlotRef;
   /** Ce que la case montre (sans la partie tenue). */
   stack: Slot;
-  /** La pile réelle, pour la fiche (i). */
+  /** Ce qui reste vraiment dans la case pendant qu'on tient l'objet, pour la fiche (i). */
   infoStack: Slot;
-  source: boolean;
   target: boolean;
   label: string;
   placeholder?: ReactNode;
@@ -661,9 +677,7 @@ function InventorySlot({
       <button
         type="button"
         {...handlers}
-        aria-pressed={source}
         aria-label={t("inv.slot_label", { area: label, n: refKey.slot + 1, content })}
-        data-held={source}
         data-target={target}
         className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
       >
