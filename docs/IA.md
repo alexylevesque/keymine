@@ -104,6 +104,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** En écrivant enfin le test en base de cette fusion, à la demande de l'étudiant : le cas « même salle » a échoué sur `lobby_players_user_unique`.
 **Correction.** La fusion se fait dans une transaction : la ligne en double de l'invité est retirée (ses courses pointent vers la ligne du compte), et sa place active est libérée si le compte est déjà dans une salle. Cinq tests en base (`tests/db/guest-merge.test.ts`). Leçon : du code sans test, même court, cache des cas limites ; les contraintes de la base en font partie.
 
+### 16. Chaque déploiement aurait rendu l'XP dépensée en boutique
+
+**Ce qui s'est passé.** Le script qui reprend l'XP des anciennes courses (`db/xp-backfill.ts`, lancé par le seed à chaque déploiement) recalculait l'XP totale de chaque compte comme la somme de ses courses. C'était juste quand l'XP ne venait que des courses. En ajoutant la boutique, l'enchantement et les objets jetés, l'agent n'a pas revu ce script : à chaque déploiement, toute l'XP dépensée (ou gagnée hors course) aurait été annulée.
+**Détection.** En préparant les prix du classement (de l'XP donnée hors course), l'agent a relu tout ce qui écrit `users.xp_total` et a trouvé ce recalcul.
+**Correction.** Le script ajoute seulement l'XP des courses qu'il vient de calculer, sans jamais recalculer le total. Nouveau test en base : un achat, puis un deuxième seed, et l'XP dépensée reste dépensée. Leçon : quand une valeur gagne une nouvelle source de changement, il faut chercher tout le code qui l'écrit, pas seulement celui qu'on ajoute.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._

@@ -5,8 +5,10 @@ import { raceComplexity, raceXp, wordCount } from "@/lib/xp";
 /**
  * Donne l'XP des courses jouées avant l'arrivée de l'expérience (même formule que les nouvelles
  * courses ; les anciens abandons ne coûtent rien, car le joueur n'avait pas été prévenu).
- * Idempotent : seules les lignes sans `xp_gained` sont calculées, puis l'XP totale de chaque compte
- * est recalculée comme la somme de ses courses. Lancé par `bun run db:seed` (donc à chaque déploiement).
+ * Idempotent : seules les lignes sans `xp_gained` sont calculées, et leur XP s'AJOUTE à celle du compte.
+ * On ne recalcule jamais l'XP totale comme la somme des courses : elle bouge aussi hors des courses
+ * (boutique, enchantement, objets jetés, prix du classement). Lancé par `bun run db:seed`, donc à
+ * chaque déploiement.
  */
 export async function backfillXp(client: Client) {
   const { rows } = await client.query<{
@@ -38,10 +40,11 @@ export async function backfillXp(client: Client) {
       accuracy: Number(row.accuracy ?? 0),
     });
     await client.query(`update race_participants set xp_gained = $1 where id = $2`, [xp, row.id]);
+    await client.query(
+      `update users set xp_total = greatest(0, xp_total + $1)
+        where id = (select user_id from race_participants where id = $2)`,
+      [xp, row.id],
+    );
   }
-  await client.query(
-    `update users u set xp_total = greatest(0, coalesce(
-       (select sum(xp_gained) from race_participants rp where rp.user_id = u.id), 0))`,
-  );
   return rows.length;
 }
