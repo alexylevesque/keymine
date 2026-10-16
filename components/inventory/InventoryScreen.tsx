@@ -220,7 +220,6 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   }
 
   async function enchant(option: number) {
-    if (held) return;
     const data = (await apply({ action: "enchant", option })) as
       (InventoryView & { enchanted?: { item: ItemId; enchants: Enchant[] } }) | null;
     if (data?.enchanted) {
@@ -228,8 +227,8 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     }
   }
 
+  // On peut fabriquer ou enchanter en tenant un objet (comme poser 1 lingot puis cliquer le résultat).
   async function craftOnce() {
-    if (held) return;
     const data = await apply({ action: "craft" });
     const crafted = data?.crafted as ItemId | undefined;
     if (crafted) setNotice(t("inv.crafted", { item: itemName(t, crafted) }));
@@ -398,7 +397,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
             <div className="flex flex-col items-center gap-2">
               <button
                 type="button"
-                disabled={!recipe || busy || !!held}
+                disabled={!recipe || busy}
                 onClick={() => void craftOnce()}
                 aria-label={
                   recipe
@@ -410,7 +409,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
                 {recipe && <ItemIcon item={recipe.result} className="h-3/4 w-3/4" />}
               </button>
               <PixelButton
-                disabled={!recipe || busy || !!held}
+                disabled={!recipe || busy}
                 onClick={() => void craftOnce()}
                 className="h-10 px-3 text-[9px]"
               >
@@ -482,7 +481,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
                     <li key={i}>
                       <button
                         type="button"
-                        disabled={locked || busy || !!held}
+                        disabled={locked || busy}
                         onClick={() => void enchant(i)}
                         className="inv-enchant-option w-full text-left"
                       >
