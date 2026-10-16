@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { BotLevel } from "@/db/types";
 import { botDisplayName } from "@/lib/race/bots";
+import { championsCached } from "@/lib/leaderboard";
 
 // État d'une salle tel que diffusé aux clients (SALLE-01, SALLE-02, CONF-12).
 // Partagé entre la route HTTP GET /api/lobbies/[code] et le serveur temps réel,
@@ -17,6 +18,8 @@ export type RawPlayer = {
   /** Photo du compte (téléversée ou fournie par Discord/GitHub), sinon null : avatar généré. */
   avatarUrl: string | null;
   joinedAt: Date;
+  /** Classe du champion de la semaine passée (couronne), sinon null. */
+  champion: number | null;
 };
 
 export type RawLobbySnapshot = {
@@ -60,6 +63,7 @@ export type PlayerView = {
   isBot: boolean;
   botLevel: BotLevel | null;
   avatarUrl: string | null;
+  champion: number | null;
   isSelf: boolean;
   isHost: boolean;
   connected: boolean;
@@ -99,6 +103,7 @@ export async function loadLobbySnapshot(code: string): Promise<RawLobbySnapshot 
     .orderBy("lobby_players.joined_at", "asc")
     .execute();
 
+  const champions = await championsCached();
   const activeRace = await db
     .selectFrom("races")
     .select(["id", "status", "starts_at"])
@@ -139,12 +144,16 @@ export async function loadLobbySnapshot(code: string): Promise<RawLobbySnapshot 
       id: p.id,
       userId: p.user_id,
       guestId: p.guest_id,
-      name: p.is_bot && p.bot_level ? botDisplayName(p.bot_level) : (p.display_name ?? p.guest_name ?? "Joueur"),
+      name:
+        p.is_bot && p.bot_level
+          ? botDisplayName(p.bot_level)
+          : (p.display_name ?? p.guest_name ?? "Joueur"),
       role: p.role,
       isBot: p.is_bot,
       botLevel: p.bot_level,
       avatarUrl: p.is_bot ? null : (p.avatar_url ?? null),
       joinedAt: new Date(p.joined_at),
+      champion: p.user_id ? (champions.get(p.user_id) ?? null) : null,
     })),
     activeRace: activeRace
       ? { id: activeRace.id, status: activeRace.status, startsAt: new Date(activeRace.starts_at) }
@@ -180,6 +189,7 @@ export function viewLobby(
       isBot: p.isBot,
       botLevel: p.botLevel,
       avatarUrl: p.avatarUrl,
+      champion: p.champion,
       isSelf: isSameViewer(p, viewer),
       isHost: isSameViewer(p, host),
       connected: p.isBot

@@ -762,7 +762,8 @@ body {
   /* De 1024 à 1279 px, 5 liens (avec INVENTAIRE et BOUTIQUE) : un peu moins d'espace autour. */
   @media (min-width: 1024px) and (max-width: 1279px) {
     .pixel-nav-link {
-      padding: 10px 7px;
+      padding: 10px 5px;
+      font-size: 10px;
     }
   }
 
@@ -890,6 +891,24 @@ body {
 
   .pixel-flame[data-on="true"] {
     background: linear-gradient(to top, #f0b429, #e5541b);
+  }
+
+  /* Choix de la classe sur la page CLASSEMENT. */
+  .lb-league-btn {
+    font-family: var(--font-pixel), monospace;
+    font-size: 9px;
+    padding: 8px 10px;
+    color: #1a1a1a;
+    background: #b8b8b8;
+    border: 3px solid #1a1a1a;
+    border-left: 10px solid var(--league);
+    cursor: pointer;
+  }
+
+  .lb-league-btn[aria-pressed="true"] {
+    background: var(--league);
+    outline: 3px solid #ffffff;
+    outline-offset: -6px;
   }
 
   /* Choix de la table d'enchantement. */

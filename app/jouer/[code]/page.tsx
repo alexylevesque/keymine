@@ -1,5 +1,6 @@
 "use client";
 
+import { Crown } from "@/components/leaderboard/badges";
 import { useParams, useRouter } from "next/navigation";
 import { participantName } from "@/lib/bot-name";
 import { useEffect, useRef, useState } from "react";
@@ -176,7 +177,10 @@ export default function LobbyPage() {
                       className="h-9 w-9 text-sm"
                     />
                     <div className="min-w-0 flex-grow leading-none">
-                      <div className="truncate text-2xl text-white">{participantName(t, p)}</div>
+                      <div className="flex min-w-0 items-center gap-1.5 text-2xl text-white">
+                        <span className="truncate">{participantName(t, p)}</span>
+                        {p.champion !== null && <Crown league={p.champion} />}
+                      </div>
                       <div className="font-pixel mt-1 text-[8px] text-white">
                         {p.isBot
                           ? t("lobby.tag_bot")

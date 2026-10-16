@@ -1,3 +1,4 @@
+import { championsCached } from "@/lib/leaderboard";
 import { db } from "@/lib/db";
 import type { BonusRecord } from "@/lib/race/bonus";
 import type { ParticipantStatus } from "@/db/types";
@@ -34,6 +35,8 @@ export type ResultRow = {
   xp: number | null;
   /** Charbon gagné au podium (inventaire) ; null pour les bots et les invités. */
   coal: number | null;
+  /** Classe du champion de la semaine passée (couronne), sinon null. */
+  champion: number | null;
 };
 
 export type RaceResults = {
@@ -99,6 +102,7 @@ export async function loadRaceResults(raceId: string): Promise<RaceResults | nul
     .execute();
 
   const participants = rows.filter((r) => r.role === "participant");
+  const champions = await championsCached().catch(() => new Map<string, number>());
   return {
     race: {
       id: race.id,
@@ -133,6 +137,7 @@ export async function loadRaceResults(raceId: string): Promise<RaceResults | nul
       avatarUrl: r.avatar_url,
       xp: r.xp_gained,
       coal: r.coal_gained,
+      champion: r.user_id ? (champions.get(r.user_id) ?? null) : null,
     })),
     spectatorKeys: rows
       .filter((r) => r.role === "spectator")

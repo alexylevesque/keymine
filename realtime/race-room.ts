@@ -4,6 +4,7 @@ import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
 import { handOverHostDuringRace } from "@/lib/lobby-sweep";
 import { awardRaceXp } from "@/lib/xp-award";
 import { parseLoadout } from "@/lib/inventory-store";
+import { championsCached } from "@/lib/leaderboard";
 import { assertTransition } from "@/lib/race/state";
 import { RaceEngine, type EngineEvent, type RacerInit } from "@/lib/race/engine";
 import { isBotLevel } from "@/lib/race/bots";
@@ -32,6 +33,8 @@ type Room = {
   sockets: Map<string, Set<WebSocket>>; // racerId → sockets
   spectators: Set<WebSocket>;
   avatars: Map<string, string | null>;
+  /** Couronne des champions de la semaine passée : identifiant du participant → classe. */
+  champions: Map<string, number>;
   tickTimer: ReturnType<typeof setInterval> | null;
   lastCheckpointMs: number;
   persisting: boolean;
@@ -61,9 +64,11 @@ function stateMessage(room: Room, now: number) {
     startsAt: room.startsAtMs,
     endsAt: Number.isFinite(room.engine.endsAtMs) ? room.engine.endsAtMs : null, // null : sans temps maximal
     serverNow: now,
-    participants: room.engine
-      .snapshot(now)
-      .map((v) => ({ ...v, avatarUrl: room.avatars.get(v.id) ?? null })),
+    participants: room.engine.snapshot(now).map((v) => ({
+      ...v,
+      avatarUrl: room.avatars.get(v.id) ?? null,
+      champion: room.champions.get(v.id) ?? null,
+    })),
   };
 }
 
@@ -107,6 +112,8 @@ async function createRoom(raceId: string): Promise<Room | null> {
     .execute();
 
   const corpus = await loadCorpus();
+  const champions = await championsCached().catch(() => new Map<string, number>());
+  const racerChampions = new Map<string, number>();
   const inits: RacerInit[] = [];
   const members = new Map<string, { racerId: string | null }>();
   const avatars = new Map<string, string | null>();
@@ -126,6 +133,8 @@ async function createRoom(raceId: string): Promise<Room | null> {
         protection: parseLoadout(row.loadout),
       });
       avatars.set(row.id, row.avatar_url);
+      const crown = row.user_id ? champions.get(row.user_id) : undefined;
+      if (crown !== undefined) racerChampions.set(row.id, crown);
       if (key) members.set(key, { racerId: row.id });
     } else if (key) {
       members.set(key, { racerId: null });
@@ -159,6 +168,7 @@ async function createRoom(raceId: string): Promise<Room | null> {
     sockets: new Map(),
     spectators: new Set(),
     avatars,
+    champions: racerChampions,
     tickTimer: null,
     lastCheckpointMs: 0,
     persisting: false,

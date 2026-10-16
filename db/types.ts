@@ -34,6 +34,11 @@ export interface UsersTable {
   active_item: string | null;
   /** Graine secrète des trois choix de la table d'enchantement (changée après chaque enchantement). */
   enchant_seed: Generated<number>;
+  /** Bonus d'XP du classement (0,15 = +15 %), actif jusqu'à `xp_boost_until`. */
+  xp_boost: Generated<number>;
+  xp_boost_until: ColumnType<Date, Date | null, Date | null> | null;
+  /** Classe : 0 bronze, 1 argent, 2 or, 3 diamant, 4 netherite. */
+  league: Generated<number>;
   total_races: Generated<number>;
   total_errors: Generated<number>;
   total_chars_typed: Generated<number>;
@@ -231,7 +236,39 @@ export interface ShopOffersTable {
   bought: Generated<number>;
 }
 
+export interface WeeklySettlementsTable {
+  /** AAAA-MM-JJ (lundi, heure de Toronto). */
+  week_start: ColumnType<string, string, string>;
+  settled_at: ColumnType<Date, string | undefined, never>;
+}
+
+export interface WeeklyRewardsTable {
+  id: Generated<string>;
+  user_id: string;
+  week_start: ColumnType<string, string, string>;
+  kind: "wins" | "wpm";
+  rank: number;
+  xp: number;
+  items: unknown;
+  boost: number;
+  league: Generated<number>;
+  claimed_at: ColumnType<Date, Date | null, Date | null> | null;
+  created_at: ColumnType<Date, string | undefined, never>;
+}
+
+export interface LeagueHistoryTable {
+  user_id: string;
+  week_start: ColumnType<string, string, string>;
+  from_league: number;
+  to_league: number;
+  position: number;
+  wins: number;
+}
+
 export interface Database {
+  league_history: LeagueHistoryTable;
+  weekly_settlements: WeeklySettlementsTable;
+  weekly_rewards: WeeklyRewardsTable;
   inventory_items: InventoryItemsTable;
   furnaces: FurnacesTable;
   shop_offers: ShopOffersTable;

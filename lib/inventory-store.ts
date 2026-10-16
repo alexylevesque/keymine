@@ -155,7 +155,7 @@ function enchantable(inv: Inventory): Stack | null {
 }
 
 /** Ouvre l'inventaire d'un compte, applique `change`, enregistre et renvoie la vue à jour. */
-async function withInventory<T>(
+export async function withInventory<T>(
   userId: string,
   change: (
     inv: Inventory,

@@ -9,7 +9,7 @@ import { XpBar } from "./XpBar";
 import { useLanguage } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
 
-type NavKey = "jouer" | "lobbys" | "stats" | "inventaire" | "boutique" | null;
+type NavKey = "jouer" | "lobbys" | "stats" | "classement" | "inventaire" | "boutique" | null;
 
 function currentTheme(): "dark" | "light" {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark";
@@ -83,6 +83,14 @@ export function PixelShell({
         onClick={onNavigate}
       >
         {t("nav.stats")}
+      </Link>
+      <Link
+        href="/classement"
+        data-active={active === "classement"}
+        className="pixel-nav-link"
+        onClick={onNavigate}
+      >
+        {t("nav.classement")}
       </Link>
       {viewer?.kind === "user" && (
         <>

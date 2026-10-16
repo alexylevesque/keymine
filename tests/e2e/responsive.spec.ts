@@ -8,7 +8,7 @@ const WIDTHS = [320, 360, 414, 600, 768, 900, 1024, 1280];
 test("aucun débordement horizontal ni texte qui sort des boutons, de 320 px à 1280 px", async ({ page }) => {
   test.setTimeout(120_000);
   await registerViaApi(page.request, "large");
-  for (const path of ["/", "/jouer/creer", "/profil", "/historique", "/connexion", "/inventaire", "/boutique"]) {
+  for (const path of ["/", "/jouer/creer", "/profil", "/historique", "/connexion", "/inventaire", "/boutique", "/classement"]) {
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(path);

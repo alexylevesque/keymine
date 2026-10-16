@@ -1,3 +1,4 @@
+import { Crown } from "@/components/leaderboard/badges";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { PixelShell } from "@/components/PixelShell";
 import { participantName } from "@/lib/bot-name";
@@ -278,6 +279,7 @@ export default async function ResultatsPage({
                           className={`max-w-40 truncate pr-2.5 ${p.ownerKey && p.ownerKey === myKey ? "font-bold" : ""}`}
                         >
                           {participantName(t, p)}
+                          {p.champion !== null && <Crown league={p.champion} className="ml-1.5" />}
                         </td>
                         <td className="pr-2.5">{formatNumber(lang, p.wpm)}</td>
                         <td className="pr-2.5">{formatNumber(lang, p.rawWpm)}</td>

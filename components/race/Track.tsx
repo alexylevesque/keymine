@@ -1,5 +1,6 @@
 "use client";
 
+import { Crown } from "@/components/leaderboard/badges";
 import { useState, useSyncExternalStore } from "react";
 import { PixelAvatar } from "@/components/ui";
 import { participantName } from "@/lib/bot-name";
@@ -71,6 +72,7 @@ export function Track({
                   <span className="font-pixel w-6 text-[11px] text-[#ffe08a]">{p.rank}</span>
                   <span className="truncate">
                     {participantName(t, p)}
+                    {p.champion != null && <Crown league={p.champion} className="ml-1.5" />}
                     {isMe && (
                       <b className="font-pixel ml-2 text-[9px] text-[#ffd84a]">{t("race.you")}</b>
                     )}

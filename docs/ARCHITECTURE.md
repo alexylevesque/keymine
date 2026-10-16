@@ -228,6 +228,18 @@ Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16
   - `bun run demo:xp [compte] [xp]` ajoute de l'XP, et `bun run demo:stuff [compte]` (développement local seulement, refuse une base distante) donne à un compte le niveau 100, 64 de chaque ressource, une netherite enchantée au maximum et une pomme activée, pour essayer tout le système.
 - **Qui** : comptes seulement, comme l'XP (les invités voient une invitation à créer un compte).
 
+### Classement et classes (fonctionnalité ajoutée)
+
+Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16 octobre 2026). Code : `lib/league.ts` (semaines, classes, prix : logique pure, testée), `lib/leaderboard.ts` (requêtes, fin de semaine, récompenses), `lib/leaderboard-view.ts`, route `app/api/leaderboard` (Zod), page `/classement`, migration `0016_classement.sql`.
+
+- **Victoire** : 1re place d'une course finie avec au moins un adversaire (un bot compte, même noob : le joueur a quand même joué). Comptes seulement.
+- **Classement général** (rafraîchi toutes les 15 s) : niveau (XP), meilleur MPM, courses gagnées ; top 50, plus la ligne du joueur.
+- **Classes** : bronze, argent, or, diamant, netherite (`users.league`, tout le monde commence en bronze). Semaine du lundi 0 h au dimanche 23 h 59, heure de Toronto. Chacun est classé contre sa classe : victoires, puis meilleur MPM de la semaine. Joueur actif = au moins une course jouée ; un absent ne bouge pas. Montent / descendent selon les actifs de la classe : 2 à 4 → le 1er monte ; 5 à 7 → 2 montent, le dernier descend ; 8 et plus → 3 montent, 3 descendent. Monter demande 3 victoires.
+- **Prix** (au moins 3 victoires) : par classe, du bronze (150 XP + 4 lingots de fer au 1er) à la netherite (800 XP + 2 lingots de netherite) ; bonus d'XP de 7 jours (+15, +10, +7 % pour le podium, +3 à +7 % du 4e au 10e). Meilleur MPM de la semaine (tout le serveur) : 100 XP + 1 totem.
+- **Fin de semaine sans tâche de fond** : au premier passage après la fin (page, salle, course), `settleLastWeek` calcule une seule fois les prix et les changements de classe (`weekly_settlements` sert de verrou), et les note (`weekly_rewards`, `league_history`). Chaque gagnant récupère son prix (bouton RÉCUPÉRER) : refusé si le sac est plein, rien n'est perdu. Le bonus d'XP s'applique en fin de course (`lib/xp-award.ts`).
+- **Couronne** : le 1er de chaque classe de la semaine passée a une couronne pixel (couleur de sa classe) dans le classement, la salle d'attente, la course et les résultats.
+- **Démonstration locale** : `bun run demo:week` invente des victoires (semaine passée et en cours) pour les comptes de démonstration, afin de voir prix, classes et couronnes sans attendre une semaine.
+
 ## 9. Authentification et sécurité
 
 - Comptes : mot de passe haché (bcrypt), session JWT en cookie `httpOnly`, `sameSite=lax`, `secure` en production ; verrouillage temporaire après des échecs répétés ; OAuth Discord/GitHub optionnels.

@@ -4,6 +4,7 @@ import type { RacerResult } from "@/lib/race/engine";
 import { abandonPenalty, raceComplexity, raceXp, wordCount } from "@/lib/xp";
 import { finishRaceForUser, parseLoadout } from "@/lib/inventory-store";
 import { podiumCoal } from "@/lib/items";
+import { activeBoost } from "@/lib/leaderboard";
 
 /**
  * Fin de course : XP gagnée par chaque compte (et perte d'un niveau pour un abandon volontaire).
@@ -62,7 +63,14 @@ export async function awardRaceXp(
           rank: r.rank,
           accuracy: r.accuracy,
         });
-        gained = Math.round(base * (1 + loadout.xpBonus));
+        // Bonus d'XP du classement (prix de la semaine), s'il est encore actif.
+        const boostRow = await db
+          .selectFrom("users")
+          .select(["xp_boost", "xp_boost_until"])
+          .where("id", "=", r.userId)
+          .executeTakeFirst();
+        const boost = boostRow ? activeBoost(boostRow) : 0;
+        gained = Math.round(base * (1 + loadout.xpBonus + boost));
       }
       await db
         .updateTable("users")

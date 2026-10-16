@@ -21,7 +21,8 @@
     "db:seed": "bun run db/seed.ts",
     "db:import-corpus": "bun run scripts/import-corpus.ts",
     "demo:stuff": "bun run scripts/demo-stuff.ts",
-    "demo:xp": "bun run scripts/demo-xp.ts"
+    "demo:xp": "bun run scripts/demo-xp.ts",
+    "demo:week": "bun run scripts/demo-week.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
