@@ -127,7 +127,7 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
 
       <div className="pixel-dark mt-8 flex flex-col items-center gap-4 border-t-4 border-black bg-[#241a10] px-4 py-5 sm:flex-row sm:justify-between">
         <p className="text-2xl text-[#f1e6c9]">{error ?? t("create.hint")}</p>
-        <div className="flex gap-3.5">
+        <div className="flex flex-wrap justify-center gap-3.5">
           {accountRequired && (
             <PixelButton href="/connexion" variant="gold" className="h-13 px-5 text-[13px]">
               {t("create.login")}
@@ -140,7 +140,7 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
             type="button"
             onClick={createLobby}
             variant="green"
-            className="h-13 px-7 text-[15px]"
+            className="h-13 px-4 text-[12px] whitespace-nowrap sm:px-7 sm:text-[15px]"
           >
             {pending ? "..." : t("create.submit")}
           </PixelButton>

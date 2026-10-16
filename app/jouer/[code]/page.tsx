@@ -154,14 +154,14 @@ export default function LobbyPage() {
 
           {!(editing && lobby?.isHost) && (
             <PixelPanel className="pixel-reveal p-5">
-              <div className="mb-3.5 flex items-center justify-between">
-                <span className="font-pixel text-sm text-[#2b2b2b]">
+              <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <span className="font-pixel text-sm whitespace-nowrap text-[#2b2b2b]">
                   {t("lobby.players", {
                     count: participants.length,
                     max: lobby?.maxPlayers ?? "…",
                   })}
                 </span>
-                <span className="text-2xl text-[#3a3a3a]">
+                <span className="text-2xl whitespace-nowrap text-[#3a3a3a]">
                   {t("lobby.spectators", { count: spectators.length })}
                 </span>
               </div>

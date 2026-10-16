@@ -13,7 +13,7 @@ test("l'accueil affiche le titre, la partie rapide, le code et l'explorateur de 
 test("le sélecteur de langue traduit l'interface et le choix est conservé (I18N-02)", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
-  await page.getByLabel("Langue du site").selectOption("en");
+  await page.getByRole("combobox", { name: "Langue du site" }).selectOption("en");
   await expect(page.getByRole("heading", { level: 1, name: /type faster/i })).toBeVisible();
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
@@ -26,7 +26,7 @@ test("le thème est choisi avant le premier affichage et reste après rechargeme
   const lightPage = await light.newPage();
   await lightPage.goto("/");
   await expect(lightPage.locator("html")).toHaveAttribute("data-theme", "light");
-  await lightPage.getByLabel("Thème clair ou sombre").click();
+  await lightPage.getByRole("button", { name: "Thème clair ou sombre" }).click();
   await expect(lightPage.locator("html")).toHaveAttribute("data-theme", "dark");
   await lightPage.reload();
   await expect(lightPage.locator("html")).toHaveAttribute("data-theme", "dark");
