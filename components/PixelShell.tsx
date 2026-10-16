@@ -9,7 +9,7 @@ import { XpBar } from "./XpBar";
 import { useLanguage } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
 
-type NavKey = "jouer" | "lobbys" | "stats" | null;
+type NavKey = "jouer" | "lobbys" | "stats" | "inventaire" | "boutique" | null;
 
 function currentTheme(): "dark" | "light" {
   return document.documentElement.dataset.theme === "light" ? "light" : "dark";
@@ -60,15 +60,50 @@ export function PixelShell({
 
   const navLinks = (onNavigate?: () => void) => (
     <>
-      <Link href="/jouer/creer" data-active={active === "jouer"} className="pixel-nav-link" onClick={onNavigate}>
+      <Link
+        href="/jouer/creer"
+        data-active={active === "jouer"}
+        className="pixel-nav-link"
+        onClick={onNavigate}
+      >
         {t("nav.jouer")}
       </Link>
-      <Link href="/" data-active={active === "lobbys"} className="pixel-nav-link" onClick={onNavigate}>
+      <Link
+        href="/"
+        data-active={active === "lobbys"}
+        className="pixel-nav-link"
+        onClick={onNavigate}
+      >
         {t("nav.lobbys")}
       </Link>
-      <Link href="/profil" data-active={active === "stats"} className="pixel-nav-link" onClick={onNavigate}>
+      <Link
+        href="/profil"
+        data-active={active === "stats"}
+        className="pixel-nav-link"
+        onClick={onNavigate}
+      >
         {t("nav.stats")}
       </Link>
+      {viewer?.kind === "user" && (
+        <>
+          <Link
+            href="/inventaire"
+            data-active={active === "inventaire"}
+            className="pixel-nav-link"
+            onClick={onNavigate}
+          >
+            {t("nav.inventaire")}
+          </Link>
+          <Link
+            href="/boutique"
+            data-active={active === "boutique"}
+            className="pixel-nav-link"
+            onClick={onNavigate}
+          >
+            {t("nav.boutique")}
+          </Link>
+        </>
+      )}
     </>
   );
 
@@ -99,7 +134,7 @@ export function PixelShell({
         src={viewer?.kind === "user" ? viewer.avatarUrl : null}
         seed={viewer ? viewerName : null}
       />
-      <span className="hidden min-w-0 max-w-40 truncate xl:inline">{viewerName}</span>
+      <span className="hidden max-w-40 min-w-0 truncate xl:inline">{viewerName}</span>
       <span className="sr-only xl:hidden">
         {viewer?.kind === "user" ? t("a11y.profile_link") : t("a11y.login_link")}
       </span>
@@ -114,7 +149,7 @@ export function PixelShell({
       <div className="pixel-grass h-5 border-b-4 border-[#2f5d1c]" />
 
       <header className="border-b-4 border-black bg-[#241a10]">
-        <div className="flex h-16 items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:gap-6 lg:px-8">
+        <div className="flex h-16 items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:gap-4 lg:px-6 xl:gap-6 xl:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-1" aria-label="KeyMine">
             <Image
               src="/logo-rond.png"

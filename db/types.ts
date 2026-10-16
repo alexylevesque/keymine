@@ -30,6 +30,8 @@ export interface UsersTable {
   best_wpm: Generated<number>;
   /** Expérience totale (jamais négative) ; le niveau en découle (lib/xp.ts). */
   xp_total: Generated<number>;
+  /** Objet à usage unique activé pour la prochaine course (lib/items.ts). */
+  active_item: string | null;
   total_races: Generated<number>;
   total_errors: Generated<number>;
   total_chars_typed: Generated<number>;
@@ -158,6 +160,10 @@ export interface RaceParticipantsTable {
   /** XP gagnée (ou perdue, en négatif, pour un abandon volontaire) ; null pour les bots et invités. */
   xp_gained: number | null;
   abandon_reason: "player" | "disconnected" | null;
+  /** Effets figés au départ (armure + objet activé), voir lib/inventory.ts `Loadout`. */
+  loadout: unknown;
+  /** Charbon gagné au podium ; null pour les bots et invités. */
+  coal_gained: number | null;
   created_at: ColumnType<Date, string | undefined, never>;
 }
 
@@ -189,7 +195,41 @@ export interface JoinAttemptsTable {
   attempted_at: ColumnType<Date, string | undefined, never>;
 }
 
+export type InventoryArea = "bag" | "armor" | "craft" | "furnace_in" | "furnace_fuel" | "furnace_out";
+
+export interface InventoryItemsTable {
+  user_id: string;
+  area: InventoryArea;
+  slot: number;
+  item: string;
+  count: number;
+  durability: number | null;
+}
+
+export interface FurnacesTable {
+  user_id: string;
+  burn_left: Generated<number>;
+  progress_ms: Generated<number>;
+  updated_at: ColumnType<Date, Date | string | undefined, Date | string>;
+}
+
+export interface ShopOffersTable {
+  user_id: string;
+  /** AAAA-MM-JJ, heure de Toronto. */
+  day: ColumnType<string, string, string>;
+  slot: number;
+  item: string;
+  count: number;
+  price: number;
+  rarity: "common" | "uncommon" | "rare" | "epic";
+  stock: number;
+  bought: Generated<number>;
+}
+
 export interface Database {
+  inventory_items: InventoryItemsTable;
+  furnaces: FurnacesTable;
+  shop_offers: ShopOffersTable;
   lobby_invites: LobbyInvitesTable;
   lobby_bans: LobbyBansTable;
   join_attempts: JoinAttemptsTable;

@@ -759,6 +759,13 @@ body {
     border: 3px solid transparent;
   }
 
+  /* De 1024 à 1279 px, 5 liens (avec INVENTAIRE et BOUTIQUE) : un peu moins d'espace autour. */
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    .pixel-nav-link {
+      padding: 10px 7px;
+    }
+  }
+
   .pixel-nav-link {
     transition:
       background-color 120ms ease,
@@ -786,6 +793,117 @@ body {
     color: #ffffff;
     text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
   }
+
+  /* Inventaire (fonctionnalité ajoutée) : cases, quantité, usure, bouton (i), flèche du four. */
+  .inv-slot {
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .inv-slot:hover,
+  .inv-slot:focus-visible {
+    filter: brightness(1.2);
+  }
+
+  .inv-slot[data-held="true"] {
+    outline: 3px solid var(--color-gold-light);
+    outline-offset: -3px;
+  }
+
+  .inv-slot[data-target="true"]:hover {
+    outline: 3px dashed #ffffff;
+    outline-offset: -3px;
+  }
+
+  .inv-count {
+    position: absolute;
+    right: 2px;
+    bottom: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: #ffffff;
+    text-shadow: 2px 2px 0 #000000;
+  }
+
+  .inv-durability {
+    position: absolute;
+    left: 10%;
+    bottom: 3px;
+    width: 80%;
+    height: 3px;
+    background: linear-gradient(to right, var(--color-green-light) var(--fill), #000000 var(--fill));
+  }
+
+  .item-info-btn {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 1rem;
+    height: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    line-height: 1;
+    font-weight: bold;
+    color: #1a1a1a;
+    background: var(--color-gold-light);
+    border: 1px solid #1a1a1a;
+    cursor: help;
+  }
+
+  @media (max-width: 639px) {
+    .item-info-btn {
+      width: 0.8rem;
+      height: 0.8rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  .item-info-btn:hover,
+  .item-info-btn:focus-visible {
+    background: #ffffff;
+  }
+
+  .pixel-arrow {
+    --fill: 0%;
+    display: inline-block;
+    width: 2.75rem;
+    height: 1.25rem;
+    background: linear-gradient(to right, #ffffff var(--fill), #8b8b8b var(--fill));
+    clip-path: polygon(0 30%, 65% 30%, 65% 0, 100% 50%, 65% 100%, 65% 70%, 0 70%);
+  }
+
+  .pixel-flame {
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: #6b6b6b;
+    clip-path: polygon(50% 0, 75% 35%, 100% 55%, 85% 100%, 15% 100%, 0 55%, 25% 35%);
+  }
+
+  .pixel-flame[data-on="true"] {
+    background: linear-gradient(to top, #f0b429, #e5541b);
+  }
+
+  .item-glow {
+    filter: drop-shadow(0 0 2px #c77dff);
+    animation: item-glow 1.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes item-glow {
+    to {
+      filter: drop-shadow(0 0 4px #e0b0ff);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .item-glow {
+      animation: none;
+    }
+  }
+
 }
 
 /* --- Thème clair (UI-3) --------------------------------------------------
