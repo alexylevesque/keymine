@@ -196,6 +196,17 @@ Passage (texte cohérent), mesuré à l'import (`lib/text/difficulty.ts`) : long
 
 Choix pour CONF-06/07 : en mode cohérent, le vrai passage est tapé **tel qu'écrit** (majuscules, ponctuation, accents, chiffres) ; les options de texte et l'inclusion/exclusion de caractères sont **désactivées** en mode cohérent et ne s'appliquent qu'au texte aléatoire (l'exclusion l'emporte sur l'inclusion). Les accents ne s'appliquent qu'au français.
 
+### Expérience et niveaux (fonctionnalité ajoutée)
+
+Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16 octobre 2026). Code : `lib/xp.ts` (règles pures, testées), `lib/xp-award.ts` (fin de course), `db/xp-backfill.ts` (historique), migration `0013_experience.sql`.
+
+- **Niveaux** : courbe de Minecraft, sans maximum. Passer du niveau n au suivant demande 2n + 7 XP (n ≤ 15), 5n − 38 (16 à 30), puis 9n − 158.
+- **XP d'une course** : 10 × complexité (facile 1, moyen 1,5, difficile 2) × longueur (mots ÷ 40, entre 0,5 et 3) × adversaires (1 + poids ÷ 10, au plus 4 ; noob 0,5, débutant 1, intermédiaire 1,5, expert 2, impossible 3, humain 2) × place (1er 2, 2e 1,5, 3e 1,25, autres 1, temps écoulé 0,5), arrondi, + 5 XP à 95 % de précision ou + 10 XP à 100 %.
+- **Abandon volontaire** : perte d'un niveau complet, la barre garde son pourcentage (rien au niveau 0), annoncée dans la fenêtre de confirmation. Une déconnexion ne coûte rien.
+- **Qui** : comptes seulement (pas les invités ni les bots, AUTH-03), participants seulement. L'XP est calculée par le serveur temps réel à la fin de la course (serveur autoritaire) et enregistrée par participation (`xp_gained`, négative pour un abandon) ; `users.xp_total` en est la somme.
+- **Historique** : le seed calcule une fois l'XP des courses jouées avant l'ajout (anciens abandons sans perte).
+- **Affichage** : barre style Minecraft (niveau vert, 18 segments) dans l'en-tête et en grand sur le profil, colonne « XP » dans le classement des résultats.
+
 ## 9. Authentification et sécurité
 
 - Comptes : mot de passe haché (bcrypt), session JWT en cookie `httpOnly`, `sameSite=lax`, `secure` en production ; verrouillage temporaire après des échecs répétés ; OAuth Discord/GitHub optionnels.

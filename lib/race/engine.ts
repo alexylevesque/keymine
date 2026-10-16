@@ -77,6 +77,8 @@ export type Racer = {
   progress: number;
   errors: number;
   status: RacerStatus;
+  /** Raison de l'abandon : volontaire (perte d'un niveau d'XP) ou déconnexion (aucune perte). */
+  abandonReason: "player" | "disconnected" | null;
   /** Instant (ms, horloge serveur) de l'arrivée, de l'abandon ou de la fin du temps. */
   endedAtMs: number | null;
   keyCorrect: Record<string, number>;
@@ -146,6 +148,7 @@ export type RacerResult = {
   guestId: string | null;
   rank: number;
   status: RacerStatus;
+  abandonReason: "player" | "disconnected" | null;
   progress: number;
   textLength: number;
   errors: number;
@@ -192,6 +195,7 @@ export class RaceEngine {
         progress: Math.min(init.progress ?? 0, init.text.length),
         errors: init.errors ?? 0,
         status: "racing",
+        abandonReason: null,
         endedAtMs: null,
         keyCorrect: {},
         keyErrors: {},
@@ -275,6 +279,7 @@ export class RaceEngine {
     const r = this.racers.get(id);
     if (!r || r.isBot || r.status !== "racing") return [];
     r.status = "abandoned";
+    r.abandonReason = "player";
     r.endedAtMs = now;
     return [{ type: "abandoned", racerId: id, reason: "player" }];
   }
@@ -317,6 +322,7 @@ export class RaceEngine {
     for (const r of this.racing()) {
       if (r.disconnectedAtMs !== null && now - r.disconnectedAtMs >= grace) {
         r.status = "abandoned";
+        r.abandonReason = "disconnected";
         r.endedAtMs = r.disconnectedAtMs + grace;
         events.push({ type: "abandoned", racerId: r.id, reason: "disconnected" });
       }
@@ -547,6 +553,7 @@ export class RaceEngine {
           guestId: r.guestId,
           rank: r.rank!,
           status: r.status,
+          abandonReason: r.abandonReason,
           progress: r.progress,
           textLength: r.text.length,
           errors: r.errors,

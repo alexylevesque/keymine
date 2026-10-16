@@ -7,6 +7,7 @@ import { classifyText, hasAccent } from "@/lib/text/difficulty";
 import { createRng } from "@/lib/text/rng";
 import { PASSAGES } from "./seed-data/corpus";
 import { WORDS_EN, WORDS_FR } from "./seed-data/words";
+import { backfillXp } from "./xp-backfill";
 
 export const DEMO_PASSWORD = "demo1234";
 export const DEMO_USERS = [
@@ -186,6 +187,8 @@ async function main() {
         await seedHistory(client, ids[u.username]!, u.displayName, u.skill, 1000 + index);
       }
     }
+    const backfilled = await backfillXp(client);
+    if (backfilled) console.log(`[seed] expérience calculée pour ${backfilled} participations`);
     const counts = await client.query(
       `select (select count(*) from corpus_texts) as textes, (select count(*) from corpus_words) as mots,
               (select count(*) from users) as utilisateurs, (select count(*) from races) as courses`,

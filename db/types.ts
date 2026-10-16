@@ -28,6 +28,8 @@ export interface UsersTable {
   failed_login_attempts: Generated<number>;
   locked_until: ColumnType<Date, Date | null, Date | null> | null;
   best_wpm: Generated<number>;
+  /** Expérience totale (jamais négative) ; le niveau en découle (lib/xp.ts). */
+  xp_total: Generated<number>;
   total_races: Generated<number>;
   total_errors: Generated<number>;
   total_chars_typed: Generated<number>;
@@ -153,6 +155,9 @@ export interface RaceParticipantsTable {
   wpm_series: Generated<unknown>;
   key_correct: Generated<unknown>;
   key_errors: Generated<unknown>;
+  /** XP gagnée (ou perdue, en négatif, pour un abandon volontaire) ; null pour les bots et invités. */
+  xp_gained: number | null;
+  abandon_reason: "player" | "disconnected" | null;
   created_at: ColumnType<Date, string | undefined, never>;
 }
 

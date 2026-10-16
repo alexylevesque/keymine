@@ -111,6 +111,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
         settings: JSON.stringify({
           errorMode: lobby.error_mode,
           penaltySeconds: lobby.penalty_seconds,
+          complexity: lobby.complexity, // expérience : la complexité au moment de la course
         }),
         status: "countdown",
         starts_at: startsAt.toISOString(),

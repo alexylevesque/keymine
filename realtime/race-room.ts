@@ -2,6 +2,7 @@ import type { WebSocket } from "ws";
 import { db } from "@/lib/db";
 import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
 import { handOverHostDuringRace } from "@/lib/lobby-sweep";
+import { awardRaceXp } from "@/lib/xp-award";
 import { assertTransition } from "@/lib/race/state";
 import { RaceEngine, type EngineEvent, type RacerInit } from "@/lib/race/engine";
 import { isBotLevel } from "@/lib/race/bots";
@@ -307,6 +308,7 @@ async function persistResults(room: Room, now: number) {
       await recomputeUserStats(r.userId);
     }
   }
+  await awardRaceXp(room.raceId, results).catch((e) => console.error("[realtime] expérience", e));
 
   await db
     .updateTable("races")
