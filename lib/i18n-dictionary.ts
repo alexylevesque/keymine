@@ -590,7 +590,7 @@ export const DICTIONARY = {
     "inv.cancel": "ANNULER",
     "inv.active_title": "PROCHAINE COURSE",
     "inv.active_none":
-      "Dépose ici une pomme, un totem, une fiole, un bouclier ou une potion : il agira pendant ta prochaine course.",
+      "Dépose ici une pomme dorée, un totem, une fiole, un bouclier ou une potion : il agira pendant ta prochaine course.",
     "inv.active_item":
       "{item} agira pendant ta prochaine course. Clique la case pour le reprendre.",
     "inv.unuse": "RETIRER",
@@ -677,6 +677,14 @@ export const DICTIONARY = {
     "err.ench_nothing": "Pose d'abord une pièce d'armure pas encore enchantée sur la table.",
     "err.ench_level_too_low": "Ton niveau est trop bas pour ce choix.",
     "inv.enchant_done": "Cette pièce est déjà enchantée (c'est définitif) : reprends-la et pose une pièce pas encore enchantée.",
+    "item.apple": "Pomme",
+    "item.golden_apple": "Pomme dorée",
+    "info.apple": "Sert à fabriquer la pomme dorée : 1 pomme au milieu de la table, entourée de 8 lingots d'or.",
+    "info.golden_apple": "À activer. Pendant ta prochaine course, le premier malus qui te vise est bloqué. Se fabrique : 1 pomme entourée de 8 lingots d'or.",
+    "race.blocked_golden_apple": "La pomme dorée de {name} bloque le malus !",
+    "inv.recipes_golden_apple": "Pomme dorée : 1 pomme au milieu, entourée de 8 lingots d'or.",
+    "err.inv_already_enchanted": "Cet objet est déjà enchanté : un enchantement est définitif.",
+    "err.inv_bound": "Cette pièce est maudite (Malédiction du lien) : elle ne peut plus être retirée, seulement jetée.",
   },
   en: {
     "meta.description": "Real-time typing races for the classroom.",
@@ -1253,7 +1261,7 @@ export const DICTIONARY = {
     "inv.cancel": "CANCEL",
     "inv.active_title": "NEXT RACE",
     "inv.active_none":
-      "Drop an apple, a totem, a bottle, a shield or a potion here: it will work during your next race.",
+      "Drop a golden apple, a totem, a bottle, a shield or a potion here: it will work during your next race.",
     "inv.active_item": "{item} will work during your next race. Click the slot to take it back.",
     "inv.unuse": "REMOVE",
     "inv.stats": "Penalty dodge: {dodge} · XP bonus: {xp}",
@@ -1337,6 +1345,14 @@ export const DICTIONARY = {
     "err.ench_nothing": "First place an armor piece that is not enchanted yet on the table.",
     "err.ench_level_too_low": "Your level is too low for this option.",
     "inv.enchant_done": "This piece is already enchanted (it is final): take it back and place a piece that is not enchanted yet.",
+    "item.apple": "Apple",
+    "item.golden_apple": "Golden apple",
+    "info.apple": "Used to craft a golden apple: 1 apple in the middle of the table, surrounded by 8 gold ingots.",
+    "info.golden_apple": "Activate it. During your next race, the first penalty aimed at you is blocked. Crafted from 1 apple surrounded by 8 gold ingots.",
+    "race.blocked_golden_apple": "{name}'s golden apple blocks the penalty!",
+    "inv.recipes_golden_apple": "Golden apple: 1 apple in the middle, surrounded by 8 gold ingots.",
+    "err.inv_already_enchanted": "This item is already enchanted: an enchantment is final.",
+    "err.inv_bound": "This piece is cursed (Curse of Binding): it can no longer be removed, only discarded.",
   },
 } as const;
 

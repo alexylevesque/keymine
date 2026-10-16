@@ -458,6 +458,7 @@ export function parseLoadout(value: unknown): Loadout {
     immuneAll: v.immuneAll === true,
     immuneFog: v.immuneFog === true,
     shield: Math.floor(num(v.shield, 3)),
+    shieldKind: v.shieldKind === "shield" || v.shieldKind === "golden_apple" ? v.shieldKind : null,
     noLevelLoss: v.noLevelLoss === true,
     item: isItemId(v.item) ? v.item : null,
     fogReductionMs: Math.floor(num(v.fogReductionMs, 3_000)),

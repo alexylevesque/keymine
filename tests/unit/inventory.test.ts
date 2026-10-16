@@ -381,3 +381,28 @@ describe("jeter un objet", () => {
     }
   });
 });
+
+describe("pommes", () => {
+  it("pomme dorée : 1 pomme au milieu, entourée de 8 lingots d'or", () => {
+    const grid: (ItemId | null)[] = Array(9).fill("gold_ingot");
+    grid[4] = "apple";
+    expect(findRecipe(grid)?.result).toBe("golden_apple");
+    grid[0] = null;
+    expect(findRecipe(grid)).toBeNull();
+    grid[0] = "gold_ingot";
+    grid[4] = "gold_ingot";
+    expect(findRecipe(grid)).toBeNull();
+  });
+
+  it("la pomme dorée bloque le premier malus ; l'enchantée, tous", () => {
+    const none = [null, null, null, null];
+    expect(computeLoadout(none, "golden_apple")).toMatchObject({
+      shield: 1,
+      shieldKind: "golden_apple",
+      immuneAll: false,
+    });
+    expect(computeLoadout(none, "enchanted_golden_apple").immuneAll).toBe(true);
+    expect(shopPrice("apple")).toEqual({ count: 1, price: 5 });
+    expect(rarityOf("golden_apple")).toBe("rare");
+  });
+});

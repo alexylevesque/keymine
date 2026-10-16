@@ -26,6 +26,8 @@ const INVENTORY_KEYS: Record<InventoryError["code"], ErrorKey> = {
   full: "inv_full",
   no_recipe: "inv_no_recipe",
   not_usable: "inv_not_usable",
+  already_enchanted: "inv_already_enchanted",
+  bound: "inv_bound",
 };
 
 const ITEM_KEYS: Record<ItemRefusal["code"], ErrorKey> = {

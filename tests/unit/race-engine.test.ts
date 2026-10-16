@@ -358,6 +358,16 @@ describe("bonus de remontée dans le moteur (BONUS-01 à BONUS-04)", () => {
       null,
       null,
     ]);
+
+    const golden = engine(
+      [leader({ ...none, shield: 1, shieldKind: "golden_apple" }), human("b")],
+      {
+        comebackBonus: true,
+        bonusKinds: ["plus_words"],
+      },
+    );
+    advance(golden, { a: 0.9, b: 0.05 });
+    expect(golden.racers.get("b")!.bonuses[0]?.blocked).toBe("golden_apple");
   });
 
   it("enchantements : Chute amortie bloque « +3 mots », Respiration raccourcit le brouillard, Épines le renvoie", () => {

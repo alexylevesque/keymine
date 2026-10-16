@@ -225,6 +225,8 @@ const ICONS: Record<string, [ShapeName, Palette]> = {
   netherite_scrap: ["lump", { B: "#5e4a44", L: "#8c7468", D: "#2e2320" }],
   netherite_ingot: ["ingot", MATERIAL_COLORS.netherite],
   enchanted_golden_apple: ["apple", { ...MATERIAL_COLORS.gold, G: "#3f9a3f" }],
+  golden_apple: ["apple", { ...MATERIAL_COLORS.gold, G: "#3f9a3f" }],
+  apple: ["apple", { B: "#d6342b", L: "#ff7a6b", D: "#8f1c16", G: "#3f9a3f" }],
   totem: ["charm", { B: "#e8b84a", L: "#fff1a8", D: "#8a6a10" }],
   xp_bottle: ["bottle", { W: "#dfeff5", B: "#7bd34a", L: "#d6ff9a", D: "#3a8a1c" }],
   shield: ["shield", { R: "#8a5a2b", L: "#c99a62", W: "#b8b8b8" }],

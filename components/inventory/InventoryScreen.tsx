@@ -540,6 +540,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               </figure>
             ))}
           </div>
+          <p>{t("inv.recipes_golden_apple")}</p>
           <p>{t("inv.recipes_netherite")}</p>
           <p>{t("inv.recipes_netherite_piece")}</p>
           <p>{t("inv.recipes_furnace")}</p>

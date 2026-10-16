@@ -171,7 +171,12 @@ describe("effets des enchantements", () => {
     expect(inv.armor[2]).toBeNull();
   });
 
-  it("Malédiction du lien : la pièce portée ne se retire plus et ne se remplace plus", () => {
+  it("Malédiction du lien : la pièce portée ne se retire plus et ne se remplace plus (message clair)", () => {
+    const cursed = emptyInventory();
+    cursed.armor[0] = { ...newStack("iron_helmet"), enchants: [{ id: "binding_curse", level: 1 }] };
+    expect(() => moveItem(cursed, { area: "armor", slot: 0 }, { area: "bag", slot: 0 })).toThrow(
+      "bound",
+    );
     const inv = emptyInventory();
     inv.armor[0] = { ...newStack("iron_helmet"), enchants: [{ id: "binding_curse", level: 1 }] };
     inv.bag[0] = newStack("diamond_helmet");
@@ -198,7 +203,7 @@ describe("effets des enchantements", () => {
       "not_allowed",
     );
     expect(() => moveItem(inv, { area: "bag", slot: 1 }, { area: "enchant", slot: 0 })).toThrow(
-      "not_allowed",
+      "already_enchanted",
     );
     moveItem(inv, { area: "bag", slot: 2 }, { area: "enchant", slot: 0 });
     expect(inv.enchant[0]?.item).toBe("gold_boots");

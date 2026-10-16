@@ -106,7 +106,15 @@ export function newStack(item: ItemId, count = 1): Stack {
 
 export class InventoryError extends Error {
   constructor(
-    readonly code: "bad_slot" | "empty_slot" | "not_allowed" | "full" | "no_recipe" | "not_usable",
+    readonly code:
+      | "bad_slot"
+      | "empty_slot"
+      | "not_allowed"
+      | "full"
+      | "no_recipe"
+      | "not_usable"
+      | "already_enchanted"
+      | "bound",
   ) {
     super(code);
   }
@@ -271,7 +279,10 @@ export function moveItem(inv: Inventory, from: SlotRef, to: SlotRef, count?: num
   if (!source) throw new InventoryError("empty_slot");
   const amount = Math.min(source.count, Math.max(1, Math.floor(count ?? source.count)));
   // Malédiction du lien : la pièce portée ne quitte plus sa case (on peut seulement la jeter).
-  if (from.area === "armor" && isBound(source)) throw new InventoryError("not_allowed");
+  if (from.area === "armor" && isBound(source)) throw new InventoryError("bound");
+  // Une pièce déjà enchantée ne retourne pas sur la table (pas d'enclume).
+  if (to.area === "enchant" && source.enchants?.length)
+    throw new InventoryError("already_enchanted");
 
   if (to.slot === -1) {
     autoMove(inv, from, source, amount);
@@ -299,8 +310,8 @@ export function moveItem(inv: Inventory, from: SlotRef, to: SlotRef, count?: num
   }
   // Échange : seulement des piles entières, et chacune doit être acceptée dans sa nouvelle case.
   if (amount !== source.count) throw new InventoryError("not_allowed");
+  if (to.area === "armor" && isBound(target)) throw new InventoryError("bound");
   if (
-    (to.area === "armor" && isBound(target)) ||
     !accepts(to.area, to.slot, source.item, source.enchants) ||
     !accepts(from.area, from.slot, target.item, target.enchants)
   ) {
@@ -321,7 +332,7 @@ function autoMove(inv: Inventory, from: SlotRef, source: Stack, amount: number) 
   if (from.area === "bag" && armor) {
     // Équiper : échange avec la pièce déjà portée, s'il y en a une (sauf si elle est maudite).
     const worn = inv.armor[armor.slot] ?? null;
-    if (isBound(worn)) throw new InventoryError("not_allowed");
+    if (isBound(worn)) throw new InventoryError("bound");
     inv.armor[armor.slot] = source;
     inv.bag[from.slot] = worn;
     return;
@@ -393,7 +404,13 @@ function shapeless(ingredients: Partial<Record<ItemId, number>>) {
   };
 }
 
+/** Pomme dorée : 1 pomme au milieu, entourée de 8 lingots d'or (comme Minecraft). */
+function goldenApple(grid: (ItemId | null)[]): boolean {
+  return grid.every((cell, i) => cell === (i === 4 ? "apple" : "gold_ingot"));
+}
+
 export const RECIPES: Recipe[] = [
+  { result: "golden_apple", count: 1, matches: goldenApple },
   ...MATERIALS.filter((m): m is Exclude<Material, "netherite"> => m !== "netherite").flatMap((m) =>
     ARMOR_PARTS.map((part) => ({
       result: `${m}_${part}` as ArmorId,
@@ -449,8 +466,10 @@ export type Loadout = {
   xpBonus: number;
   immuneAll: boolean;
   immuneFog: boolean;
-  /** Malus bloqués d'office (bouclier). */
+  /** Malus bloqués d'office (bouclier, pomme dorée). */
   shield: number;
+  /** Ce qui bloque (pour l'annonce en course). */
+  shieldKind: "shield" | "golden_apple" | null;
   /** Pas de perte de niveau à l'abandon (totem). */
   noLevelLoss: boolean;
   /** Objet à usage unique utilisé pour cette course. */
@@ -469,6 +488,7 @@ export const NO_LOADOUT: Loadout = {
   immuneAll: false,
   immuneFog: false,
   shield: 0,
+  shieldKind: null,
   noLevelLoss: false,
   item: null,
   fogReductionMs: 0,
@@ -520,6 +540,7 @@ export function computeLoadout(armor: readonly Slot[], activeItem: ItemId | null
     loadout.immuneAll = !!effect.immuneAll;
     loadout.immuneFog = !!effect.immuneFog;
     loadout.shield = effect.shield ?? 0;
+    loadout.shieldKind = effect.shieldKind ?? null;
     loadout.noLevelLoss = !!effect.noLevelLoss;
     loadout.xpBonus = round2(loadout.xpBonus + (effect.xpBonus ?? 0));
   }

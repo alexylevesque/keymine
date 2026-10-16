@@ -42,6 +42,7 @@ const armor: [number, string, unknown][] = [
 const bag: [string, number, number | null][] = [
   ...RESOURCES.map((item) => [item, 64, null] as [string, number, null]),
   ["enchanted_golden_apple", 64, null],
+  ["golden_apple", 64, null],
   ["xp_bottle", 64, null],
   ["totem", 1, null],
   ["shield", 1, null],

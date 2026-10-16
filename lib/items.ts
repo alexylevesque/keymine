@@ -22,12 +22,14 @@ export const RESOURCES = [
   "ancient_debris",
   "netherite_scrap",
   "netherite_ingot",
+  "apple",
 ] as const;
 export type Resource = (typeof RESOURCES)[number];
 
 /** Objets à usage unique : on en active un dans l'inventaire, il agit pendant la prochaine course. */
 export const CONSUMABLES = [
   "enchanted_golden_apple",
+  "golden_apple",
   "totem",
   "xp_bottle",
   "shield",
@@ -152,6 +154,7 @@ export const SHOP_POOLS: Record<Rarity, readonly ShopEntry[]> = {
   common: [
     { item: "coal", count: 4, price: 10 },
     { item: "leather", count: 1, price: 8 },
+    { item: "apple", count: 1, price: 5 },
     { item: "copper_ore", count: 1, price: 6 },
     { item: "iron_ore", count: 1, price: 12 },
   ],
@@ -167,6 +170,7 @@ export const SHOP_POOLS: Record<Rarity, readonly ShopEntry[]> = {
     { item: "ancient_debris", count: 1, price: 150 },
     { item: "totem", count: 1, price: 120 },
     { item: "xp_bottle", count: 1, price: 100 },
+    { item: "golden_apple", count: 1, price: 60 },
   ],
   epic: [
     { item: "random_armor", count: 1, price: 0 }, // prix de la pièce tirée (readyMadePrice)
@@ -247,12 +251,21 @@ export function discardXp(id: ItemId, count: number, durability: number | null):
 
 export const CONSUMABLE_EFFECT: Record<
   Consumable,
-  { immuneAll?: true; immuneFog?: true; shield?: number; xpBonus?: number; noLevelLoss?: true }
+  {
+    immuneAll?: true;
+    immuneFog?: true;
+    shield?: number;
+    /** Ce qui bloque le premier malus (pour l'annonce en course). */
+    shieldKind?: "shield" | "golden_apple";
+    xpBonus?: number;
+    noLevelLoss?: true;
+  }
 > = {
   enchanted_golden_apple: { immuneAll: true },
+  golden_apple: { shield: 1, shieldKind: "golden_apple" },
   totem: { noLevelLoss: true },
   xp_bottle: { xpBonus: 0.5 },
-  shield: { shield: 1 },
+  shield: { shield: 1, shieldKind: "shield" },
   night_vision: { immuneFog: true },
 };
 

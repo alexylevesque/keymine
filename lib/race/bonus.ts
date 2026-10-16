@@ -24,7 +24,7 @@ export const BONUS_LABELS: Record<BonusKind, string> = {
 };
 
 /** Pourquoi un malus n'a pas touché sa cible (équipement de l'inventaire). */
-export type BonusBlock = "apple" | "night_vision" | "shield" | "feather" | "dodge";
+export type BonusBlock = "apple" | "night_vision" | "shield" | "golden_apple" | "feather" | "dodge";
 
 export type BonusRecord = {
   kind: BonusKind;
@@ -44,6 +44,8 @@ export type Protection = {
   immuneAll: boolean;
   immuneFog: boolean;
   shield: number;
+  /** Ce qui bloque le premier malus (bouclier par défaut, ou pomme dorée). */
+  shieldKind?: "shield" | "golden_apple" | null;
   /** Enchantements (facultatifs) : Chute amortie, Respiration, Épines. */
   plusWordsBlock?: number;
   fogReductionMs?: number;
@@ -60,7 +62,7 @@ export function blockMalus(kind: BonusKind, p: Protection, roll: () => number): 
   if (kind === "fog" && p.immuneFog) return "night_vision";
   if (p.shield > 0) {
     p.shield -= 1;
-    return "shield";
+    return p.shieldKind === "golden_apple" ? "golden_apple" : "shield";
   }
   if (kind === "plus_words" && (p.plusWordsBlock ?? 0) > 0 && roll() < p.plusWordsBlock!) {
     return "feather";
