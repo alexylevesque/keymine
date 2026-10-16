@@ -6,7 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -17,7 +19,6 @@ import { formatPercent } from "@/lib/format";
 import { useLanguage, type DictKey } from "@/lib/i18n";
 import {
   ARMOR_PATTERNS,
-  canSmelt,
   computeLoadout,
   findRecipe,
   SMELT_MS,
@@ -27,27 +28,15 @@ import {
   type Stack,
 } from "@/lib/inventory";
 import type { InventoryView } from "@/lib/inventory-store";
-import {
-  ARMOR_PARTS,
-  armorInfo,
-  discardXp,
-  isConsumable,
-  maxDurability,
-  type ItemId,
-} from "@/lib/items";
+import { ARMOR_PARTS, discardXp, isConsumable, maxDurability, type ItemId } from "@/lib/items";
 import { itemName } from "@/lib/item-text";
 
 // Inventaire façon Minecraft (fonctionnalité ajoutée) : armure, table de craft 3 × 3, four, sac de 27
-// cases. On déplace un objet en le cliquant/touchant puis en touchant la case d'arrivée (marche aussi au
-// clavier), ou en le glissant à la souris. Le serveur valide chaque déplacement.
-
-type Amount = "all" | "half" | "one";
-
-function amountOf(mode: Amount, count: number): number {
-  if (mode === "one") return 1;
-  if (mode === "half") return Math.max(1, Math.ceil(count / 2));
-  return count;
-}
+// cases, poubelle et case « prochaine course ». Comme dans Minecraft, l'objet pris suit la souris :
+//   clic (toucher, Entrée)            : prendre toute la pile / poser tout ce qu'on tient ;
+//   clic droit (appui long, Maj+Entrée) : prendre la moitié / poser un seul objet ;
+//   Maj + clic                        : envoyer directement à sa place (équiper, four, ranger).
+// Le serveur valide chaque déplacement.
 
 const AREA_LABEL: Record<Area, DictKey> = {
   bag: "inv.bag",
@@ -58,39 +47,47 @@ const AREA_LABEL: Record<Area, DictKey> = {
   furnace_out: "inv.furnace_out",
 };
 
+/** Objet tenu : une partie (ou toute) la pile d'une case ; il y reste tant qu'on ne l'a pas posé. */
+type Held = { from: SlotRef; count: number };
+
+const LONG_PRESS_MS = 450;
+
+const same = (a: SlotRef, b: SlotRef) => a.area === b.area && a.slot === b.slot;
+
 export function InventoryScreen({ initial }: { initial: InventoryView }) {
   const { t, lang } = useLanguage();
   const router = useRouter();
   const [view, setView] = useState(initial);
   const [fetchedAt, setFetchedAt] = useState(() => Date.now());
-  const [held, setHeld] = useState<SlotRef | null>(null);
-  const [amount, setAmount] = useState<Amount>("all");
+  const [heldRaw, setHeld] = useState<Held | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [info, setInfo] = useState<Stack | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const discardDialog = useRef<HTMLDialogElement>(null);
 
   const inv = view.inventory;
   const stackAt = useCallback((ref: SlotRef): Slot => inv[ref.area][ref.slot] ?? null, [inv]);
-  const heldStack = held ? stackAt(held) : null;
+  // Si la pile d'origine a changé (four, autre onglet), on ne tient jamais plus que ce qu'elle contient.
+  const heldStack = heldRaw ? stackAt(heldRaw.from) : null;
+  const held: Held | null =
+    heldRaw && heldStack
+      ? { from: heldRaw.from, count: Math.min(heldRaw.count, heldStack.count) }
+      : null;
 
   const apply = useCallback(
     async (payload: unknown): Promise<(InventoryView & Record<string, unknown>) | null> => {
       setBusy(true);
       setError(null);
-      setNotice(null);
       try {
         const res = await fetch("/api/inventory", {
           method: payload ? "POST" : "GET",
           headers: payload ? { "content-type": "application/json" } : undefined,
           body: payload ? JSON.stringify(payload) : undefined,
         });
-        const data = (await res.json().catch(() => ({}))) as InventoryView & {
-          error?: string;
-          crafted?: ItemId;
-        };
+        const data = (await res.json().catch(() => ({}))) as InventoryView & { error?: string };
         if (!res.ok) {
           setError(data.error ?? t("err.generic"));
           return null;
@@ -108,6 +105,16 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     [t],
   );
 
+  // Les messages s'affichent par-dessus la page (rien ne bouge) et s'effacent seuls.
+  useEffect(() => {
+    if (!error && !notice) return;
+    const timer = setTimeout(() => {
+      setError(null);
+      setNotice(null);
+    }, 4_000);
+    return () => clearTimeout(timer);
+  }, [error, notice]);
+
   // Le four cuit même page fermée ; page ouverte, on anime la flèche et on relit l'état toutes les 2 s.
   useEffect(() => {
     if (!view.furnaceActive) return;
@@ -119,48 +126,94 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     };
   }, [view.furnaceActive, apply]);
 
-  // Échap lâche l'objet tenu.
+  // Dernière position du doigt ou de la souris : l'objet pris y apparaît tout de suite.
   useEffect(() => {
-    if (!held) return;
+    const onDown = (e: PointerEvent) => setPointer({ x: e.clientX, y: e.clientY });
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, []);
+
+  // L'objet tenu suit la souris (ou s'affiche là où on a touché). Échap le repose.
+  useEffect(() => {
+    if (!heldRaw) return;
+    const onMove = (e: PointerEvent) => setPointer({ x: e.clientX, y: e.clientY });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !info && !discardDialog.current?.open) setHeld(null);
     };
+    window.addEventListener("pointermove", onMove);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [held, info]);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [heldRaw, info]);
 
-  async function move(from: SlotRef, to: SlotRef) {
-    const stack = stackAt(from);
-    if (!stack) return;
-    setHeld(null);
-    await apply({
-      action: "move",
-      from,
-      to,
-      count: to.slot === -1 ? undefined : amountOf(amount, stack.count),
-    });
+
+  async function place(to: SlotRef, count: number) {
+    if (!held) return;
+    const from = held.from;
+    const left = held.count - count;
+    setHeld(left > 0 ? { from, count: left } : null);
+    const ok = await apply({ action: "move", from, to, count });
+    if (!ok) setHeld(null);
   }
 
-  function onSlot(ref: SlotRef) {
+  /** Clic gauche, toucher ou Entrée. Maj : rangement automatique. */
+  function primary(ref: SlotRef, shift: boolean) {
     if (busy) return;
-    if (held) {
-      if (held.area === ref.area && held.slot === ref.slot) setHeld(null);
-      else void move(held, ref);
+    const stack = stackAt(ref);
+    if (!held) {
+      if (!stack) return;
+      if (shift) void apply({ action: "move", from: ref, to: { area: "bag", slot: -1 } });
+      else setHeld({ from: ref, count: stack.count });
       return;
     }
-    if (stackAt(ref)) setHeld(ref);
+    if (same(held.from, ref))
+      setHeld(null); // reposé à sa place
+    else void place(ref, held.count);
+  }
+
+  /** Clic droit, appui long ou Maj + Entrée : prendre la moitié, ou poser un seul objet. */
+  function secondary(ref: SlotRef) {
+    if (busy) return;
+    const stack = stackAt(ref);
+    if (!held) {
+      if (stack) setHeld({ from: ref, count: Math.ceil(stack.count / 2) });
+      return;
+    }
+    if (!same(held.from, ref)) void place(ref, 1);
   }
 
   async function craftOnce() {
+    if (held) return;
     const data = await apply({ action: "craft" });
     const crafted = data?.crafted as ItemId | undefined;
     if (crafted) setNotice(t("inv.crafted", { item: itemName(t, crafted) }));
   }
 
+  /** Case « prochaine course » : y déposer un objet à usage unique l'active ; vide, la cliquer le reprend. */
+  async function onActiveSlot() {
+    if (busy) return;
+    if (!held) {
+      if (view.activeItem) await apply({ action: "unuse" });
+      return;
+    }
+    if (held.from.area !== "bag" || !heldStack || !isConsumable(heldStack.item)) {
+      setError(t("err.inv_not_usable"));
+      return;
+    }
+    if (view.activeItem) {
+      setError(t("err.inv_already_active"));
+      return;
+    }
+    const slot = held.from.slot;
+    setHeld(null);
+    await apply({ action: "use", slot });
+  }
+
   async function discard() {
     if (!held || !heldStack) return;
-    const from = held;
-    const count = amountOf(amount, heldStack.count);
+    const { from, count } = held;
     discardDialog.current?.close();
     setHeld(null);
     const data = (await apply({ action: "discard", from, count })) as
@@ -176,11 +229,6 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     }
   }
 
-  async function activate(slot: number) {
-    setHeld(null);
-    await apply({ action: "use", slot });
-  }
-
   const recipe = useMemo(() => findRecipe(inv.craft.map((s) => s?.item ?? null)), [inv.craft]);
   const loadout = computeLoadout(inv.armor, view.activeItem);
   const furnaceProgress = view.furnaceActive
@@ -192,286 +240,248 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     if (view.xp !== initial.xp) router.refresh();
   }, [view.xp, initial.xp, router]);
 
-  const slot = (ref: SlotRef, extra?: { label?: string; placeholder?: ReactNode }) => (
-    <InventorySlot
-      key={`${ref.area}-${ref.slot}`}
-      refKey={ref}
-      stack={stackAt(ref)}
-      held={!!held && held.area === ref.area && held.slot === ref.slot}
-      target={!!held && !(held.area === ref.area && held.slot === ref.slot)}
-      label={`${extra?.label ?? t(AREA_LABEL[ref.area])}`}
-      placeholder={extra?.placeholder}
-      onClick={() => onSlot(ref)}
-      onDragStart={() => setHeld(ref)}
-      onDrop={() => held && void move(held, ref)}
-      onInfo={(s) => setInfo(s)}
-    />
-  );
+  const press = usePress();
+
+  const slot = (ref: SlotRef, extra?: { label?: string; placeholder?: ReactNode }) => {
+    const stack = stackAt(ref);
+    const isSource = !!held && same(held.from, ref);
+    // La case d'origine montre ce qui y reste pendant qu'on tient l'objet.
+    const shown: Slot =
+      stack && isSource
+        ? stack.count - held.count > 0
+          ? { ...stack, count: stack.count - held.count }
+          : null
+        : stack;
+    return (
+      <InventorySlot
+        key={`${ref.area}-${ref.slot}`}
+        refKey={ref}
+        stack={shown}
+        infoStack={stack}
+        source={isSource}
+        target={!!held && !isSource}
+        label={extra?.label ?? t(AREA_LABEL[ref.area])}
+        placeholder={extra?.placeholder}
+        handlers={press(
+          (shift) => primary(ref, shift),
+          () => secondary(ref),
+        )}
+        onInfo={(s) => setInfo(s)}
+      />
+    );
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6" onContextMenu={(e) => held && e.preventDefault()}>
       <p className="text-xl text-[#f1e6c9]">{t("inv.hint")}</p>
 
-      <div className="grid gap-6 pb-48 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:pb-0">
-        <div className="flex min-w-0 flex-col gap-6">
-          <div className="grid gap-6 xl:grid-cols-2">
-            <PixelPanel className="p-4">
-              <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.armor")}</h2>
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="grid w-16 gap-1">
-                  {ARMOR_PARTS.map((part, i) =>
-                    slot(
-                      { area: "armor", slot: i },
-                      {
-                        label: t(`inv.slot_${part}` as DictKey),
-                        placeholder: (
-                          <ItemIcon
-                            item={`iron_${part}`}
-                            className="h-3/4 w-3/4 opacity-25 grayscale"
-                          />
-                        ),
-                      },
+      <div className="grid gap-6 xl:grid-cols-2">
+        <PixelPanel className="p-4">
+          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.armor")}</h2>
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="grid w-16 gap-1">
+              {ARMOR_PARTS.map((part, i) =>
+                slot(
+                  { area: "armor", slot: i },
+                  {
+                    label: t(`inv.slot_${part}` as DictKey),
+                    placeholder: (
+                      <ItemIcon
+                        item={`iron_${part}`}
+                        className="h-3/4 w-3/4 opacity-25 grayscale"
+                      />
                     ),
-                  )}
-                </div>
-                <div className="min-w-0 flex-1 text-2xl text-[#2b2b2b]">
-                  <p>
-                    {t("inv.stats", {
-                      dodge: formatPercent(lang, loadout.dodge * 100),
-                      xp: formatPercent(lang, loadout.xpBonus * 100),
-                    })}
-                  </p>
-                  <h3 className="font-pixel mt-4 mb-2 text-xs text-[#2b2b2b]">
-                    {t("inv.active_title")}
-                  </h3>
-                  {view.activeItem ? (
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="pixel-slot flex h-12 w-12 items-center justify-center">
-                        <ItemIcon item={view.activeItem} className="h-9 w-9" />
-                      </span>
-                      <span>{t("inv.active_item", { item: itemName(t, view.activeItem) })}</span>
-                      <PixelButton
-                        variant="slate"
-                        disabled={busy}
-                        onClick={() => void apply({ action: "unuse" })}
-                        className="h-9 px-3 text-[9px]"
-                      >
-                        {t("inv.unuse")}
-                      </PixelButton>
-                    </div>
-                  ) : (
-                    <p className="text-xl text-[#3a3a3a]">{t("inv.active_none")}</p>
-                  )}
-                </div>
-              </div>
-            </PixelPanel>
-
-            <PixelPanel className="p-4">
-              <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.craft")}</h2>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="grid w-44 grid-cols-3 gap-1 sm:w-48">
-                  {Array.from({ length: 9 }, (_, i) => slot({ area: "craft", slot: i }))}
-                </div>
-                <span aria-hidden="true" className="pixel-arrow" />
-                <div className="flex flex-col items-center gap-2">
+                  },
+                ),
+              )}
+            </div>
+            <div className="min-w-0 flex-1 text-2xl text-[#2b2b2b]">
+              <p>
+                {t("inv.stats", {
+                  dodge: formatPercent(lang, loadout.dodge * 100),
+                  xp: formatPercent(lang, loadout.xpBonus * 100),
+                })}
+              </p>
+              <h3 className="font-pixel mt-4 mb-2 text-xs text-[#2b2b2b]">
+                {t("inv.active_title")}
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="relative aspect-square w-14 shrink-0">
                   <button
                     type="button"
-                    disabled={!recipe || busy}
-                    onClick={() => void craftOnce()}
+                    onClick={() => void onActiveSlot()}
                     aria-label={
-                      recipe
-                        ? `${t("inv.craft_button")} : ${itemName(t, recipe.result)}`
-                        : t("inv.craft_result")
+                      view.activeItem
+                        ? `${t("inv.active_title")} : ${itemName(t, view.activeItem)} (${t("inv.unuse")})`
+                        : t("inv.active_title")
                     }
-                    className="pixel-slot inv-slot flex h-16 w-16 items-center justify-center disabled:cursor-not-allowed"
+                    data-target={!!held}
+                    className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
                   >
-                    {recipe && <ItemIcon item={recipe.result} className="h-3/4 w-3/4" />}
+                    {view.activeItem ? (
+                      <ItemIcon item={view.activeItem} className="h-3/4 w-3/4" />
+                    ) : (
+                      <ItemIcon
+                        item="enchanted_golden_apple"
+                        className="h-3/4 w-3/4 opacity-25 grayscale"
+                      />
+                    )}
                   </button>
-                  <PixelButton
-                    disabled={!recipe || busy}
-                    onClick={() => void craftOnce()}
-                    className="h-10 px-3 text-[9px]"
-                  >
-                    {t("inv.craft_button")}
-                  </PixelButton>
+                  {view.activeItem && (
+                    <InfoButton
+                      item={view.activeItem}
+                      onOpen={() => setInfo({ item: view.activeItem!, count: 1, durability: null })}
+                    />
+                  )}
                 </div>
+                <p className="text-xl leading-tight text-[#3a3a3a]">
+                  {view.activeItem
+                    ? t("inv.active_item", { item: itemName(t, view.activeItem) })
+                    : t("inv.active_none")}
+                </p>
               </div>
-              {!recipe && <p className="mt-3 text-xl text-[#3a3a3a]">{t("inv.craft_none")}</p>}
-            </PixelPanel>
+            </div>
           </div>
+        </PixelPanel>
 
-          <PixelPanel className="p-4">
-            <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.furnace")}</h2>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="grid gap-1">
-                <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
-                <span
-                  aria-hidden="true"
-                  className="pixel-flame mx-auto"
-                  data-on={view.furnaceActive}
-                />
-                <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
-              </div>
-              <span
-                role="progressbar"
-                aria-label={t("inv.furnace")}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(furnaceProgress * 100)}
-                className="pixel-arrow"
-                style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
-              />
-              <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
-              <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
-                {view.furnaceActive
-                  ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
-                  : t("inv.furnace_off")}
-              </p>
+        <PixelPanel className="p-4">
+          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.craft")}</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="grid w-44 grid-cols-3 gap-1 sm:w-48">
+              {Array.from({ length: 9 }, (_, i) => slot({ area: "craft", slot: i }))}
             </div>
-          </PixelPanel>
+            <span aria-hidden="true" className="pixel-arrow" />
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                disabled={!recipe || busy || !!held}
+                onClick={() => void craftOnce()}
+                aria-label={
+                  recipe
+                    ? `${t("inv.craft_button")} : ${itemName(t, recipe.result)}`
+                    : t("inv.craft_result")
+                }
+                className="pixel-slot inv-slot flex h-16 w-16 items-center justify-center disabled:cursor-not-allowed"
+              >
+                {recipe && <ItemIcon item={recipe.result} className="h-3/4 w-3/4" />}
+              </button>
+              <PixelButton
+                disabled={!recipe || busy || !!held}
+                onClick={() => void craftOnce()}
+                className="h-10 px-3 text-[9px]"
+              >
+                {t("inv.craft_button")}
+              </PixelButton>
+            </div>
+          </div>
+          {!recipe && <p className="mt-3 text-xl text-[#3a3a3a]">{t("inv.craft_none")}</p>}
+        </PixelPanel>
+      </div>
 
-          <PixelPanel className="p-4">
-            <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.bag")}</h2>
-            <div className="grid max-w-[33rem] grid-cols-9 gap-1">
-              {Array.from({ length: 27 }, (_, i) => slot({ area: "bag", slot: i }))}
-            </div>
-          </PixelPanel>
-
-          <PixelDisclosure title={t("inv.recipes")}>
-            <div className="flex flex-col gap-4 text-2xl text-[#2b2b2b]">
-              <p>{t("inv.recipes_armor")}</p>
-              <div className="flex flex-wrap gap-6">
-                {ARMOR_PARTS.map((part) => (
-                  <figure key={part} className="flex flex-col items-center gap-1">
-                    <div className="grid grid-cols-3 gap-0.5" aria-hidden="true">
-                      {padPattern(ARMOR_PATTERNS[part]).map((cell, i) => (
-                        <span
-                          key={i}
-                          className="pixel-slot flex h-7 w-7 items-center justify-center"
-                        >
-                          {cell && <ItemIcon item="iron_ingot" className="h-5 w-5" />}
-                        </span>
-                      ))}
-                    </div>
-                    <figcaption className="text-xl">{t(`part.${part}` as DictKey)}</figcaption>
-                  </figure>
-                ))}
-              </div>
-              <p>{t("inv.recipes_netherite")}</p>
-              <p>{t("inv.recipes_netherite_piece")}</p>
-              <p>{t("inv.recipes_furnace")}</p>
-            </div>
-          </PixelDisclosure>
+      <PixelPanel className="p-4">
+        <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.furnace")}</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="grid gap-1">
+            <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
+            <span aria-hidden="true" className="pixel-flame mx-auto" data-on={view.furnaceActive} />
+            <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
+          </div>
+          <span
+            role="progressbar"
+            aria-label={t("inv.furnace")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(furnaceProgress * 100)}
+            className="pixel-arrow"
+            style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
+          />
+          <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
+          <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
+            {view.furnaceActive
+              ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
+              : t("inv.furnace_off")}
+          </p>
         </div>
-        {/* Panneau « En main » : toujours au même endroit (colonne à droite en grand écran, barre collée en
-            bas en petit écran) pour que rien ne bouge quand on prend un objet. */}
-        <aside
-          aria-label={t("inv.held_title")}
-          className="pixel-panel fixed inset-x-0 bottom-0 z-30 flex max-h-[45vh] flex-col gap-3 overflow-y-auto p-3 lg:sticky lg:top-4 lg:bottom-auto lg:max-h-none lg:overflow-visible"
-        >
-          <h2 className="font-pixel text-xs text-[#2b2b2b]">{t("inv.held_title")}</h2>
-          {heldStack && held ? (
-            <>
-              <span className="flex items-center gap-2 text-2xl leading-tight text-[#2b2b2b]">
-                <span className="pixel-slot flex h-12 w-12 shrink-0 items-center justify-center">
-                  <ItemIcon item={heldStack.item} className="h-9 w-9" />
-                </span>
-                {t("inv.selected", {
-                  item: itemName(t, heldStack.item),
-                  count: amountOf(amount, heldStack.count),
-                })}
-              </span>
-              {heldStack.count > 1 && (
-                <span role="group" aria-label={t("inv.amount")} className="flex gap-1">
-                  {(["all", "half", "one"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      aria-pressed={amount === mode}
-                      onClick={() => setAmount(mode)}
-                      className="pixel-btn h-9 px-2 text-[9px]"
-                      data-variant={amount === mode ? "green" : "slate"}
-                    >
-                      {t(
-                        mode === "all"
-                          ? "inv.amount_all"
-                          : mode === "half"
-                            ? "inv.amount_half"
-                            : "inv.amount_one",
-                      )}
-                    </button>
-                  ))}
-                </span>
-              )}
-              <span className="flex flex-wrap gap-2">
-                {held.area === "bag" && armorInfo(heldStack.item) && (
-                  <PixelButton
-                    onClick={() => void move(held, { area: "bag", slot: -1 })}
-                    className="h-9 px-3 text-[9px]"
-                  >
-                    {t("inv.equip")}
-                  </PixelButton>
-                )}
-                {held.area === "bag" && (canSmelt(heldStack.item) || heldStack.item === "coal") && (
-                  <PixelButton
-                    onClick={() => void move(held, { area: "bag", slot: -1 })}
-                    className="h-9 px-3 text-[9px]"
-                  >
-                    {t("inv.to_furnace")}
-                  </PixelButton>
-                )}
-                {held.area === "bag" && isConsumable(heldStack.item) && !view.activeItem && (
-                  <PixelButton
-                    variant="gold"
-                    onClick={() => void activate(held.slot)}
-                    className="h-9 px-3 text-[9px]"
-                  >
-                    {t("inv.use")}
-                  </PixelButton>
-                )}
-                {held.area !== "bag" && (
-                  <PixelButton
-                    onClick={() => void move(held, { area: "bag", slot: -1 })}
-                    className="h-9 px-3 text-[9px]"
-                  >
-                    {t("inv.to_bag")}
-                  </PixelButton>
-                )}
-                <PixelButton
-                  variant="slate"
-                  onClick={() => setInfo(heldStack)}
-                  className="h-9 px-3 text-[9px]"
-                >
-                  (i)
-                </PixelButton>
-                <PixelButton
-                  variant="red"
-                  onClick={() => discardDialog.current?.showModal()}
-                  className="h-9 px-3 text-[9px]"
-                >
-                  {t("inv.discard")}
-                </PixelButton>
-                <PixelButton
-                  variant="slate"
-                  onClick={() => setHeld(null)}
-                  className="h-9 px-3 text-[9px]"
-                >
-                  {t("inv.cancel")}
-                </PixelButton>
-              </span>
-            </>
-          ) : (
-            <p className="text-xl leading-tight text-[#3a3a3a]">{t("inv.held_none")}</p>
-          )}
-          <div aria-live="polite">
-            {error && (
-              <p role="alert" className="text-xl leading-tight text-[#9b3a2e]">
-                {error}
-              </p>
-            )}
-            {notice && <p className="text-xl leading-tight text-[#23501a]">{notice}</p>}
+      </PixelPanel>
+
+      <PixelPanel className="p-4">
+        <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.bag")}</h2>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="grid w-full max-w-[33rem] grid-cols-9 gap-1">
+            {Array.from({ length: 27 }, (_, i) => slot({ area: "bag", slot: i }))}
           </div>
-        </aside>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              disabled={!held}
+              onClick={() => discardDialog.current?.showModal()}
+              aria-label={t("inv.trash")}
+              data-target={!!held}
+              className="pixel-slot inv-slot inv-trash flex h-14 w-14 items-center justify-center disabled:cursor-default"
+            >
+              <TrashIcon />
+            </button>
+            <span className="font-pixel text-[9px] text-[#2b2b2b]">{t("inv.trash")}</span>
+          </div>
+        </div>
+      </PixelPanel>
+
+      <PixelDisclosure title={t("inv.recipes")}>
+        <div className="flex flex-col gap-4 text-2xl text-[#2b2b2b]">
+          <p>{t("inv.recipes_armor")}</p>
+          <div className="flex flex-wrap gap-6">
+            {ARMOR_PARTS.map((part) => (
+              <figure key={part} className="flex flex-col items-center gap-1">
+                <div className="grid grid-cols-3 gap-0.5" aria-hidden="true">
+                  {padPattern(ARMOR_PATTERNS[part]).map((cell, i) => (
+                    <span key={i} className="pixel-slot flex h-7 w-7 items-center justify-center">
+                      {cell && <ItemIcon item="iron_ingot" className="h-5 w-5" />}
+                    </span>
+                  ))}
+                </div>
+                <figcaption className="text-xl">{t(`part.${part}` as DictKey)}</figcaption>
+              </figure>
+            ))}
+          </div>
+          <p>{t("inv.recipes_netherite")}</p>
+          <p>{t("inv.recipes_netherite_piece")}</p>
+          <p>{t("inv.recipes_furnace")}</p>
+        </div>
+      </PixelDisclosure>
+
+      {/* L'objet tenu, sous le curseur (style Minecraft). */}
+      {held && heldStack && pointer && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed z-40 h-12 w-12"
+          style={{ left: pointer.x - 24, top: pointer.y - 24 }}
+        >
+          <ItemIcon item={heldStack.item} className="h-full w-full drop-shadow-[2px_2px_0_#000]" />
+          {held.count > 1 && <span className="inv-count">{held.count}</span>}
+        </div>
+      )}
+      {/* Pour les lecteurs d'écran et le clavier : ce qu'on tient, annoncé sans rien afficher de plus. */}
+      <p className="sr-only" aria-live="polite">
+        {held && heldStack
+          ? t("inv.selected", { item: itemName(t, heldStack.item), count: held.count })
+          : ""}
+      </p>
+
+      {/* Messages par-dessus la page : rien ne bouge. */}
+      <div
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+      >
+        {(error || notice) && (
+          <p
+            role={error ? "alert" : undefined}
+            className={`pixel-panel max-w-xl px-4 py-2 text-2xl leading-tight ${
+              error ? "text-[#9b3a2e]" : "text-[#23501a]"
+            }`}
+          >
+            {error ?? notice}
+          </p>
+        )}
       </div>
 
       <dialog
@@ -479,7 +489,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
         aria-labelledby="discard-title"
         className="pixel-panel m-auto w-[calc(100%-2rem)] max-w-md p-5 backdrop:bg-black/70"
       >
-        {heldStack && (
+        {held && heldStack && (
           <>
             <h2 id="discard-title" className="font-pixel mb-3 text-sm text-[#2b2b2b]">
               {t("inv.discard_title")}
@@ -491,12 +501,8 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               <p className="text-2xl leading-tight text-[#2b2b2b]">
                 {t("inv.discard_text", {
                   item: itemName(t, heldStack.item),
-                  count: amountOf(amount, heldStack.count),
-                  xp: discardXp(
-                    heldStack.item,
-                    amountOf(amount, heldStack.count),
-                    heldStack.durability,
-                  ),
+                  count: held.count,
+                  xp: discardXp(heldStack.item, held.count, heldStack.durability),
                 })}
               </p>
             </div>
@@ -530,6 +536,61 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   );
 }
 
+type PressHandlers = {
+  onClick: (e: ReactMouseEvent) => void;
+  onContextMenu: (e: ReactMouseEvent) => void;
+  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerUp: () => void;
+  onPointerLeave: () => void;
+  onKeyDown: (e: ReactKeyboardEvent) => void;
+};
+
+/**
+ * Clic, clic droit, appui long (téléphone : pas de clic droit) et Maj + Entrée (clavier), pour une case.
+ * L'appui long annule le « toucher » qui suit, pour ne pas faire deux actions.
+ */
+function usePress() {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const touch = useRef(false);
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return (primary: (shift: boolean) => void, secondary: () => void): PressHandlers => ({
+    onPointerDown: (e) => {
+      touch.current = e.pointerType === "touch" || e.pointerType === "pen";
+      longPressed.current = false;
+      clear();
+      if (touch.current) {
+        timer.current = setTimeout(() => {
+          longPressed.current = true;
+          secondary();
+        }, LONG_PRESS_MS);
+      }
+    },
+    onPointerUp: clear,
+    onPointerLeave: clear,
+    onClick: (e) => {
+      if (longPressed.current) {
+        longPressed.current = false;
+        return;
+      }
+      primary(e.shiftKey);
+    },
+    onContextMenu: (e) => {
+      e.preventDefault(); // pas de menu du navigateur dans l'inventaire
+      if (!touch.current) secondary();
+    },
+    onKeyDown: (e) => {
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault();
+        secondary();
+      }
+    },
+  });
+}
+
 /** Motif d'armure ramené à 3 × 3 (le casque et les bottes n'ont que 2 lignes). */
 function padPattern(lines: string[]): boolean[] {
   const rows = [...lines, ...Array<string>(3 - lines.length).fill("...")];
@@ -539,54 +600,70 @@ function padPattern(lines: string[]): boolean[] {
     .map((c) => c === "X");
 }
 
+/** Poubelle en pixels (dessin original). */
+function TrashIcon() {
+  const rows = [
+    "................",
+    "......OOOO......",
+    "..OOOOOOOOOOOO..",
+    "..OLLLLLLLLLLO..",
+    "..OOOOOOOOOOOO..",
+    "...OBDBDBDBDO...",
+    "...OBDBDBDBDO...",
+    "...OBDBDBDBDO...",
+    "...OBDBDBDBDO...",
+    "...OBDBDBDBDO...",
+    "...OBDBDBDBDO...",
+    "....OOOOOOOO....",
+  ];
+  const colors: Record<string, string> = { O: "#1a1a1a", L: "#b0b0b0", B: "#8a8a8a", D: "#5e5e5e" };
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" shapeRendering="crispEdges" className="h-3/4 w-3/4">
+      {rows.flatMap((row, y) =>
+        [...row].map((ch, x) =>
+          colors[ch] ? (
+            <rect key={`${x}-${y}`} x={x} y={y + 2} width={1} height={1} fill={colors[ch]} />
+          ) : null,
+        ),
+      )}
+    </svg>
+  );
+}
+
 function InventorySlot({
   refKey,
   stack,
-  held,
+  infoStack,
+  source,
   target,
   label,
   placeholder,
-  onClick,
-  onDragStart,
-  onDrop,
+  handlers,
   onInfo,
 }: {
   refKey: SlotRef;
+  /** Ce que la case montre (sans la partie tenue). */
   stack: Slot;
-  held: boolean;
+  /** La pile réelle, pour la fiche (i). */
+  infoStack: Slot;
+  source: boolean;
   target: boolean;
   label: string;
   placeholder?: ReactNode;
-  onClick: () => void;
-  onDragStart: () => void;
-  onDrop: () => void;
+  handlers: PressHandlers;
   onInfo: (stack: Stack) => void;
 }) {
   const { t } = useLanguage();
   const max = stack ? maxDurability(stack.item) : null;
   const content = stack ? `${itemName(t, stack.item)} × ${stack.count}` : t("inv.empty_slot");
-  const allowDrop = (e: DragEvent) => {
-    if (target) e.preventDefault();
-  };
   return (
     <div className="relative aspect-square w-full max-w-14" data-area={refKey.area}>
       <button
         type="button"
-        draggable={!!stack}
-        onDragStart={(e) => {
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", `${refKey.area}:${refKey.slot}`);
-          onDragStart();
-        }}
-        onDragOver={allowDrop}
-        onDrop={(e) => {
-          e.preventDefault();
-          onDrop();
-        }}
-        onClick={onClick}
-        aria-pressed={held}
+        {...handlers}
+        aria-pressed={source}
         aria-label={t("inv.slot_label", { area: label, n: refKey.slot + 1, content })}
-        data-held={held}
+        data-held={source}
         data-target={target}
         className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
       >
@@ -599,7 +676,7 @@ function InventorySlot({
           />
         )}
       </button>
-      {stack && <InfoButton item={stack.item} onOpen={() => onInfo(stack)} />}
+      {infoStack && <InfoButton item={infoStack.item} onOpen={() => onInfo(infoStack)} />}
     </div>
   );
 }
