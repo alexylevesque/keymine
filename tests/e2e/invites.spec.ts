@@ -3,14 +3,18 @@ import { createRoomViaApi, registerViaApi, uniqueName } from "./helpers";
 
 // SALLE-04 / SALLE-10 : une salle privée n'est accessible que par lien d'invitation,
 // à usage unique.
-test("salle privée : le code seul est refusé, le lien d'invitation fonctionne une fois", async ({ browser }) => {
+test("salle privée : le code seul est refusé, le lien d'invitation fonctionne une fois", async ({
+  browser,
+}) => {
   const hostContext = await browser.newContext({ locale: "fr-CA" });
   const host = await hostContext.newPage();
   await registerViaApi(host.request, "hote");
   const code = await createRoomViaApi(host.request, { access: "private" });
   await host.goto(`/jouer/${code}`);
 
-  const inviteRes = await host.request.post(`/api/lobbies/${code}/invites`, { data: { label: "Camille" } });
+  const inviteRes = await host.request.post(`/api/lobbies/${code}/invites`, {
+    data: { label: "Camille" },
+  });
   expect(inviteRes.ok(), await inviteRes.text()).toBe(true);
   const { invite } = (await inviteRes.json()) as { invite: { token: string } };
 
@@ -48,7 +52,10 @@ test("salle privée : le code seul est refusé, le lien d'invitation fonctionne 
   const thirdPage = await third.newPage();
   await thirdPage.request.post("/api/auth/guest", { data: { pseudo: uniqueName("trois") } });
   await thirdPage.goto(`/rejoindre/${invite.token}`);
-  await expect(thirdPage.getByRole("alert")).toBeVisible({ timeout: 15_000 });
+  // Filtré par texte : l'annonceur de navigation de Next.js a aussi le rôle « alert ».
+  await expect(thirdPage.getByRole("alert").filter({ hasText: "déjà été utilisé" })).toBeVisible({
+    timeout: 15_000,
+  });
   await thirdPage.getByRole("button", { name: "RETOUR A L'ACCUEIL" }).click();
   await expect(thirdPage).toHaveURL(/\/$/);
 

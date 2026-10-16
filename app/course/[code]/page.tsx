@@ -2,7 +2,14 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { participantName } from "@/lib/bot-name";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Track } from "@/components/race/Track";
 import { LanguageSelect } from "@/components/LanguageSelect";
 import { useViewer } from "@/lib/viewer";
@@ -164,7 +171,12 @@ export default function CoursePage() {
   }, [abandoned, router]);
   const isParticipant = info?.role === "participant";
   const secondsToStart = state ? Math.ceil((state.startsAt - serverNow) / 1000) : 3;
-  const racing = !!state && state.phase === "racing" && serverNow >= state.startsAt;
+  // On peut taper dès que le serveur annonce le départ (« racing »), ou dès l'heure de départ si ce message
+  // n'est pas encore arrivé. Avant, il fallait les deux, et `serverNow` n'avance que toutes les 200 ms :
+  // la première frappe juste après le décompte pouvait être perdue (trouvé par les tests e2e).
+  const racing =
+    !!state &&
+    (state.phase === "racing" || (state.phase === "countdown" && serverNow >= state.startsAt));
   const canType = isParticipant && racing && me?.status === "racing";
   const unlimited = !!state && state.endsAt === null;
   const secondsLeft = state && state.endsAt !== null ? (state.endsAt - serverNow) / 1000 : 0;
@@ -199,8 +211,9 @@ export default function CoursePage() {
     [],
   );
 
-  // Frappe au clavier : pas de retour arrière, pas de collage (COURSE-04).
-  useEffect(() => {
+  // Frappe au clavier : pas de retour arrière, pas de collage (COURSE-04). useLayoutEffect : l'écoute est
+  // en place avant que la fin du décompte s'affiche, sinon une frappe immédiate pouvait être perdue.
+  useLayoutEffect(() => {
     if (!canType) return;
     const errorMode = info?.errorMode ?? "accumuler";
 

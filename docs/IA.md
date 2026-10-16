@@ -110,6 +110,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** En préparant les prix du classement (de l'XP donnée hors course), l'agent a relu tout ce qui écrit `users.xp_total` et a trouvé ce recalcul.
 **Correction.** Le script ajoute seulement l'XP des courses qu'il vient de calculer, sans jamais recalculer le total. Nouveau test en base : un achat, puis un deuxième seed, et l'XP dépensée reste dépensée. Leçon : quand une valeur gagne une nouvelle source de changement, il faut chercher tout le code qui l'écrit, pas seulement celui qu'on ajoute.
 
+### 17. La première frappe après le décompte pouvait être perdue
+
+**Ce qui s'est passé.** La page de course n'acceptait la frappe que si deux conditions étaient vraies : le serveur avait annoncé « racing » ET l'heure de départ était passée selon l'horloge de la page. Or cette horloge n'avance que toutes les 200 ms : juste après l'annonce du serveur (qui fait disparaître le décompte), la page pouvait encore se croire avant le départ, et une frappe immédiate était ignorée.
+**Détection.** En lançant toute la suite e2e en local avant un push, à la demande de l'étudiant : 3 à 4 tests de `race-flow.spec.ts` échouaient sur une machine plus lente. L'agent a enregistré les messages WebSocket et vu la frappe partir juste après « racing » sans qu'aucun avancement ne soit envoyé.
+**Correction.** On peut taper dès que le serveur annonce le départ, ou dès l'heure de départ si l'annonce n'est pas encore arrivée (le serveur accepte déjà l'avancement dès l'heure de départ) ; l'écoute du clavier se met en place avant l'affichage (`useLayoutEffect`). Un test e2e qui confondait l'annonceur de navigation de Next.js avec le message d'erreur a aussi été précisé. Les 63 tests e2e passent. Leçon : un test qui échoue « seulement sur une machine lente » révèle souvent un vrai problème de timing que les joueurs rencontreront aussi.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._
