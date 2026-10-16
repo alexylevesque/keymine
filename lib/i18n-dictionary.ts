@@ -585,7 +585,7 @@ export const DICTIONARY = {
     "inv.furnace_off": "Le four est éteint : mets un minerai et du charbon.",
     "inv.bag": "SAC",
     "inv.hint":
-      "Clic (ou toucher) : prendre ou poser toute la pile, l'objet suit ta souris. Clic droit (appui long sur téléphone) : prendre la moitié, ou poser un seul objet. Maj + clic : envoyer directement à sa place. Échap : reposer. Clavier : Entrée et Maj + Entrée.",
+      "Clic (ou toucher) : prendre ou poser toute la pile, l'objet suit ta souris. Clic droit (appui long sur téléphone) : prendre la moitié, ou poser un seul objet. Maj + clic : envoyer directement à sa place (armure, four, prochaine course). Échap : reposer. Clavier : Entrée et Maj + Entrée.",
     "inv.selected": "{item} x{count}",
     "inv.cancel": "ANNULER",
     "inv.active_title": "PROCHAINE COURSE",
@@ -1218,7 +1218,7 @@ export const DICTIONARY = {
     "inv.furnace_off": "The furnace is off: add an ore and some coal.",
     "inv.bag": "BAG",
     "inv.hint":
-      "Click (or tap): pick up or drop the whole stack, the item follows your mouse. Right-click (long press on a phone): pick up half, or drop a single item. Shift + click: send it straight to its place. Escape: put it back. Keyboard: Enter and Shift + Enter.",
+      "Click (or tap): pick up or drop the whole stack, the item follows your mouse. Right-click (long press on a phone): pick up half, or drop a single item. Shift + click: send it straight to its place (armor, furnace, next race). Escape: put it back. Keyboard: Enter and Shift + Enter.",
     "inv.selected": "{item} x{count}",
     "inv.cancel": "CANCEL",
     "inv.active_title": "NEXT RACE",

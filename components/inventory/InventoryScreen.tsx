@@ -20,6 +20,7 @@ import { formatPercent } from "@/lib/format";
 import { useLanguage, type DictKey } from "@/lib/i18n";
 import {
   ARMOR_PATTERNS,
+  canSmelt,
   computeLoadout,
   findRecipe,
   SMELT_MS,
@@ -29,7 +30,14 @@ import {
   type Stack,
 } from "@/lib/inventory";
 import type { InventoryView } from "@/lib/inventory-store";
-import { ARMOR_PARTS, discardXp, isConsumable, maxDurability, type ItemId } from "@/lib/items";
+import {
+  ARMOR_PARTS,
+  armorInfo,
+  discardXp,
+  isConsumable,
+  maxDurability,
+  type ItemId,
+} from "@/lib/items";
 import { itemName } from "@/lib/item-text";
 
 // Inventaire façon Minecraft (fonctionnalité ajoutée) : armure, table de craft 3 × 3, four, sac de 27
@@ -169,13 +177,29 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     const stack = stackAt(ref);
     if (!held) {
       if (!stack) return;
-      if (shift) void apply({ action: "move", from: ref, to: { area: "bag", slot: -1 } });
+      if (shift) void quickMove(ref, stack);
       else setHeld({ from: ref, count: stack.count });
       return;
     }
     if (same(held.from, ref))
       setHeld(null); // reposé à sa place
     else void place(ref, held.count);
+  }
+
+  /**
+   * Maj + clic : envoie l'objet à sa place. Depuis le sac : l'armure s'équipe, le minerai et le charbon
+   * vont au four, un objet à usage unique va dans « prochaine course ». Ailleurs : retour au sac.
+   * Sans place logique (lingot, diamant…), rien ne se passe, comme dans Minecraft.
+   */
+  function quickMove(ref: SlotRef, stack: Stack) {
+    if (ref.area !== "bag") {
+      void apply({ action: "move", from: ref, to: { area: "bag", slot: -1 } });
+    } else if (armorInfo(stack.item) || canSmelt(stack.item) || stack.item === "coal") {
+      void apply({ action: "move", from: ref, to: { area: "bag", slot: -1 } });
+    } else if (isConsumable(stack.item)) {
+      if (view.activeItem) setError(t("err.inv_already_active"));
+      else void apply({ action: "use", slot: ref.slot });
+    }
   }
 
   /** Clic droit, appui long ou Maj + Entrée : prendre la moitié, ou poser un seul objet. */
