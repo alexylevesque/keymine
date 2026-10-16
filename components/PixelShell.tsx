@@ -136,8 +136,8 @@ export function PixelShell({
             {navLinks()}
           </nav>
           {/* Expérience : petite barre ; sur petit écran elle prend la place libre entre logo et compte. */}
-          <div className="flex min-w-0 flex-grow justify-end lg:flex-grow-0">
-            {viewer?.kind === "user" && <XpBar totalXp={viewer.xp} className="w-full max-w-44 lg:w-44" />}
+          <div className="flex min-w-0 flex-grow justify-end lg:hidden">
+            {viewer?.kind === "user" && <XpBar totalXp={viewer.xp} className="w-full max-w-44" />}
           </div>
 
           <div className="hidden items-center gap-3 lg:flex">
@@ -160,6 +160,11 @@ export function PixelShell({
             <span aria-hidden="true" data-open={menuOpen} className="pixel-burger" />
           </button>
         </div>
+
+        {/* Grand écran : la barre d'expérience fait toute la largeur, collée sous l'en-tête (style Minecraft). */}
+        {viewer?.kind === "user" && (
+          <XpBar totalXp={viewer.xp} size="strip" className="hidden lg:flex" />
+        )}
 
         <div
           id="menu-mobile"

@@ -8,7 +8,16 @@ import { formatNumber } from "@/lib/format";
  * Barre d'expérience façon Minecraft : niveau en chiffres verts au-dessus, barre verte en segments.
  * `size="sm"` dans l'en-tête, `size="lg"` sur le profil.
  */
-export function XpBar({ totalXp, size = "sm", className = "" }: { totalXp: number; size?: "sm" | "lg"; className?: string }) {
+export function XpBar({
+  totalXp,
+  size = "sm",
+  className = "",
+}: {
+  totalXp: number;
+  /** sm : petite barre (en-tête, petit écran) ; strip : bande pleine largeur sous l'en-tête ; lg : profil. */
+  size?: "sm" | "strip" | "lg";
+  className?: string;
+}) {
   const { t, lang } = useLanguage();
   const { level, intoLevel, needed, fraction } = levelFromXp(totalXp);
   const label = t("xp.aria", { level, into: intoLevel, needed });
