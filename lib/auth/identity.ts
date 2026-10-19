@@ -1,5 +1,7 @@
 import "server-only";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
 import { readSession } from "./session";
 import { readGuest } from "./guest";
 
@@ -15,11 +17,10 @@ export type Identity =
 export async function getIdentity(): Promise<Identity | null> {
   const session = await readSession();
   if (session) {
-    const user = await db
-      .selectFrom("users")
-      .select(["id", "username", "display_name"])
-      .where("id", "=", session.userId)
-      .executeTakeFirst();
+    const user = await db.query.users.findFirst({
+      columns: { id: true, username: true, display_name: true },
+      where: eq(users.id, session.userId),
+    });
     if (user) {
       return {
         kind: "user",

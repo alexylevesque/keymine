@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { mergeGuestHistory } from "@/lib/stats";
@@ -22,26 +24,28 @@ const schema = z.object({
 export async function POST(request: Request) {
   const body = schema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
-    return NextResponse.json({ error: await zodMessage(body.error, "bad_request") }, { status: 400 });
+    return NextResponse.json(
+      { error: await zodMessage(body.error, "bad_request") },
+      { status: 400 },
+    );
   }
 
   const { username, password, rememberMe } = body.data;
 
-  const existing = await db
-    .selectFrom("users")
-    .select("id")
-    .where("username", "=", username)
-    .executeTakeFirst();
+  const existing = await db.query.users.findFirst({
+    columns: { id: true },
+    where: eq(users.username, username),
+  });
   if (existing) {
     return NextResponse.json({ error: await msg("username_taken") }, { status: 409 });
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await db
-    .insertInto("users")
+  const [user] = await db
+    .insert(users)
     .values({ username, password_hash: passwordHash, display_name: username })
-    .returning(["id", "username", "display_name"])
-    .executeTakeFirstOrThrow();
+    .returning({ id: users.id, username: users.username, display_name: users.display_name });
+  if (!user) throw new Error("inscription : aucune ligne créée");
 
   await createSession({ userId: user.id, username: user.username }, rememberMe);
 

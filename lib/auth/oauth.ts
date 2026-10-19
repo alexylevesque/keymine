@@ -71,35 +71,37 @@ export type OAuthProvider = "discord" | "github";
  * (AUTH-8), comme pour l'inscription classique.
  */
 export async function loginOrCreateOAuthUser(provider: OAuthProvider, identity: OAuthIdentity) {
-  const { kysely: db } = await import("@/lib/db");
+  const { db } = await import("@/lib/db");
+  const { users } = await import("@/db/schema");
+  const { eq } = await import("drizzle-orm");
   const { createSession } = await import("@/lib/auth/session");
   const { mergeGuestHistory } = await import("@/lib/stats");
   const { readGuestId } = await import("@/lib/auth/guest");
 
   const idColumn = provider === "discord" ? "discord_id" : "github_id";
+  const userColumns = { id: users.id, username: users.username, display_name: users.display_name };
 
-  let user = await db
-    .selectFrom("users")
-    .select(["id", "username", "display_name"])
-    .where(idColumn, "=", identity.providerId)
-    .executeTakeFirst();
+  let [user] = await db
+    .select(userColumns)
+    .from(users)
+    .where(eq(users[idColumn], identity.providerId))
+    .limit(1);
 
   if (!user) {
     let username = slugifyUsername(identity.username);
     // Un pseudo de fournisseur peut déjà être pris côté KeyMine: on ajoute un
     // suffixe plutôt que d'échouer.
     for (let attempt = 0; attempt < 5; attempt++) {
-      const taken = await db
-        .selectFrom("users")
-        .select("id")
-        .where("username", "=", username)
-        .executeTakeFirst();
+      const taken = await db.query.users.findFirst({
+        columns: { id: true },
+        where: eq(users.username, username),
+      });
       if (!taken) break;
       username = `${slugifyUsername(identity.username).slice(0, 12)}${Math.floor(Math.random() * 10_000)}`;
     }
 
-    user = await db
-      .insertInto("users")
+    [user] = await db
+      .insert(users)
       .values({
         username,
         password_hash: unusablePasswordHash(),
@@ -108,15 +110,11 @@ export async function loginOrCreateOAuthUser(provider: OAuthProvider, identity: 
         avatar_source: provider,
         [idColumn]: identity.providerId,
       })
-      .returning(["id", "username", "display_name"])
-      .executeTakeFirstOrThrow();
+      .returning(userColumns);
+    if (!user) throw new Error("OAuth : aucun compte créé");
   } else if (identity.avatarUrl) {
     // Avatar à jour à chaque connexion (il peut changer côté fournisseur).
-    await db
-      .updateTable("users")
-      .set({ avatar_url: identity.avatarUrl })
-      .where("id", "=", user.id)
-      .execute();
+    await db.update(users).set({ avatar_url: identity.avatarUrl }).where(eq(users.id, user.id));
   }
 
   await createSession({ userId: user.id, username: user.username }, true);

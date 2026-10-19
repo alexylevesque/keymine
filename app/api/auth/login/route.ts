@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { mergeGuestHistory } from "@/lib/stats";
@@ -24,18 +26,17 @@ export async function POST(request: Request) {
   }
   const { username, password, rememberMe } = body.data;
 
-  const user = await db
-    .selectFrom("users")
-    .select([
-      "id",
-      "username",
-      "display_name",
-      "password_hash",
-      "failed_login_attempts",
-      "locked_until",
-    ])
-    .where("username", "=", username)
-    .executeTakeFirst();
+  const user = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      username: true,
+      display_name: true,
+      password_hash: true,
+      failed_login_attempts: true,
+      locked_until: true,
+    },
+    where: eq(users.username, username),
+  });
 
   // Message générique volontairement identique (pas d'énumération de comptes).
   const invalid = async () =>
@@ -44,17 +45,14 @@ export async function POST(request: Request) {
   if (!user) return invalid();
 
   if (user.locked_until && new Date(user.locked_until) > new Date()) {
-    return NextResponse.json(
-      { error: await msg("login_locked") },
-      { status: 429 },
-    );
+    return NextResponse.json({ error: await msg("login_locked") }, { status: 429 });
   }
 
   const valid = await verifyPassword(password, user.password_hash);
   if (!valid) {
     const attempts = user.failed_login_attempts + 1;
     await db
-      .updateTable("users")
+      .update(users)
       .set({
         failed_login_attempts: attempts,
         locked_until:
@@ -62,16 +60,14 @@ export async function POST(request: Request) {
             ? new Date(Date.now() + LOCK_MINUTES * 60_000)
             : user.locked_until,
       })
-      .where("id", "=", user.id)
-      .execute();
+      .where(eq(users.id, user.id));
     return invalid();
   }
 
   await db
-    .updateTable("users")
+    .update(users)
     .set({ failed_login_attempts: 0, locked_until: null })
-    .where("id", "=", user.id)
-    .execute();
+    .where(eq(users.id, user.id));
 
   await createSession({ userId: user.id, username: user.username }, rememberMe);
 
