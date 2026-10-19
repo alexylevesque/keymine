@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { raceParticipants, races } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";
@@ -12,28 +14,28 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   const lobby = await getLobbyByCode(code);
   if (!lobby) return NextResponse.json({ error: await msg("lobby_not_found") }, { status: 404 });
 
-  const race = await db
-    .selectFrom("races")
-    .selectAll()
-    .where("lobby_id", "=", lobby.id)
-    .orderBy("created_at", "desc")
-    .executeTakeFirst();
+  const race = await db.query.races.findFirst({
+    where: eq(races.lobby_id, lobby.id),
+    orderBy: desc(races.created_at),
+  });
   if (!race) return NextResponse.json({ error: await msg("no_race") }, { status: 404 });
 
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
-  const me = await db
-    .selectFrom("race_participants")
-    .select(["id", "role", "status"])
-    .where("race_id", "=", race.id)
-    .where((eb) =>
+  const me = await db.query.raceParticipants.findFirst({
+    columns: { id: true, role: true, status: true },
+    where: and(
+      eq(raceParticipants.race_id, race.id),
       identity.kind === "user"
-        ? eb("user_id", "=", identity.userId)
-        : eb("guest_id", "=", identity.guestId),
-    )
-    .executeTakeFirst();
+        ? eq(raceParticipants.user_id, identity.userId)
+        : eq(raceParticipants.guest_id, identity.guestId),
+    ),
+  });
 
   return NextResponse.json({
     race: {

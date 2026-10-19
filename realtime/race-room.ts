@@ -1,5 +1,7 @@
 import type { WebSocket } from "ws";
-import { kysely as db } from "@/lib/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers, raceParticipants, races, users } from "@/db/schema";
 import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
 import { handOverHostDuringRace } from "@/lib/lobby-sweep";
 import { awardRaceXp } from "@/lib/xp-award";
@@ -83,33 +85,31 @@ export async function loadRoom(raceId: string): Promise<Room | null> {
 }
 
 async function createRoom(raceId: string): Promise<Room | null> {
-  const race = await db.selectFrom("races").selectAll().where("id", "=", raceId).executeTakeFirst();
+  const race = await db.query.races.findFirst({ where: eq(races.id, raceId) });
   if (!race) return null;
-  const lobby = await db
-    .selectFrom("lobbies")
-    .select(["id", "error_mode", "penalty_seconds", "status"])
-    .where("id", "=", race.lobby_id)
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({
+    columns: { id: true, error_mode: true, penalty_seconds: true, status: true },
+    where: eq(lobbies.id, race.lobby_id),
+  });
   if (!lobby) return null;
 
   const rows = await db
-    .selectFrom("race_participants")
-    .leftJoin("users", "users.id", "race_participants.user_id")
-    .select([
-      "race_participants.id",
-      "race_participants.user_id",
-      "race_participants.guest_id",
-      "race_participants.display_name",
-      "race_participants.is_bot",
-      "race_participants.bot_level",
-      "race_participants.role",
-      "race_participants.progress_chars",
-      "race_participants.error_count",
-      "race_participants.loadout",
-      "users.avatar_url",
-    ])
-    .where("race_id", "=", raceId)
-    .execute();
+    .select({
+      id: raceParticipants.id,
+      user_id: raceParticipants.user_id,
+      guest_id: raceParticipants.guest_id,
+      display_name: raceParticipants.display_name,
+      is_bot: raceParticipants.is_bot,
+      bot_level: raceParticipants.bot_level,
+      role: raceParticipants.role,
+      progress_chars: raceParticipants.progress_chars,
+      error_count: raceParticipants.error_count,
+      loadout: raceParticipants.loadout,
+      avatar_url: users.avatar_url,
+    })
+    .from(raceParticipants)
+    .leftJoin(users, eq(users.id, raceParticipants.user_id))
+    .where(eq(raceParticipants.race_id, raceId));
 
   const corpus = await loadCorpus();
   const champions = await championsCached().catch(() => new Map<string, number>());
@@ -218,13 +218,16 @@ async function releaseMember(room: Room, racerId: string) {
   const racer = room.engine.racers.get(racerId);
   if (!racer || racer.isBot || (!racer.userId && !racer.guestId)) return;
   await db
-    .updateTable("lobby_players")
+    .update(lobbyPlayers)
     .set({ active: false })
-    .where("lobby_id", "=", room.lobbyId)
-    .where((eb) =>
-      racer.userId ? eb("user_id", "=", racer.userId) : eb("guest_id", "=", racer.guestId),
-    )
-    .execute();
+    .where(
+      and(
+        eq(lobbyPlayers.lobby_id, room.lobbyId),
+        racer.userId
+          ? eq(lobbyPlayers.user_id, racer.userId)
+          : eq(lobbyPlayers.guest_id, racer.guestId ?? ""),
+      ),
+    );
   if (racer.userId) await handOverHostDuringRace(room.lobbyId, racer.userId);
 }
 
@@ -263,16 +266,15 @@ function stopRoom(room: Room) {
 }
 
 async function setRaceStatus(room: Room, status: "racing") {
-  const lobby = await db
-    .selectFrom("lobbies")
-    .select("status")
-    .where("id", "=", room.lobbyId)
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({
+    columns: { status: true },
+    where: eq(lobbies.id, room.lobbyId),
+  });
   if (lobby && lobby.status === "countdown") {
     assertTransition("countdown", "racing");
-    await db.updateTable("lobbies").set({ status }).where("id", "=", room.lobbyId).execute();
+    await db.update(lobbies).set({ status }).where(eq(lobbies.id, room.lobbyId));
   }
-  await db.updateTable("races").set({ status }).where("id", "=", room.raceId).execute();
+  await db.update(races).set({ status }).where(eq(races.id, room.raceId));
 }
 
 /** Reprise après redémarrage : avancement des humains toutes les 2 s. */
@@ -280,10 +282,9 @@ async function checkpoint(room: Room) {
   for (const r of room.engine.racers.values()) {
     if (r.isBot || r.status !== "racing") continue;
     await db
-      .updateTable("race_participants")
+      .update(raceParticipants)
       .set({ progress_chars: r.progress, error_count: r.errors })
-      .where("id", "=", r.id)
-      .execute();
+      .where(eq(raceParticipants.id, r.id));
   }
 }
 
@@ -295,7 +296,7 @@ async function persistResults(room: Room, now: number) {
 
   for (const r of results) {
     await db
-      .updateTable("race_participants")
+      .update(raceParticipants)
       .set({
         status: r.status === "racing" ? "timeout" : r.status,
         progress_chars: r.progress,
@@ -308,13 +309,12 @@ async function persistResults(room: Room, now: number) {
         finish_ms: Math.round(r.timeMs),
         penalty_ms: Math.round(r.penaltyMs),
         finished_at: new Date(room.startsAtMs + r.timeMs - r.penaltyMs),
-        bonuses: JSON.stringify(r.bonuses),
-        wpm_series: JSON.stringify(r.series),
-        key_correct: JSON.stringify(r.keyCorrect),
-        key_errors: JSON.stringify(r.keyErrors),
+        bonuses: r.bonuses,
+        wpm_series: r.series,
+        key_correct: r.keyCorrect,
+        key_errors: r.keyErrors,
       })
-      .where("id", "=", r.id)
-      .execute();
+      .where(eq(raceParticipants.id, r.id));
 
     if (r.userId && !r.isBot) {
       await mergeKeyStats(r.userId, r.keyCorrect, r.keyErrors);
@@ -324,40 +324,34 @@ async function persistResults(room: Room, now: number) {
   await awardRaceXp(room.raceId, results).catch((e) => console.error("[realtime] expérience", e));
 
   await db
-    .updateTable("races")
+    .update(races)
     .set({ status: "finished", ends_at: new Date(now) })
-    .where("id", "=", room.raceId)
-    .execute();
+    .where(eq(races.id, room.raceId));
 
-  const lobby = await db
-    .selectFrom("lobbies")
-    .select("status")
-    .where("id", "=", room.lobbyId)
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({
+    columns: { status: true },
+    where: eq(lobbies.id, room.lobbyId),
+  });
   if (lobby?.status === "racing" || lobby?.status === "countdown") {
     await db
-      .updateTable("lobbies")
+      .update(lobbies)
       // Les pages de course ne signalent pas la présence en salle : on repart d'une présence
       // « fraîche » pour que l'hôte ait le temps d'arriver sur les résultats (SALLE-08).
       .set({ status: "finished", last_host_seen_at: new Date(now) })
-      .where("id", "=", room.lobbyId)
-      .execute();
+      .where(eq(lobbies.id, room.lobbyId));
     await db
-      .updateTable("lobby_players")
+      .update(lobbyPlayers)
       .set({ last_seen_at: new Date(now) })
-      .where("lobby_id", "=", room.lobbyId)
-      .where("active", "=", true)
-      .execute();
+      .where(and(eq(lobbyPlayers.lobby_id, room.lobbyId), eq(lobbyPlayers.active, true)));
   }
 }
 
 /** Charge au démarrage les courses non terminées (redémarrage du serveur). */
 export async function resumeUnfinishedRaces() {
   const open = await db
-    .selectFrom("races")
-    .select("id")
-    .where("status", "in", ["countdown", "racing"])
-    .execute();
+    .select({ id: races.id })
+    .from(races)
+    .where(inArray(races.status, ["countdown", "racing"]));
   for (const race of open) await loadRoom(race.id);
 }
 

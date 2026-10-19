@@ -7,9 +7,17 @@
 // de fond), puis chaque gagnant récupère son prix (bouton RÉCUPÉRER : rien n'est perdu si le sac est plein).
 // Une victoire = 1re place d'une course finie avec au moins un adversaire (un bot compte).
 // Sans dépendance à Next.js : aussi utilisé par le serveur temps réel (couronnes).
-import { sql, type Transaction } from "kysely";
-import type { Database } from "@/db/types";
-import { kysely as db } from "@/lib/db";
+import { and, asc, count, desc, eq, gt, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { db, type Db, type Tx } from "@/lib/db";
+import {
+  leagueHistory,
+  raceParticipants,
+  races,
+  users,
+  weeklyRewards,
+  weeklySettlements,
+} from "@/db/schema";
 import { addToBag, bagFits, newStack } from "@/lib/inventory";
 import { withInventory } from "@/lib/inventory-store";
 import { isItemId, type ItemId } from "@/lib/items";
@@ -36,11 +44,17 @@ export {
 
 // ---- Requêtes ----
 
-type Q = Transaction<Database> | typeof db;
+type Q = Db | Tx;
 
 /** Une course compte si elle a au moins deux participants (un bot compte). */
-const HAS_OPPONENT = sql`(select count(*) from race_participants o
-                          where o.race_id = rp.race_id and o.role = 'participant') >= 2`;
+function hasOpponent(q: Q) {
+  const other = alias(raceParticipants, "o");
+  const opponents = q
+    .select({ n: count() })
+    .from(other)
+    .where(and(eq(other.race_id, raceParticipants.race_id), eq(other.role, "participant")));
+  return sql`(${opponents}) >= 2`;
+}
 
 export const BOARDS = ["level", "wpm", "wins"] as const;
 export type Board = (typeof BOARDS)[number];
@@ -58,46 +72,59 @@ export type BoardRow = {
 
 export const BOARD_SIZE = 50;
 
-const ORDER: Record<Board, ReturnType<typeof sql>> = {
-  level: sql`s.xp_total desc, s.best_wpm desc, s.id`,
-  wpm: sql`s.best_wpm desc, s.xp_total desc, s.id`,
-  wins: sql`s.wins desc, s.best_wpm desc, s.id`,
-};
-const FILTER: Record<Board, ReturnType<typeof sql>> = {
-  level: sql`s.xp_total > 0`,
-  wpm: sql`s.best_wpm > 0`,
-  wins: sql`s.wins > 0`,
-};
-
 /** Classement général : top 50, plus la ligne de `me` s'il est plus loin. */
 export async function loadBoard(board: Board, me: string | null, q: Q = db): Promise<BoardRow[]> {
-  const { rows } = await sql<{
-    pos: number;
-    id: string;
-    display_name: string;
-    avatar_url: string | null;
-    league: number;
-    xp_total: number;
-    best_wpm: number;
-    wins: number;
-  }>`
-    with w as (
-      select rp.user_id, count(*)::int as wins
-        from race_participants rp
-       where rp.user_id is not null and rp.is_bot = false and rp.role = 'participant'
-         and rp.status = 'finished' and rp.rank = 1 and ${HAS_OPPONENT}
-       group by rp.user_id
-    ),
-    s as (
-      select u.id, u.display_name, u.avatar_url, u.league, u.xp_total, u.best_wpm,
-             coalesce(w.wins, 0) as wins
-        from users u left join w on w.user_id = u.id
-    ),
-    ranked as (
-      select s.*, row_number() over (order by ${ORDER[board]})::int as pos from s where ${FILTER[board]}
-    )
-    select * from ranked where pos <= ${BOARD_SIZE} or id = ${me}
-    order by pos`.execute(q);
+  const rp = raceParticipants;
+  const w = q.$with("w").as(
+    q
+      .select({ user_id: rp.user_id, wins: sql<number>`count(*)::int`.as("wins") })
+      .from(rp)
+      .where(
+        and(
+          isNotNull(rp.user_id),
+          eq(rp.is_bot, false),
+          eq(rp.role, "participant"),
+          eq(rp.status, "finished"),
+          eq(rp.rank, 1),
+          hasOpponent(q),
+        ),
+      )
+      .groupBy(rp.user_id),
+  );
+  const wins = sql<number>`coalesce(${w.wins}, 0)`;
+  const order = {
+    level: sql`${users.xp_total} desc, ${users.best_wpm} desc, ${users.id}`,
+    wpm: sql`${users.best_wpm} desc, ${users.xp_total} desc, ${users.id}`,
+    wins: sql`${wins} desc, ${users.best_wpm} desc, ${users.id}`,
+  }[board];
+  const filter = {
+    level: gt(users.xp_total, 0),
+    wpm: gt(users.best_wpm, 0),
+    wins: sql`${wins} > 0`,
+  }[board];
+  const ranked = q.$with("ranked").as(
+    q
+      .with(w)
+      .select({
+        id: users.id,
+        display_name: users.display_name,
+        avatar_url: users.avatar_url,
+        league: users.league,
+        xp_total: users.xp_total,
+        best_wpm: users.best_wpm,
+        wins: wins.as("wins"),
+        pos: sql<number>`(row_number() over (order by ${order}))::int`.as("pos"),
+      })
+      .from(users)
+      .leftJoin(w, eq(w.user_id, users.id))
+      .where(filter),
+  );
+  const rows = await q
+    .with(ranked)
+    .select()
+    .from(ranked)
+    .where(or(lte(ranked.pos, BOARD_SIZE), me ? eq(ranked.id, me) : undefined))
+    .orderBy(asc(ranked.pos));
   return rows.map((r) => ({
     position: r.pos,
     userId: r.id,
@@ -106,7 +133,7 @@ export async function loadBoard(board: Board, me: string | null, q: Q = db): Pro
     league: r.league,
     xp: r.xp_total,
     bestWpm: Number(r.best_wpm),
-    wins: r.wins,
+    wins: Number(r.wins),
   }));
 }
 
@@ -130,39 +157,57 @@ export async function loadWeek(
   league: number | null = null,
   q: Q = db,
 ): Promise<WeekRow[]> {
-  const { rows } = await sql<{
-    pos: number;
-    user_id: string;
-    display_name: string;
-    avatar_url: string | null;
-    league: number;
-    wins: number;
-    races: number;
-    week_wpm: number | null;
-  }>`
-    with played as (
-      select rp.user_id,
-             count(*)::int as races,
-             (count(*) filter (where rp.status = 'finished' and rp.rank = 1 and ${HAS_OPPONENT}))::int as wins,
-             max(rp.wpm) filter (where rp.status = 'finished' and ${HAS_OPPONENT}) as week_wpm
-        from race_participants rp join races r on r.id = rp.race_id
-       where rp.user_id is not null and rp.is_bot = false and rp.role = 'participant'
-         and r.status = 'finished'
-         and (coalesce(rp.finished_at, r.ends_at, r.created_at) at time zone 'America/Toronto')::date
-             >= ${from}::date
-         and (coalesce(rp.finished_at, r.ends_at, r.created_at) at time zone 'America/Toronto')::date
-             < ${addDays(from, 7)}::date
-       group by rp.user_id
-    ),
-    ranked as (
-      select row_number() over (partition by u.league
-                                order by p.wins desc, p.week_wpm desc nulls last, p.user_id)::int as pos,
-             p.user_id, u.display_name, u.avatar_url, u.league, p.wins, p.races, p.week_wpm
-        from played p join users u on u.id = p.user_id
-    )
-    select * from ranked
-     where ${league === null ? sql`true` : sql`league = ${league}`}
-     order by league desc, pos`.execute(q);
+  const rp = raceParticipants;
+  const counted = sql`${rp.status} = 'finished' and ${hasOpponent(q)}`;
+  // Jour de la course, heure de Toronto.
+  const day = sql`(coalesce(${rp.finished_at}, ${races.ends_at}, ${races.created_at}) at time zone 'America/Toronto')::date`;
+  const played = q.$with("played").as(
+    q
+      .select({
+        user_id: rp.user_id,
+        races: sql<number>`count(*)::int`.as("races"),
+        wins: sql<number>`(count(*) filter (where ${counted} and ${rp.rank} = 1))::int`.as("wins"),
+        week_wpm: sql<number | null>`max(${rp.wpm}) filter (where ${counted})`.as("week_wpm"),
+      })
+      .from(rp)
+      .innerJoin(races, eq(races.id, rp.race_id))
+      .where(
+        and(
+          isNotNull(rp.user_id),
+          eq(rp.is_bot, false),
+          eq(rp.role, "participant"),
+          eq(races.status, "finished"),
+          sql`${day} >= ${from}::date`,
+          sql`${day} < ${addDays(from, 7)}::date`,
+        ),
+      )
+      .groupBy(rp.user_id),
+  );
+  const ranked = q.$with("ranked").as(
+    q
+      .with(played)
+      .select({
+        pos: sql<number>`(row_number() over (partition by ${users.league}
+          order by ${played.wins} desc, ${played.week_wpm} desc nulls last, ${played.user_id}))::int`.as(
+          "pos",
+        ),
+        user_id: users.id,
+        display_name: users.display_name,
+        avatar_url: users.avatar_url,
+        league: users.league,
+        wins: played.wins,
+        races: played.races,
+        week_wpm: played.week_wpm,
+      })
+      .from(played)
+      .innerJoin(users, eq(users.id, played.user_id)),
+  );
+  const rows = await q
+    .with(ranked)
+    .select()
+    .from(ranked)
+    .where(league === null ? undefined : eq(ranked.league, league))
+    .orderBy(desc(ranked.league), asc(ranked.pos));
   return rows.map((r) => ({
     position: r.pos,
     userId: r.user_id,
@@ -184,19 +229,17 @@ export async function loadWeek(
  */
 export async function settleLastWeek(now = new Date()): Promise<void> {
   const week = previousWeekStart(now);
-  const done = await db
-    .selectFrom("weekly_settlements")
-    .select("week_start")
-    .where("week_start", "=", week)
-    .executeTakeFirst();
+  const done = await db.query.weeklySettlements.findFirst({
+    columns: { week_start: true },
+    where: eq(weeklySettlements.week_start, week),
+  });
   if (done) return;
-  await db.transaction().execute(async (trx) => {
-    const claimed = await trx
-      .insertInto("weekly_settlements")
+  await db.transaction(async (trx) => {
+    const [claimed] = await trx
+      .insert(weeklySettlements)
       .values({ week_start: week })
-      .onConflict((oc) => oc.doNothing())
-      .returning("week_start")
-      .executeTakeFirst();
+      .onConflictDoNothing()
+      .returning({ week_start: weeklySettlements.week_start });
     if (!claimed) return; // un autre appel s'en occupe
 
     const rows = await loadWeek(week, null, trx);
@@ -209,7 +252,7 @@ export async function settleLastWeek(now = new Date()): Promise<void> {
       if (prize) await insertReward(trx, r.userId, week, "wins", r.position, r.league, prize);
       const to = nextLeague(r.league, r.position, active, r.wins);
       await trx
-        .insertInto("league_history")
+        .insert(leagueHistory)
         .values({
           user_id: r.userId,
           week_start: week,
@@ -218,10 +261,9 @@ export async function settleLastWeek(now = new Date()): Promise<void> {
           position: r.position,
           wins: r.wins,
         })
-        .onConflict((oc) => oc.doNothing())
-        .execute();
+        .onConflictDoNothing();
       if (to !== r.league) {
-        await trx.updateTable("users").set({ league: to }).where("id", "=", r.userId).execute();
+        await trx.update(users).set({ league: to }).where(eq(users.id, r.userId));
       }
     }
 
@@ -231,7 +273,7 @@ export async function settleLastWeek(now = new Date()): Promise<void> {
 }
 
 async function insertReward(
-  trx: Transaction<Database>,
+  trx: Tx,
   userId: string,
   week: string,
   kind: "wins" | "wpm",
@@ -240,7 +282,7 @@ async function insertReward(
   prize: Prize,
 ) {
   await trx
-    .insertInto("weekly_rewards")
+    .insert(weeklyRewards)
     .values({
       user_id: userId,
       week_start: week,
@@ -248,23 +290,25 @@ async function insertReward(
       rank,
       league,
       xp: prize.xp,
-      items: JSON.stringify(prize.items),
+      items: prize.items,
       boost: prize.boost,
     })
-    .onConflict((oc) => oc.doNothing())
-    .execute();
+    .onConflictDoNothing();
 }
 
 /** Champions de la semaine passée (1er de chaque classe) → leur classe, pour la couronne. */
 export async function currentChampions(now = new Date()): Promise<Map<string, number>> {
   await settleLastWeek(now);
   const rows = await db
-    .selectFrom("weekly_rewards")
-    .select(["user_id", "league"])
-    .where("week_start", "=", previousWeekStart(now))
-    .where("kind", "=", "wins")
-    .where("rank", "=", 1)
-    .execute();
+    .select({ user_id: weeklyRewards.user_id, league: weeklyRewards.league })
+    .from(weeklyRewards)
+    .where(
+      and(
+        eq(weeklyRewards.week_start, previousWeekStart(now)),
+        eq(weeklyRewards.kind, "wins"),
+        eq(weeklyRewards.rank, 1),
+      ),
+    );
   return new Map(rows.map((r) => [r.user_id, r.league]));
 }
 
@@ -289,33 +333,33 @@ export type LastWeekRow = { kind: "wins" | "wpm"; rank: number; league: number; 
 
 /** Podium de la semaine passée dans chaque classe, et meilleur MPM. */
 export async function lastWeekResults(now = new Date()): Promise<LastWeekRow[]> {
-  const rows = await db
-    .selectFrom("weekly_rewards")
-    .innerJoin("users", "users.id", "weekly_rewards.user_id")
-    .select([
-      "weekly_rewards.kind",
-      "weekly_rewards.rank",
-      "weekly_rewards.league",
-      "users.display_name as name",
-    ])
-    .where("weekly_rewards.week_start", "=", previousWeekStart(now))
-    .where((eb) =>
-      eb.or([eb("weekly_rewards.kind", "=", "wpm"), eb("weekly_rewards.rank", "<=", 3)]),
+  return db
+    .select({
+      kind: weeklyRewards.kind,
+      rank: weeklyRewards.rank,
+      league: weeklyRewards.league,
+      name: users.display_name,
+    })
+    .from(weeklyRewards)
+    .innerJoin(users, eq(users.id, weeklyRewards.user_id))
+    .where(
+      and(
+        eq(weeklyRewards.week_start, previousWeekStart(now)),
+        or(eq(weeklyRewards.kind, "wpm"), lte(weeklyRewards.rank, 3)),
+      ),
     )
-    .orderBy("weekly_rewards.league", "desc")
-    .orderBy("weekly_rewards.rank")
-    .execute();
-  return rows;
+    .orderBy(desc(weeklyRewards.league), asc(weeklyRewards.rank));
 }
 
 /** Dernier changement de classe d'un compte (semaine passée), pour l'annoncer. */
 export async function lastMove(userId: string, now = new Date()) {
-  const row = await db
-    .selectFrom("league_history")
-    .select(["from_league", "to_league", "position"])
-    .where("user_id", "=", userId)
-    .where("week_start", "=", previousWeekStart(now))
-    .executeTakeFirst();
+  const row = await db.query.leagueHistory.findFirst({
+    columns: { from_league: true, to_league: true, position: true },
+    where: and(
+      eq(leagueHistory.user_id, userId),
+      eq(leagueHistory.week_start, previousWeekStart(now)),
+    ),
+  });
   return row ? { from: row.from_league, to: row.to_league, position: row.position } : null;
 }
 
@@ -349,21 +393,19 @@ function parseItems(value: unknown): { item: ItemId; count: number }[] {
 
 export async function pendingRewards(userId: string): Promise<Reward[]> {
   const rows = await db
-    .selectFrom("weekly_rewards")
-    .select([
-      "id",
-      sql<string>`week_start::text`.as("week"),
-      "kind",
-      "rank",
-      "league",
-      "xp",
-      "items",
-      "boost",
-    ])
-    .where("user_id", "=", userId)
-    .where("claimed_at", "is", null)
-    .orderBy("week_start")
-    .execute();
+    .select({
+      id: weeklyRewards.id,
+      week: weeklyRewards.week_start,
+      kind: weeklyRewards.kind,
+      rank: weeklyRewards.rank,
+      league: weeklyRewards.league,
+      xp: weeklyRewards.xp,
+      items: weeklyRewards.items,
+      boost: weeklyRewards.boost,
+    })
+    .from(weeklyRewards)
+    .where(and(eq(weeklyRewards.user_id, userId), isNull(weeklyRewards.claimed_at)))
+    .orderBy(asc(weeklyRewards.week_start));
   return rows.map((r) => ({
     id: r.id,
     weekStart: r.week,
@@ -390,13 +432,16 @@ export async function claimReward(userId: string, rewardId: string, now = new Da
   return withInventory(
     userId,
     async (inv, _user, trx) => {
-      const reward = await trx
-        .selectFrom("weekly_rewards")
-        .select(["xp", "items", "boost"])
-        .where("id", "=", rewardId)
-        .where("user_id", "=", userId)
-        .where("claimed_at", "is", null)
-        .executeTakeFirst();
+      const [reward] = await trx
+        .select({ xp: weeklyRewards.xp, items: weeklyRewards.items, boost: weeklyRewards.boost })
+        .from(weeklyRewards)
+        .where(
+          and(
+            eq(weeklyRewards.id, rewardId),
+            eq(weeklyRewards.user_id, userId),
+            isNull(weeklyRewards.claimed_at),
+          ),
+        );
       if (!reward) throw new RewardRefusal("reward_unknown");
       for (const { item, count } of parseItems(reward.items)) {
         if (!bagFits(inv, item, count)) throw new RewardRefusal("inventory_full");
@@ -404,23 +449,21 @@ export async function claimReward(userId: string, rewardId: string, now = new Da
       }
       const boost = Number(reward.boost);
       await trx
-        .updateTable("users")
+        .update(users)
         .set({
-          xp_total: sql<number>`xp_total + ${reward.xp}`,
+          xp_total: sql`${users.xp_total} + ${reward.xp}`,
           ...(boost > 0
             ? {
-                xp_boost: sql<number>`case when xp_boost_until > ${now} then greatest(xp_boost, ${boost}) else ${boost} end`,
+                xp_boost: sql`case when ${users.xp_boost_until} > ${now} then greatest(${users.xp_boost}, ${boost}) else ${boost} end`,
                 xp_boost_until: new Date(now.getTime() + BOOST_DAYS * 86_400_000),
               }
             : {}),
         })
-        .where("id", "=", userId)
-        .execute();
+        .where(eq(users.id, userId));
       await trx
-        .updateTable("weekly_rewards")
+        .update(weeklyRewards)
         .set({ claimed_at: now })
-        .where("id", "=", rewardId)
-        .execute();
+        .where(eq(weeklyRewards.id, rewardId));
     },
     now,
   );

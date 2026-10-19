@@ -1,4 +1,6 @@
-import { kysely as db } from "@/lib/db";
+import { asc } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { corpusWords } from "@/db/schema";
 import type { Language } from "@/db/types";
 import { BUNDLED_CORPUS } from "./corpus";
 import { generateRaceText, type Corpus, type GenerateOptions } from "./generate";
@@ -12,15 +14,13 @@ let cache: { corpus: Corpus; at: number } | null = null;
 export async function loadCorpus(): Promise<Corpus> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.corpus;
 
-  const texts = await db
-    .selectFrom("corpus_texts")
-    .select(["title", "language", "difficulty", "content"])
-    .execute();
-  const wordRows = await db
-    .selectFrom("corpus_words")
-    .select(["language", "word"])
-    .orderBy("frequency_rank", "asc")
-    .execute();
+  const texts = await db.query.corpusTexts.findMany({
+    columns: { title: true, language: true, difficulty: true, content: true },
+  });
+  const wordRows = await db.query.corpusWords.findMany({
+    columns: { language: true, word: true },
+    orderBy: asc(corpusWords.frequency_rank),
+  });
 
   const words: Record<Language, string[]> = { fr: [], en: [] };
   for (const row of wordRows) words[row.language].push(row.word);

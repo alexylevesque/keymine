@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { snapshotLoadouts } from "@/lib/inventory-store";
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers, raceParticipants, races, users } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import { botDisplayName } from "@/lib/race/bots";
@@ -34,21 +36,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
   }
 
   const players = await db
-    .selectFrom("lobby_players")
-    .leftJoin("users", "users.id", "lobby_players.user_id")
-    .select([
-      "lobby_players.id",
-      "lobby_players.user_id",
-      "lobby_players.guest_id",
-      "lobby_players.guest_name",
-      "lobby_players.role",
-      "lobby_players.is_bot",
-      "lobby_players.bot_level",
-      "users.display_name",
-    ])
-    .where("lobby_id", "=", lobby.id)
-    .where("lobby_players.active", "=", true)
-    .execute();
+    .select({
+      id: lobbyPlayers.id,
+      user_id: lobbyPlayers.user_id,
+      guest_id: lobbyPlayers.guest_id,
+      guest_name: lobbyPlayers.guest_name,
+      role: lobbyPlayers.role,
+      is_bot: lobbyPlayers.is_bot,
+      bot_level: lobbyPlayers.bot_level,
+      display_name: users.display_name,
+    })
+    .from(lobbyPlayers)
+    .leftJoin(users, eq(users.id, lobbyPlayers.user_id))
+    .where(and(eq(lobbyPlayers.lobby_id, lobby.id), eq(lobbyPlayers.active, true)));
 
   // COURSE-02 : au moins 2 participants (bots inclus) dont au moins 1 humain.
   const check = canStartRace(players.map((p) => ({ role: p.role, isBot: p.is_bot })));
@@ -94,56 +94,51 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
   class AlreadyStarted extends Error {}
   let race: { id: string };
   try {
-    race = await db.transaction().execute(async (trx) => {
+    race = await db.transaction(async (tx) => {
       // Verrou logique : deux démarrages simultanés ne créent qu'une course.
-      const claimed = await trx
-        .updateTable("lobbies")
+      const claimed = await tx
+        .update(lobbies)
         .set({ status: "countdown" })
-        .where("id", "=", lobby.id)
-        .where("status", "=", "lobby")
-        .executeTakeFirst();
-      if (Number(claimed.numUpdatedRows) === 0) throw new AlreadyStarted();
-      const created = await trx
-        .insertInto("races")
+        .where(and(eq(lobbies.id, lobby.id), eq(lobbies.status, "lobby")));
+      if ((claimed.rowCount ?? 0) === 0) throw new AlreadyStarted();
+      const [created] = await tx
+        .insert(races)
         .values({
           lobby_id: lobby.id,
           text_content: textContent,
           language: lobby.language,
-          settings: JSON.stringify({
+          settings: {
             errorMode: lobby.error_mode,
             penaltySeconds: lobby.penalty_seconds,
             complexity: lobby.complexity, // expérience : la complexité au moment de la course
-          }),
+          },
           status: "countdown",
-          starts_at: startsAt.toISOString(),
+          starts_at: startsAt,
           duration_seconds: lobby.duration_seconds,
           seed: Math.floor(Math.random() * 2_000_000_000),
           comeback_bonus: lobby.comeback_bonus,
           bonus_kinds: lobby.bonus_kinds,
         })
-        .returning(["id"])
-        .executeTakeFirstOrThrow();
+        .returning({ id: races.id });
+      if (!created) throw new Error("démarrage : aucune course créée");
 
-      await trx
-        .insertInto("race_participants")
-        .values(
-          players.map((p) => ({
-            race_id: created.id,
-            lobby_player_id: p.id,
-            user_id: p.user_id,
-            guest_id: p.guest_id,
-            display_name:
-              p.is_bot && p.bot_level
-                ? botDisplayName(p.bot_level)
-                : (p.display_name ?? p.guest_name ?? "Joueur"),
-            is_bot: p.is_bot,
-            bot_level: p.bot_level,
-            role: p.role,
-          })),
-        )
-        .execute();
+      await tx.insert(raceParticipants).values(
+        players.map((p) => ({
+          race_id: created.id,
+          lobby_player_id: p.id,
+          user_id: p.user_id,
+          guest_id: p.guest_id,
+          display_name:
+            p.is_bot && p.bot_level
+              ? botDisplayName(p.bot_level)
+              : (p.display_name ?? p.guest_name ?? "Joueur"),
+          is_bot: p.is_bot,
+          bot_level: p.bot_level,
+          role: p.role,
+        })),
+      );
       // Inventaire : effets de l'armure et de l'objet activé, figés pour la course.
-      await snapshotLoadouts(trx, created.id);
+      await snapshotLoadouts(tx, created.id);
 
       return created;
     });

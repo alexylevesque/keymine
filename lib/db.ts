@@ -53,3 +53,11 @@ export function isUniqueViolation(error: unknown): boolean {
   }
   return false;
 }
+
+/** Ferme le pool de connexions (fin des tests ou d'un script). */
+export async function closeDb(): Promise<void> {
+  await pool.end();
+  globalThis.__keyminePool = undefined;
+  globalThis.__keymineDb = undefined;
+  globalThis.__keymineKysely = undefined;
+}

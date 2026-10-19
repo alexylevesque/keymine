@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { closeDb, db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { createLobby, settingsFromLobby } from "@/lib/lobby-create";
 import { lobbySettingsSchema } from "@/lib/lobby-schema";
 
@@ -12,7 +14,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await client.end();
-  await db.destroy();
+  await closeDb();
 });
 
 describe("création et clonage d'une salle", () => {
@@ -48,30 +50,22 @@ describe("création et clonage d'une salle", () => {
       comebackBonus: true,
     });
     const firstCode = await createLobby(userId, { ...settings, name: "Ma salle" });
-    const first = await db
-      .selectFrom("lobbies")
-      .selectAll()
-      .where("code", "=", firstCode)
-      .executeTakeFirstOrThrow();
+    const first = await db.query.lobbies.findFirst({ where: eq(lobbies.code, firstCode) });
+    if (!first) throw new Error("salle introuvable");
 
     // On ne peut être que dans une salle à la fois (SALLE-06) : on quitte la première avant de la cloner.
     await client.query(`delete from lobby_players where lobby_id = $1`, [first.id]);
     const cloneCode = await createLobby(userId, settingsFromLobby(first));
-    const clone = await db
-      .selectFrom("lobbies")
-      .selectAll()
-      .where("code", "=", cloneCode)
-      .executeTakeFirstOrThrow();
+    const clone = await db.query.lobbies.findFirst({ where: eq(lobbies.code, cloneCode) });
+    if (!clone) throw new Error("salle introuvable");
 
     expect(cloneCode).not.toBe(firstCode);
     expect(settingsFromLobby(clone)).toEqual(settingsFromLobby(first));
     expect(settingsFromLobby(clone)).toEqual({ ...settings, hostRole: "participant" });
     expect(clone).toMatchObject({ host_user_id: userId, status: "lobby" });
-    const members = await db
-      .selectFrom("lobby_players")
-      .selectAll()
-      .where("lobby_id", "=", clone.id)
-      .execute();
+    const members = await db.query.lobbyPlayers.findMany({
+      where: eq(lobbyPlayers.lobby_id, clone.id),
+    });
     expect(members).toHaveLength(1);
     expect(members[0]).toMatchObject({ user_id: userId, role: "participant", active: true });
   });

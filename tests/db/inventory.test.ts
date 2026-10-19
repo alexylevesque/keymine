@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
-import { kysely as db } from "@/lib/db";
+import { db } from "@/lib/db";
 import {
   activateItem,
   buyOffer,
@@ -311,7 +311,7 @@ describe("effets en course", () => {
     await client.query(`update users set active_item = 'xp_bottle' where id = $1`, [gold]);
     const { raceId, ids } = await raceWith([{ userId: gold }, { isBot: true }]);
 
-    await db.transaction().execute((trx) => snapshotLoadouts(trx, raceId));
+    await db.transaction((tx) => snapshotLoadouts(tx, raceId));
     const { rows } = await client.query<{
       loadout: { xpBonus: number; item: string; dodge: number };
     }>(`select loadout from race_participants where id = $1`, [ids[0]]);
@@ -352,7 +352,7 @@ describe("effets en course", () => {
     const quitter = await user(500);
     await client.query(`update users set active_item = 'totem' where id = $1`, [quitter]);
     const { raceId, ids } = await raceWith([{ userId: quitter }, { isBot: true }]);
-    await db.transaction().execute((trx) => snapshotLoadouts(trx, raceId));
+    await db.transaction((tx) => snapshotLoadouts(tx, raceId));
     await awardRaceXp(
       raceId,
       [

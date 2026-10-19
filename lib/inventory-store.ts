@@ -3,9 +3,10 @@
 // Le serveur est la source de vérité : le client envoie une intention (déplacer, fabriquer, acheter),
 // le serveur la valide avec la logique pure de lib/inventory.ts et lib/shop.ts.
 // Sans dépendance à Next.js : aussi appelé par le serveur temps réel en fin de course.
-import { sql, type Transaction } from "kysely";
-import type { Database, InventoryArea } from "@/db/types";
-import { kysely as db } from "@/lib/db";
+import { and, asc, eq, sql } from "drizzle-orm";
+import type { InventoryArea } from "@/db/types";
+import { db, type Tx } from "@/lib/db";
+import { furnaces, inventoryItems, raceParticipants, shopOffers, users } from "@/db/schema";
 import {
   addToBag,
   AREAS,
@@ -41,7 +42,7 @@ import {
 import { levelFromXp } from "@/lib/xp";
 import { generateOffers, nextShopReset, shopDay, type Offer } from "@/lib/shop";
 
-type Trx = Transaction<Database>;
+type Trx = Tx;
 
 export type ShopError = "offer_unknown" | "sold_out" | "not_enough_xp" | "inventory_full";
 export class ShopRefusal extends Error {
@@ -58,22 +59,34 @@ export class ItemRefusal extends Error {
 }
 
 async function lockUser(trx: Trx, userId: string) {
-  return trx
-    .selectFrom("users")
-    .select(["id", "xp_total", "active_item", "enchant_seed"])
-    .where("id", "=", userId)
-    .forUpdate()
-    .executeTakeFirstOrThrow();
+  const [user] = await trx
+    .select({
+      id: users.id,
+      xp_total: users.xp_total,
+      active_item: users.active_item,
+      enchant_seed: users.enchant_seed,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .for("update");
+  if (!user) throw new Error(`compte introuvable : ${userId}`);
+  return user;
 }
 
 /** Charge l'inventaire et fait avancer le four jusqu'à `now`. */
 async function load(trx: Trx, userId: string, now: Date): Promise<Inventory> {
   const inv = emptyInventory();
   const rows = await trx
-    .selectFrom("inventory_items")
-    .select(["area", "slot", "item", "count", "durability", "enchants"])
-    .where("user_id", "=", userId)
-    .execute();
+    .select({
+      area: inventoryItems.area,
+      slot: inventoryItems.slot,
+      item: inventoryItems.item,
+      count: inventoryItems.count,
+      durability: inventoryItems.durability,
+      enchants: inventoryItems.enchants,
+    })
+    .from(inventoryItems)
+    .where(eq(inventoryItems.user_id, userId));
   for (const row of rows) {
     // Un code d'objet inconnu (retiré du catalogue) est ignoré plutôt que de tout bloquer.
     if (!isItemId(row.item) || !(AREAS as readonly string[]).includes(row.area)) continue;
@@ -87,11 +100,14 @@ async function load(trx: Trx, userId: string, now: Date): Promise<Inventory> {
       ...(enchants.length > 0 ? { enchants } : {}),
     };
   }
-  const furnace = await trx
-    .selectFrom("furnaces")
-    .select(["burn_left", "progress_ms", "updated_at"])
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
+  const [furnace] = await trx
+    .select({
+      burn_left: furnaces.burn_left,
+      progress_ms: furnaces.progress_ms,
+      updated_at: furnaces.updated_at,
+    })
+    .from(furnaces)
+    .where(eq(furnaces.user_id, userId));
   if (furnace) {
     inv.furnace = { burnLeft: furnace.burn_left, progressMs: furnace.progress_ms };
     settleFurnace(inv, now.getTime() - new Date(furnace.updated_at).getTime());
@@ -100,7 +116,7 @@ async function load(trx: Trx, userId: string, now: Date): Promise<Inventory> {
 }
 
 async function save(trx: Trx, userId: string, inv: Inventory, now: Date) {
-  await trx.deleteFrom("inventory_items").where("user_id", "=", userId).execute();
+  await trx.delete(inventoryItems).where(eq(inventoryItems.user_id, userId));
   const rows = AREAS.flatMap((area) =>
     inv[area].flatMap((s, slot) =>
       s
@@ -112,29 +128,29 @@ async function save(trx: Trx, userId: string, inv: Inventory, now: Date) {
               item: s.item,
               count: s.count,
               durability: s.durability,
-              enchants: s.enchants?.length ? JSON.stringify(s.enchants) : null,
+              enchants: s.enchants?.length ? s.enchants : null,
             },
           ]
         : [],
     ),
   );
-  if (rows.length > 0) await trx.insertInto("inventory_items").values(rows).execute();
+  if (rows.length > 0) await trx.insert(inventoryItems).values(rows);
   await trx
-    .insertInto("furnaces")
+    .insert(furnaces)
     .values({
       user_id: userId,
       burn_left: inv.furnace.burnLeft,
       progress_ms: inv.furnace.progressMs,
       updated_at: now,
     })
-    .onConflict((oc) =>
-      oc.column("user_id").doUpdateSet({
+    .onConflictDoUpdate({
+      target: furnaces.user_id,
+      set: {
         burn_left: inv.furnace.burnLeft,
         progress_ms: inv.furnace.progressMs,
         updated_at: now,
-      }),
-    )
-    .execute();
+      },
+    });
 }
 
 export type InventoryView = {
@@ -164,7 +180,7 @@ export async function withInventory<T>(
   ) => Promise<T> | T,
   now = new Date(),
 ): Promise<{ view: InventoryView; result: T }> {
-  return db.transaction().execute(async (trx) => {
+  return db.transaction(async (trx) => {
     const user = await lockUser(trx, userId);
     const inv = await load(trx, userId, now);
     const result = await change(
@@ -173,11 +189,15 @@ export async function withInventory<T>(
       trx,
     );
     await save(trx, userId, inv, now);
-    const after = await trx
-      .selectFrom("users")
-      .select(["xp_total", "active_item", "enchant_seed"])
-      .where("id", "=", userId)
-      .executeTakeFirstOrThrow();
+    const [after] = await trx
+      .select({
+        xp_total: users.xp_total,
+        active_item: users.active_item,
+        enchant_seed: users.enchant_seed,
+      })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!after) throw new Error(`compte introuvable : ${userId}`);
     return {
       result,
       view: {
@@ -230,10 +250,9 @@ export async function discardItem(userId: string, from: SlotRef, count?: number,
       if (stack.count === 0) slots[from.slot] = null;
       if (gained > 0) {
         await trx
-          .updateTable("users")
-          .set({ xp_total: sql<number>`xp_total + ${gained}` })
-          .where("id", "=", userId)
-          .execute();
+          .update(users)
+          .set({ xp_total: sql`${users.xp_total} + ${gained}` })
+          .where(eq(users.id, userId));
       }
       return { item: stack.item, count: amount, xp: gained };
     },
@@ -264,13 +283,12 @@ export async function enchantItem(userId: string, option: number, now = new Date
       const enchants = rollEnchants(piece.item, user.enchantSeed, option);
       piece.enchants = enchants;
       await trx
-        .updateTable("users")
+        .update(users)
         .set({
-          xp_total: sql<number>`xp_total - ${levelCostXp(user.xp, cost)}`,
+          xp_total: sql`${users.xp_total} - ${levelCostXp(user.xp, cost)}`,
           enchant_seed: Math.floor(Math.random() * 2_000_000_000),
         })
-        .where("id", "=", userId)
-        .execute();
+        .where(eq(users.id, userId));
       return { item: piece.item, enchants };
     },
     now,
@@ -288,11 +306,7 @@ export async function activateItem(userId: string, slot: number, now = new Date(
         if (!stack || !isConsumable(stack.item)) throw new ItemRefusal("not_usable");
         stack.count -= 1;
         if (stack.count === 0) inv.bag[slot] = null;
-        await trx
-          .updateTable("users")
-          .set({ active_item: stack.item })
-          .where("id", "=", userId)
-          .execute();
+        await trx.update(users).set({ active_item: stack.item }).where(eq(users.id, userId));
       },
       now,
     )
@@ -307,11 +321,7 @@ export async function deactivateItem(userId: string, now = new Date()) {
       async (inv, user, trx) => {
         if (!user.activeItem || !isItemId(user.activeItem)) throw new ItemRefusal("nothing_active");
         if (addToBag(inv, newStack(user.activeItem)) === 0) throw new ItemRefusal("inventory_full");
-        await trx
-          .updateTable("users")
-          .set({ active_item: null })
-          .where("id", "=", userId)
-          .execute();
+        await trx.update(users).set({ active_item: null }).where(eq(users.id, userId));
       },
       now,
     )
@@ -331,31 +341,36 @@ export type ShopView = {
 async function ensureOffers(trx: Trx | typeof db, userId: string, day: string) {
   const offers = generateOffers(userId, day);
   await trx
-    .insertInto("shop_offers")
+    .insert(shopOffers)
     .values(offers.map((o) => ({ user_id: userId, day, ...o })))
-    .onConflict((oc) => oc.doNothing())
-    .execute();
+    .onConflictDoNothing();
 }
 
 async function offersOf(trx: Trx | typeof db, userId: string, day: string) {
   const rows = await trx
-    .selectFrom("shop_offers")
-    .select(["slot", "item", "count", "price", "rarity", "stock", "bought"])
-    .where("user_id", "=", userId)
-    .where("day", "=", day)
-    .orderBy("slot")
-    .execute();
+    .select({
+      slot: shopOffers.slot,
+      item: shopOffers.item,
+      count: shopOffers.count,
+      price: shopOffers.price,
+      rarity: shopOffers.rarity,
+      stock: shopOffers.stock,
+      bought: shopOffers.bought,
+    })
+    .from(shopOffers)
+    .where(and(eq(shopOffers.user_id, userId), eq(shopOffers.day, day)))
+    .orderBy(asc(shopOffers.slot));
   return rows.flatMap((r) => (isItemId(r.item) ? [{ ...r, item: r.item }] : []));
 }
 
 export async function readShop(userId: string, now = new Date()): Promise<ShopView> {
   const day = shopDay(now);
   await ensureOffers(db, userId, day);
-  const user = await db
-    .selectFrom("users")
-    .select("xp_total")
-    .where("id", "=", userId)
-    .executeTakeFirstOrThrow();
+  const user = await db.query.users.findFirst({
+    columns: { xp_total: true },
+    where: eq(users.id, userId),
+  });
+  if (!user) throw new Error(`compte introuvable : ${userId}`);
   return {
     offers: await offersOf(db, userId, day),
     xp: user.xp_total,
@@ -371,30 +386,33 @@ export async function buyOffer(userId: string, slot: number, now = new Date()): 
   await withInventory(
     userId,
     async (inv, user, trx) => {
-      const offer = await trx
-        .selectFrom("shop_offers")
-        .select(["item", "count", "price", "stock", "bought"])
-        .where("user_id", "=", userId)
-        .where("day", "=", day)
-        .where("slot", "=", slot)
-        .executeTakeFirst();
+      const [offer] = await trx
+        .select({
+          item: shopOffers.item,
+          count: shopOffers.count,
+          price: shopOffers.price,
+          stock: shopOffers.stock,
+          bought: shopOffers.bought,
+        })
+        .from(shopOffers)
+        .where(
+          and(eq(shopOffers.user_id, userId), eq(shopOffers.day, day), eq(shopOffers.slot, slot)),
+        );
       if (!offer || !isItemId(offer.item)) throw new ShopRefusal("offer_unknown");
       if (offer.bought >= offer.stock) throw new ShopRefusal("sold_out");
       if (user.xp < offer.price) throw new ShopRefusal("not_enough_xp");
       if (!bagFits(inv, offer.item, offer.count)) throw new ShopRefusal("inventory_full");
       addToBag(inv, newStack(offer.item, offer.count));
       await trx
-        .updateTable("users")
-        .set({ xp_total: sql<number>`xp_total - ${offer.price}` })
-        .where("id", "=", userId)
-        .execute();
+        .update(users)
+        .set({ xp_total: sql`${users.xp_total} - ${offer.price}` })
+        .where(eq(users.id, userId));
       await trx
-        .updateTable("shop_offers")
-        .set({ bought: sql<number>`bought + 1` })
-        .where("user_id", "=", userId)
-        .where("day", "=", day)
-        .where("slot", "=", slot)
-        .execute();
+        .update(shopOffers)
+        .set({ bought: sql`${shopOffers.bought} + 1` })
+        .where(
+          and(eq(shopOffers.user_id, userId), eq(shopOffers.day, day), eq(shopOffers.slot, slot)),
+        );
     },
     now,
   );
@@ -409,21 +427,30 @@ export async function buyOffer(userId: string, slot: number, now = new Date()): 
  */
 export async function snapshotLoadouts(trx: Trx, raceId: string) {
   const rows = await trx
-    .selectFrom("race_participants")
-    .innerJoin("users", "users.id", "race_participants.user_id")
-    .select(["race_participants.id", "race_participants.user_id", "users.active_item"])
-    .where("race_participants.race_id", "=", raceId)
-    .where("race_participants.role", "=", "participant")
-    .where("race_participants.is_bot", "=", false)
-    .execute();
+    .select({
+      id: raceParticipants.id,
+      user_id: raceParticipants.user_id,
+      active_item: users.active_item,
+    })
+    .from(raceParticipants)
+    .innerJoin(users, eq(users.id, raceParticipants.user_id))
+    .where(
+      and(
+        eq(raceParticipants.race_id, raceId),
+        eq(raceParticipants.role, "participant"),
+        eq(raceParticipants.is_bot, false),
+      ),
+    );
   for (const row of rows) {
     if (!row.user_id) continue;
     const armorRows = await trx
-      .selectFrom("inventory_items")
-      .select(["slot", "item", "enchants"])
-      .where("user_id", "=", row.user_id)
-      .where("area", "=", "armor")
-      .execute();
+      .select({
+        slot: inventoryItems.slot,
+        item: inventoryItems.item,
+        enchants: inventoryItems.enchants,
+      })
+      .from(inventoryItems)
+      .where(and(eq(inventoryItems.user_id, row.user_id), eq(inventoryItems.area, "armor")));
     const armor: (Stack | null)[] = [null, null, null, null];
     for (const a of armorRows) {
       if (isItemId(a.item) && a.slot < 4) {
@@ -432,17 +459,8 @@ export async function snapshotLoadouts(trx: Trx, raceId: string) {
     }
     const active = isItemId(row.active_item) ? row.active_item : null;
     const loadout = computeLoadout(armor, active);
-    await trx
-      .updateTable("race_participants")
-      .set({ loadout: JSON.stringify(loadout) })
-      .where("id", "=", row.id)
-      .execute();
-    if (active)
-      await trx
-        .updateTable("users")
-        .set({ active_item: null })
-        .where("id", "=", row.user_id)
-        .execute();
+    await trx.update(raceParticipants).set({ loadout }).where(eq(raceParticipants.id, row.id));
+    if (active) await trx.update(users).set({ active_item: null }).where(eq(users.id, row.user_id));
   }
 }
 
