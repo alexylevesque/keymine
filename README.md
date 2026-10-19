@@ -87,6 +87,6 @@ jetable, migre, exécute la commande puis l'arrête (ex. `… bun run test:db`).
 
 ## Intégration continue
 
-`.github/workflows/ci.yml` : lint, typecheck et tests unitaires ; puis, contre
+`.github/workflows/ci.yml`, lancé à chaque push (toutes les branches) : lint, typecheck et tests unitaires ; puis, contre
 un conteneur Postgres 18, migrations, tests d'intégration, build de production
 et tests e2e.

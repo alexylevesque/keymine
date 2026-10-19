@@ -1,8 +1,8 @@
 name: CI
 
+# TECH-09 : chaque push, sur n'importe quelle branche, lance lint, typecheck et tests.
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
