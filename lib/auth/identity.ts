@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { readSession } from "./session";
 import { readGuest } from "./guest";
 

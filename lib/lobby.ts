@@ -1,6 +1,6 @@
 import { customAlphabet } from "nanoid";
 import { lobbyCodeSchema } from "@/lib/api-input";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { Identity } from "@/lib/auth/identity";
 import { isBanned } from "@/lib/bans";
 

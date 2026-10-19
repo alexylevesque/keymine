@@ -3,7 +3,7 @@ import { PixelButton, PixelSlot } from "@/components/ui";
 import { PublicLobbies } from "@/components/PublicLobbies";
 import { listPublicLobbies } from "@/lib/public-lobbies";
 import { JoinByCodeForm, QuickPlayButton } from "@/components/HomeActions";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { getRequestLang } from "@/lib/i18n-server";

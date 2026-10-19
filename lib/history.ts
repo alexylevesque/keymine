@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { ParticipantStatus } from "@/db/types";
 import {
   HISTORY_SECTIONS,

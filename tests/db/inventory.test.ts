@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "pg";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import {
   activateItem,
   buyOffer,

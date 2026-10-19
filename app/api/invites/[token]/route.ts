@@ -5,7 +5,7 @@ import { clientIpFrom } from "@/lib/client-ip";
 import { redeemInvite } from "@/lib/invites";
 import { isJoinRateLimited, recordFailedJoin } from "@/lib/join-limit";
 import { joinLobby } from "@/lib/lobby";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { msg } from "@/lib/api-messages";
 import { inviteTokenSchema } from "@/lib/api-input";
 

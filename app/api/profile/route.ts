@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getIdentity } from "@/lib/auth/identity";
 import { guestPseudoSchema } from "@/lib/auth/pseudo";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { msg, zodMessage } from "@/lib/api-messages";
 
 const schema = z.object({ displayName: guestPseudoSchema });

@@ -1,6 +1,6 @@
 import { Client } from "pg";
 import type { WebSocket } from "ws";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { loadLobbySnapshot, viewLobby, type Viewer } from "@/lib/lobby-snapshot";
 import { sweepLobbies } from "@/lib/lobby-sweep";
 import type { RealtimeIdentity } from "./auth";

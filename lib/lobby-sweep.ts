@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { LobbyStatus } from "@/db/types";
 
 // Présence en salle d'attente et sur l'écran des résultats (SALLE-08) : l'hôte est considéré parti s'il

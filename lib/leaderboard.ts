@@ -9,7 +9,7 @@
 // Sans dépendance à Next.js : aussi utilisé par le serveur temps réel (couronnes).
 import { sql, type Transaction } from "kysely";
 import type { Database } from "@/db/types";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { addToBag, bagFits, newStack } from "@/lib/inventory";
 import { withInventory } from "@/lib/inventory-store";
 import { isItemId, type ItemId } from "@/lib/items";

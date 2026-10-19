@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 
 // SALLE-10 : le code de salle est protégé contre la force brute. On compte les
 // tentatives *échouées* (code inconnu, salle privée sans invitation, lien

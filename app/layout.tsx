@@ -4,7 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { getRequestLang } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n-dictionary";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { peekIdentity } from "@/lib/auth/identity";
 import type { Viewer } from "@/lib/viewer";
 

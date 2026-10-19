@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { Identity } from "@/lib/auth/identity";
 import { revokeInvitesOf } from "@/lib/invites";
 

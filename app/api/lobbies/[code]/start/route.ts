@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { snapshotLoadouts } from "@/lib/inventory-store";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import { botDisplayName } from "@/lib/race/bots";

@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { mergeKeyStats, recomputeUserStats } from "@/lib/stats";
 import { handOverHostDuringRace } from "@/lib/lobby-sweep";
 import { awardRaceXp } from "@/lib/xp-award";

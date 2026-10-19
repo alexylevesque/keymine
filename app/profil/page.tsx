@@ -11,7 +11,7 @@ import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { translate, type DictKey } from "@/lib/i18n-dictionary";
 import { GuestProfile } from "@/components/GuestProfile";
 import { LogoutButton } from "@/components/LogoutButton";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { peekIdentity } from "@/lib/auth/identity";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
 

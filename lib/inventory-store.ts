@@ -5,7 +5,7 @@
 // Sans dépendance à Next.js : aussi appelé par le serveur temps réel en fin de course.
 import { sql, type Transaction } from "kysely";
 import type { Database, InventoryArea } from "@/db/types";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import {
   addToBag,
   AREAS,

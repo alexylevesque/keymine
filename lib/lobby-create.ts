@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { generateUniqueLobbyCode } from "@/lib/lobby";
 import type { LobbySettings } from "@/lib/lobby-schema";
 import type { Selectable } from "kysely";

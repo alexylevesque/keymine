@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 
 /**
  * Recalcule les statistiques agrégées d'un compte (STAT-4) à partir de ses

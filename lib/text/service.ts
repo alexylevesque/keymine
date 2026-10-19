@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { Language } from "@/db/types";
 import { BUNDLED_CORPUS } from "./corpus";
 import { generateRaceText, type Corpus, type GenerateOptions } from "./generate";

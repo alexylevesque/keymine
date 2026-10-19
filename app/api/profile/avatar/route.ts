@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getIdentity } from "@/lib/auth/identity";
 import { checkAvatarUpload, processAvatar } from "@/lib/avatar";
 import { avatarUploadForm } from "@/lib/api-input";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { msg } from "@/lib/api-messages";
 
 const REFUSALS = {

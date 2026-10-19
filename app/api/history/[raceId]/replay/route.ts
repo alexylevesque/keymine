@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { msg } from "@/lib/api-messages";
 import { getIdentity } from "@/lib/auth/identity";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { findActiveRoom, isHost } from "@/lib/lobby";
 import { createLobby, settingsFromLobby } from "@/lib/lobby-create";
 

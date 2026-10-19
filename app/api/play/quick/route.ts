@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "kysely";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { getIdentity } from "@/lib/auth/identity";
 import { joinLobby } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";

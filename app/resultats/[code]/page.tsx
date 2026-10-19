@@ -12,7 +12,7 @@ import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { translate, type DictKey, type SiteLang } from "@/lib/i18n-dictionary";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import {
   isPersonalRecord,

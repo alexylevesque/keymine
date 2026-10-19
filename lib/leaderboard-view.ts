@@ -1,5 +1,5 @@
 // Tout ce que la page CLASSEMENT affiche, en un seul appel (page serveur et rafraîchissement du client).
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import {
   activeBoost,
   currentChampions,

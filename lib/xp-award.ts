@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { RacerResult } from "@/lib/race/engine";
 import { abandonPenalty, raceComplexity, raceXp, wordCount } from "@/lib/xp";
 import { finishRaceForUser, parseLoadout } from "@/lib/inventory-store";

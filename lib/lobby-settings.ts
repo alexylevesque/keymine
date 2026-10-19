@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { LobbyUpdate } from "@/lib/lobby-schema";
 
 // CONF-12 : application des modifications de réglages faites par l'hôte.

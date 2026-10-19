@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import { assertTransition, canTransition } from "@/lib/race/state";

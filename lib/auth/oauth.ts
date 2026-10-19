@@ -71,7 +71,7 @@ export type OAuthProvider = "discord" | "github";
  * (AUTH-8), comme pour l'inscription classique.
  */
 export async function loginOrCreateOAuthUser(provider: OAuthProvider, identity: OAuthIdentity) {
-  const { db } = await import("@/lib/db");
+  const { kysely: db } = await import("@/lib/db");
   const { createSession } = await import("@/lib/auth/session");
   const { mergeGuestHistory } = await import("@/lib/stats");
   const { readGuestId } = await import("@/lib/auth/guest");

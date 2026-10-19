@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { BotLevel } from "@/db/types";
 import { botDisplayName } from "@/lib/race/bots";
 import { championsCached } from "@/lib/leaderboard";

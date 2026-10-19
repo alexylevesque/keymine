@@ -1,5 +1,5 @@
 import { championsCached } from "@/lib/leaderboard";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { BonusRecord } from "@/lib/race/bonus";
 import type { ParticipantStatus } from "@/db/types";
 

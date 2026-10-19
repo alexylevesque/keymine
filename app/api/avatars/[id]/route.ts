@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 
 // Sert la photo de profil téléversée (WebP 256 px). L'URL porte la date de mise
 // à jour (?v=) : le navigateur peut donc la garder en cache sans risque.

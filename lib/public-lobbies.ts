@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import { z } from "zod";
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 
 // JOIN-02 : explorateur des salles publiques (filtres langue et complexité).
 export const publicLobbyFilters = z.object({

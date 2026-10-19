@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { kysely as db } from "@/lib/db";
 import type { BotLevel } from "@/db/types";
 
 // CONF-10 : ajout et retrait de bots en salle d'attente.
