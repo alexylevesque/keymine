@@ -110,7 +110,9 @@ et `LayoutProps` sont générés par Next).
 - Ne jamais pousser sur `main` sans accord : travailler sur une branche si la
   session a accès au dépôt GitHub.
 - Quand une erreur de l'IA est détectée puis corrigée, ajouter une entrée à
-  `docs/IA.md` (situation, détection, correction) : le livrable en exige 3.
+  `docs/IA-JOURNAL.md` (situation, détection, correction). `docs/IA.md` est
+  le livrable du cahier (1 à 2 pages, 3 situations) : il reste court et
+  renvoie au journal.
 
 ## Décisions déjà prises (ne pas rouvrir sans raison)
 

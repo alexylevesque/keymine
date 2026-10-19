@@ -2,7 +2,7 @@
 // est mort depuis plus de 70 ans. Les passages sont des extraits courts ; la
 // source (œuvre, auteur) est conservée en base.
 //
-// Vérifiés mot à mot contre Project Gutenberg (voir docs/IA.md : ils avaient été
+// Vérifiés mot à mot contre Project Gutenberg (voir docs/IA-JOURNAL.md n° 4 : ils avaient été
 // transcrits de mémoire, quatre coquilles ont été corrigées). Adaptations
 // volontaires pour un jeu de frappe : les vers sont fondus en prose, les tirets
 // longs sont remplacés par des virgules (introuvables au clavier), la graphie de
