@@ -4,6 +4,8 @@ Jeu de courses de frappe multijoueur en temps réel : tout le monde tape le mêm
 texte, la progression de chacun s'affiche en direct sur une piste, et le
 classement est calculé par le serveur. Projet de session du cours Web V.
 
+**Site en ligne : https://keymine.quest**
+
 - Cahier des charges : [`docs/cahier-des-charges.pdf`](docs/cahier-des-charges.pdf)
 - Avancement exigence par exigence : [`docs/EXIGENCES.md`](docs/EXIGENCES.md)
 - Architecture et décisions : [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
