@@ -11,7 +11,9 @@ import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { translate, type DictKey } from "@/lib/i18n-dictionary";
 import { GuestProfile } from "@/components/GuestProfile";
 import { LogoutButton } from "@/components/LogoutButton";
-import { kysely as db } from "@/lib/db";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { keyStats, raceParticipants, users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
 
@@ -37,22 +39,18 @@ export default async function ProfilPage() {
     );
   }
 
-  const user = await db
-    .selectFrom("users")
-    .selectAll()
-    .where("id", "=", identity.userId)
-    .executeTakeFirstOrThrow();
+  const user = await db.query.users.findFirst({ where: eq(users.id, identity.userId) });
+  if (!user) throw new Error("compte introuvable");
 
   const stats = await loadProfileStats(identity.userId);
 
-  const keyStats = await db
-    .selectFrom("key_stats")
-    .select(["char", "correct_count", "error_count"])
-    .where("user_id", "=", identity.userId)
-    .execute();
+  const keyRows = await db.query.keyStats.findMany({
+    columns: { char: true, correct_count: true, error_count: true },
+    where: eq(keyStats.user_id, identity.userId),
+  });
   const correct: Record<string, number> = {};
   const errors: Record<string, number> = {};
-  for (const k of keyStats) {
+  for (const k of keyRows) {
     correct[k.char] = k.correct_count;
     errors[k.char] = k.error_count;
   }
@@ -60,16 +58,17 @@ export default async function ProfilPage() {
 
   // Progression : toute course réellement courue (terminée ou arrêtée par le temps) a un MPM ;
   // seuls les abandons n'en ont pas de significatif.
-  const progression = await db
-    .selectFrom("race_participants")
-    .select(["wpm", "created_at"])
-    .where("user_id", "=", identity.userId)
-    .where("role", "=", "participant")
-    .where("status", "in", ["finished", "timeout"])
-    .where("wpm", "is not", null)
-    .orderBy("created_at", "desc")
-    .limit(20)
-    .execute();
+  const progression = await db.query.raceParticipants.findMany({
+    columns: { wpm: true, created_at: true },
+    where: and(
+      eq(raceParticipants.user_id, identity.userId),
+      eq(raceParticipants.role, "participant"),
+      inArray(raceParticipants.status, ["finished", "timeout"]),
+      isNotNull(raceParticipants.wpm),
+    ),
+    orderBy: desc(raceParticipants.created_at),
+    limit: 20,
+  });
   const points = [...progression]
     .reverse()
     .map((p) => ({ wpm: p.wpm ?? 0, at: new Date(p.created_at) }));

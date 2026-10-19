@@ -1,5 +1,6 @@
-import { sql } from "kysely";
-import { kysely as db } from "@/lib/db";
+import { eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, raceParticipants, races, users } from "@/db/schema";
 import type { RacerResult } from "@/lib/race/engine";
 import { abandonPenalty, raceComplexity, raceXp, wordCount } from "@/lib/xp";
 import { finishRaceForUser, parseLoadout } from "@/lib/inventory-store";
@@ -18,22 +19,24 @@ export async function awardRaceXp(
   results: readonly RacerResult[],
   rng: () => number = Math.random,
 ) {
-  const race = await db
-    .selectFrom("races")
-    .innerJoin("lobbies", "lobbies.id", "races.lobby_id")
-    .select(["races.text_content", "races.settings", "lobbies.complexity"])
-    .where("races.id", "=", raceId)
-    .executeTakeFirst();
+  const [race] = await db
+    .select({
+      text_content: races.text_content,
+      settings: races.settings,
+      complexity: lobbies.complexity,
+    })
+    .from(races)
+    .innerJoin(lobbies, eq(lobbies.id, races.lobby_id))
+    .where(eq(races.id, raceId));
   if (!race) return;
   const complexity = raceComplexity(race.settings, race.complexity);
   const words = wordCount(race.text_content);
   const loadouts = new Map(
     (
       await db
-        .selectFrom("race_participants")
-        .select(["id", "loadout"])
-        .where("race_id", "=", raceId)
-        .execute()
+        .select({ id: raceParticipants.id, loadout: raceParticipants.loadout })
+        .from(raceParticipants)
+        .where(eq(raceParticipants.race_id, raceId))
     ).map((row) => [row.id, parseLoadout(row.loadout)]),
   );
 
@@ -45,11 +48,10 @@ export async function awardRaceXp(
       const loadout = loadouts.get(r.id) ?? parseLoadout(null);
       if (r.status === "abandoned") {
         if (r.abandonReason === "player" && !loadout.noLevelLoss) {
-          const user = await db
-            .selectFrom("users")
-            .select("xp_total")
-            .where("id", "=", r.userId)
-            .executeTakeFirst();
+          const user = await db.query.users.findFirst({
+            columns: { xp_total: true },
+            where: eq(users.id, r.userId),
+          });
           gained = -abandonPenalty(user?.xp_total ?? 0);
         } else {
           gained = 0; // déconnexion ou totem d'immortalité : aucune perte
@@ -64,19 +66,17 @@ export async function awardRaceXp(
           accuracy: r.accuracy,
         });
         // Bonus d'XP du classement (prix de la semaine), s'il est encore actif.
-        const boostRow = await db
-          .selectFrom("users")
-          .select(["xp_boost", "xp_boost_until"])
-          .where("id", "=", r.userId)
-          .executeTakeFirst();
+        const boostRow = await db.query.users.findFirst({
+          columns: { xp_boost: true, xp_boost_until: true },
+          where: eq(users.id, r.userId),
+        });
         const boost = boostRow ? activeBoost(boostRow) : 0;
         gained = Math.round(base * (1 + loadout.xpBonus + boost));
       }
       await db
-        .updateTable("users")
-        .set({ xp_total: sql<number>`greatest(0, xp_total + ${gained})` })
-        .where("id", "=", r.userId)
-        .execute();
+        .update(users)
+        .set({ xp_total: sql`greatest(0, ${users.xp_total} + ${gained})` })
+        .where(eq(users.id, r.userId));
       const won = podiumCoal(r.rank, r.status === "finished", results.length - 1, rng);
       coal = await finishRaceForUser(r.userId, won, {
         podium: r.status === "finished" && r.rank <= 3,
@@ -84,13 +84,12 @@ export async function awardRaceXp(
       });
     }
     await db
-      .updateTable("race_participants")
+      .update(raceParticipants)
       .set({
         xp_gained: gained,
         coal_gained: coal,
         abandon_reason: r.status === "abandoned" ? r.abandonReason : null,
       })
-      .where("id", "=", r.id)
-      .execute();
+      .where(eq(raceParticipants.id, r.id));
   }
 }

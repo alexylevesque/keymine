@@ -3,7 +3,9 @@ import { PixelButton, PixelSlot } from "@/components/ui";
 import { PublicLobbies } from "@/components/PublicLobbies";
 import { listPublicLobbies } from "@/lib/public-lobbies";
 import { JoinByCodeForm, QuickPlayButton } from "@/components/HomeActions";
-import { kysely as db } from "@/lib/db";
+import { and, avg, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { raceParticipants, users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { getRequestLang } from "@/lib/i18n-server";
@@ -15,30 +17,34 @@ async function getMiniStats() {
   const identity = await peekIdentity();
   if (!identity || identity.kind !== "user") return null;
 
-  const user = await db
-    .selectFrom("users")
-    .select(["best_wpm", "total_races"])
-    .where("id", "=", identity.userId)
-    .executeTakeFirst();
+  const user = await db.query.users.findFirst({
+    columns: { best_wpm: true, total_races: true },
+    where: eq(users.id, identity.userId),
+  });
   if (!user) return null;
 
-  const acc = await db
-    .selectFrom("race_participants")
-    .select((eb) => eb.fn.avg<number>("accuracy").as("avg_accuracy"))
-    .where("user_id", "=", identity.userId)
-    .where("status", "=", "finished")
-    .executeTakeFirst();
+  const [acc] = await db
+    .select({ avg_accuracy: avg(raceParticipants.accuracy) })
+    .from(raceParticipants)
+    .where(
+      and(eq(raceParticipants.user_id, identity.userId), eq(raceParticipants.status, "finished")),
+    );
 
   return {
     bestWpm: Math.round(user.best_wpm),
     totalRaces: user.total_races,
-    accuracy: acc?.avg_accuracy ? Math.round(acc.avg_accuracy) : null,
+    accuracy: acc?.avg_accuracy ? Math.round(Number(acc.avg_accuracy)) : null,
   };
 }
 
 export default async function Home() {
-  const [lobbies, stats, lang] = await Promise.all([listPublicLobbies(), getMiniStats(), getRequestLang()]);
-  const t = (key: DictKey, params?: Record<string, string | number>) => translate(lang, key, params);
+  const [lobbies, stats, lang] = await Promise.all([
+    listPublicLobbies(),
+    getMiniStats(),
+    getRequestLang(),
+  ]);
+  const t = (key: DictKey, params?: Record<string, string | number>) =>
+    translate(lang, key, params);
 
   return (
     <PixelShell active="lobbys">
@@ -71,7 +77,9 @@ export default async function Home() {
           <div className="mt-3 grid grid-cols-3 gap-2.5">
             <PixelSlot className="px-3 py-2">
               <div className="font-pixel text-[9px] text-[#fff6d6]">{t("home.stat_best")}</div>
-              <div className="text-3xl text-white">{stats ? t("home.wpm_value", { value: formatNumber(lang, stats.bestWpm) }) : "—"}</div>
+              <div className="text-3xl text-white">
+                {stats ? t("home.wpm_value", { value: formatNumber(lang, stats.bestWpm) }) : "—"}
+              </div>
             </PixelSlot>
             <PixelSlot className="px-3 py-2">
               <div className="font-pixel text-[9px] text-[#fff6d6]">{t("home.stat_races")}</div>

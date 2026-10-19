@@ -1,5 +1,7 @@
 import { championsCached } from "@/lib/leaderboard";
-import { kysely as db } from "@/lib/db";
+import { and, asc, desc, eq, lt, max } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { raceParticipants, races, users } from "@/db/schema";
 import type { BonusRecord } from "@/lib/race/bonus";
 import type { ParticipantStatus } from "@/db/types";
 
@@ -54,52 +56,50 @@ export type RaceResults = {
 };
 
 export async function latestFinishedRaceId(lobbyId: string): Promise<string | null> {
-  const race = await db
-    .selectFrom("races")
-    .select("id")
-    .where("lobby_id", "=", lobbyId)
-    .where("status", "=", "finished")
-    .orderBy("created_at", "desc")
-    .executeTakeFirst();
+  const race = await db.query.races.findFirst({
+    columns: { id: true },
+    where: and(eq(races.lobby_id, lobbyId), eq(races.status, "finished")),
+    orderBy: desc(races.created_at),
+  });
   return race?.id ?? null;
 }
 
 export async function loadRaceResults(raceId: string): Promise<RaceResults | null> {
-  const race = await db.selectFrom("races").selectAll().where("id", "=", raceId).executeTakeFirst();
+  const race = await db.query.races.findFirst({ where: eq(races.id, raceId) });
   if (!race) return null;
 
+  const rp = raceParticipants;
   const rows = await db
-    .selectFrom("race_participants")
-    .leftJoin("users", "users.id", "race_participants.user_id")
-    .select([
-      "race_participants.id",
-      "race_participants.display_name",
-      "race_participants.is_bot",
-      "race_participants.bot_level",
-      "race_participants.user_id",
-      "race_participants.guest_id",
-      "race_participants.role",
-      "race_participants.rank",
-      "race_participants.status",
-      "race_participants.wpm",
-      "race_participants.raw_wpm",
-      "race_participants.accuracy",
-      "race_participants.error_count",
-      "race_participants.finish_ms",
-      "race_participants.penalty_ms",
-      "race_participants.progress_chars",
-      "race_participants.text_length",
-      "race_participants.bonuses",
-      "race_participants.wpm_series",
-      "race_participants.key_correct",
-      "race_participants.key_errors",
-      "race_participants.xp_gained",
-      "race_participants.coal_gained",
-      "users.avatar_url",
-    ])
-    .where("race_participants.race_id", "=", raceId)
-    .orderBy("race_participants.rank", "asc")
-    .execute();
+    .select({
+      id: rp.id,
+      display_name: rp.display_name,
+      is_bot: rp.is_bot,
+      bot_level: rp.bot_level,
+      user_id: rp.user_id,
+      guest_id: rp.guest_id,
+      role: rp.role,
+      rank: rp.rank,
+      status: rp.status,
+      wpm: rp.wpm,
+      raw_wpm: rp.raw_wpm,
+      accuracy: rp.accuracy,
+      error_count: rp.error_count,
+      finish_ms: rp.finish_ms,
+      penalty_ms: rp.penalty_ms,
+      progress_chars: rp.progress_chars,
+      text_length: rp.text_length,
+      bonuses: rp.bonuses,
+      wpm_series: rp.wpm_series,
+      key_correct: rp.key_correct,
+      key_errors: rp.key_errors,
+      xp_gained: rp.xp_gained,
+      coal_gained: rp.coal_gained,
+      avatar_url: users.avatar_url,
+    })
+    .from(rp)
+    .leftJoin(users, eq(users.id, rp.user_id))
+    .where(eq(rp.race_id, raceId))
+    .orderBy(asc(rp.rank));
 
   const participants = rows.filter((r) => r.role === "participant");
   const champions = await championsCached().catch(() => new Map<string, number>());
@@ -151,20 +151,22 @@ export async function isPersonalRecord(
   raceId: string,
   wpm: number,
 ): Promise<boolean> {
-  const race = await db
-    .selectFrom("races")
-    .select("created_at")
-    .where("id", "=", raceId)
-    .executeTakeFirst();
+  const race = await db.query.races.findFirst({
+    columns: { created_at: true },
+    where: eq(races.id, raceId),
+  });
   if (!race) return false;
-  const previous = await db
-    .selectFrom("race_participants")
-    .innerJoin("races", "races.id", "race_participants.race_id")
-    .select((eb) => eb.fn.max("race_participants.wpm").as("best"))
-    .where("race_participants.user_id", "=", userId)
-    .where("race_participants.status", "=", "finished")
-    .where("races.created_at", "<", race.created_at)
-    .executeTakeFirst();
+  const [previous] = await db
+    .select({ best: max(raceParticipants.wpm) })
+    .from(raceParticipants)
+    .innerJoin(races, eq(races.id, raceParticipants.race_id))
+    .where(
+      and(
+        eq(raceParticipants.user_id, userId),
+        eq(raceParticipants.status, "finished"),
+        lt(races.created_at, race.created_at),
+      ),
+    );
   // Une première course n'a rien à battre : pas de record.
   return previous?.best != null && wpm > previous.best;
 }

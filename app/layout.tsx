@@ -4,7 +4,9 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { getRequestLang } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n-dictionary";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
 import type { Viewer } from "@/lib/viewer";
 
@@ -39,12 +41,16 @@ async function loadViewer(): Promise<Viewer> {
   const identity = await peekIdentity();
   if (!identity) return null;
   if (identity.kind === "guest") return { kind: "guest", name: identity.displayName };
-  const row = await db
-    .selectFrom("users")
-    .select(["avatar_url", "xp_total"])
-    .where("id", "=", identity.userId)
-    .executeTakeFirst();
-  return { kind: "user", name: identity.displayName, avatarUrl: row?.avatar_url ?? null, xp: row?.xp_total ?? 0 };
+  const row = await db.query.users.findFirst({
+    columns: { avatar_url: true, xp_total: true },
+    where: eq(users.id, identity.userId),
+  });
+  return {
+    kind: "user",
+    name: identity.displayName,
+    avatarUrl: row?.avatar_url ?? null,
+    xp: row?.xp_total ?? 0,
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -61,7 +67,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       {/* Des extensions de navigateur (ex. ColorZilla : cz-shortcut-listen) ajoutent des attributs à <body>
           avant React : on ignore ces différences d'attributs sur cette seule balise. */}
       <body className="min-h-screen antialiased" suppressHydrationWarning>
-        <Providers initialLang={lang} viewer={viewer}>{children}</Providers>
+        <Providers initialLang={lang} viewer={viewer}>
+          {children}
+        </Providers>
       </body>
     </html>
   );

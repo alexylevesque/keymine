@@ -1,5 +1,7 @@
-import { sql } from "kysely";
-import { kysely as db } from "@/lib/db";
+import { and, avg, count, desc, eq, max, sql, sum } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { db } from "@/lib/db";
+import { keyStats, lobbyPlayers, raceParticipants, users } from "@/db/schema";
 
 /**
  * Recalcule les statistiques agrégées d'un compte (STAT-4) à partir de ses
@@ -8,27 +10,24 @@ import { kysely as db } from "@/lib/db";
  * parallèle qui pourraient diverger.
  */
 export async function recomputeUserStats(userId: string) {
-  const agg = await db
-    .selectFrom("race_participants")
-    .where("user_id", "=", userId)
-    .where("status", "=", "finished")
-    .where("is_bot", "=", false)
-    .select((eb) => [
-      eb.fn.max("wpm").as("best_wpm"),
-      eb.fn.count<number>("id").as("total_races"),
-      eb.fn.sum<number>("error_count").as("total_errors"),
-      eb.fn.sum<number>("progress_chars").as("total_chars_typed"),
-      eb.fn.max("finished_at").as("last_race_at"),
-    ])
-    .executeTakeFirst();
+  const rp = raceParticipants;
+  const [agg] = await db
+    .select({
+      best_wpm: max(rp.wpm),
+      total_races: count(rp.id),
+      total_errors: sum(rp.error_count),
+      total_chars_typed: sum(rp.progress_chars),
+      last_race_at: max(rp.finished_at),
+    })
+    .from(rp)
+    .where(and(eq(rp.user_id, userId), eq(rp.status, "finished"), eq(rp.is_bot, false)));
 
+  const day = sql<Date>`date_trunc('day', ${rp.finished_at})`.mapWith(rp.finished_at);
   const dayRows = await db
-    .selectFrom("race_participants")
-    .where("user_id", "=", userId)
-    .where("status", "=", "finished")
-    .select(sql<string>`distinct date_trunc('day', finished_at)`.as("day"))
-    .orderBy("day", "desc")
-    .execute();
+    .selectDistinct({ day })
+    .from(rp)
+    .where(and(eq(rp.user_id, userId), eq(rp.status, "finished")))
+    .orderBy(desc(day));
 
   let streak = 0;
   if (dayRows.length > 0) {
@@ -47,7 +46,7 @@ export async function recomputeUserStats(userId: string) {
   }
 
   await db
-    .updateTable("users")
+    .update(users)
     .set({
       best_wpm: agg?.best_wpm ?? 0,
       total_races: Number(agg?.total_races ?? 0),
@@ -56,59 +55,52 @@ export async function recomputeUserStats(userId: string) {
       last_race_at: agg?.last_race_at ?? null,
       current_streak_days: streak,
     })
-    .where("id", "=", userId)
-    .execute();
+    .where(eq(users.id, userId));
 }
 
 /** Fusionne l'historique d'un invité dans un compte à la connexion (AUTH-8). */
 export async function mergeGuestHistory(guestId: string, userId: string) {
-  await db.transaction().execute(async (trx) => {
+  await db.transaction(async (tx) => {
     // Le compte était déjà dans une salle où l'invité a joué (deux onglets) :
     // une seule ligne par personne et par salle, on garde celle du compte.
-    const duplicates = await trx
-      .selectFrom("lobby_players as g")
-      .innerJoin("lobby_players as u", (join) =>
-        join.onRef("u.lobby_id", "=", "g.lobby_id").on("u.user_id", "=", userId),
-      )
-      .where("g.guest_id", "=", guestId)
-      .select(["g.id as guestRow", "u.id as userRow"])
-      .execute();
+    const g = alias(lobbyPlayers, "g");
+    const u = alias(lobbyPlayers, "u");
+    const duplicates = await tx
+      .select({ guestRow: g.id, userRow: u.id })
+      .from(g)
+      .innerJoin(u, and(eq(u.lobby_id, g.lobby_id), eq(u.user_id, userId)))
+      .where(eq(g.guest_id, guestId));
     for (const { guestRow, userRow } of duplicates) {
-      await trx
-        .updateTable("race_participants")
+      await tx
+        .update(raceParticipants)
         .set({ lobby_player_id: userRow })
-        .where("lobby_player_id", "=", guestRow)
-        .execute();
-      await trx.deleteFrom("lobby_players").where("id", "=", guestRow).execute();
+        .where(eq(raceParticipants.lobby_player_id, guestRow));
+      await tx.delete(lobbyPlayers).where(eq(lobbyPlayers.id, guestRow));
     }
 
     // Une seule salle active à la fois (SALLE-06) : si le compte est déjà
     // dans une salle, la place de l'invité est libérée.
-    const userActive = await trx
-      .selectFrom("lobby_players")
-      .where("user_id", "=", userId)
-      .where("active", "=", true)
-      .select("id")
-      .executeTakeFirst();
+    const [userActive] = await tx
+      .select({ id: lobbyPlayers.id })
+      .from(lobbyPlayers)
+      .where(and(eq(lobbyPlayers.user_id, userId), eq(lobbyPlayers.active, true)))
+      .limit(1);
     if (userActive) {
-      await trx
-        .updateTable("lobby_players")
+      await tx
+        .update(lobbyPlayers)
         .set({ active: false })
-        .where("guest_id", "=", guestId)
-        .execute();
+        .where(eq(lobbyPlayers.guest_id, guestId));
     }
 
-    await trx
-      .updateTable("lobby_players")
+    await tx
+      .update(lobbyPlayers)
       .set({ user_id: userId, guest_id: null })
-      .where("guest_id", "=", guestId)
-      .execute();
+      .where(eq(lobbyPlayers.guest_id, guestId));
 
-    await trx
-      .updateTable("race_participants")
+    await tx
+      .update(raceParticipants)
       .set({ user_id: userId, guest_id: null })
-      .where("guest_id", "=", guestId)
-      .execute();
+      .where(eq(raceParticipants.guest_id, guestId));
   });
 
   await recomputeUserStats(userId);
@@ -127,15 +119,15 @@ export async function mergeKeyStats(
     if (correct === 0 && errors === 0) continue;
 
     await db
-      .insertInto("key_stats")
+      .insert(keyStats)
       .values({ user_id: userId, char, correct_count: correct, error_count: errors })
-      .onConflict((oc) =>
-        oc.columns(["user_id", "char"]).doUpdateSet({
-          correct_count: sql`key_stats.correct_count + excluded.correct_count`,
-          error_count: sql`key_stats.error_count + excluded.error_count`,
-        }),
-      )
-      .execute();
+      .onConflictDoUpdate({
+        target: [keyStats.user_id, keyStats.char],
+        set: {
+          correct_count: sql`${keyStats.correct_count} + excluded.correct_count`,
+          error_count: sql`${keyStats.error_count} + excluded.error_count`,
+        },
+      });
   }
 }
 
@@ -152,19 +144,17 @@ export type ProfileStats = {
  * terminée à laquelle on a réellement participé (les abandons ne comptent pas).
  */
 export async function loadProfileStats(userId: string): Promise<ProfileStats> {
-  const row = await db
-    .selectFrom("race_participants")
-    .where("user_id", "=", userId)
-    .where("status", "=", "finished")
-    .where("role", "=", "participant")
-    .select((eb) => [
-      eb.fn.max("wpm").as("best_wpm"),
-      eb.fn.avg<string>("wpm").as("avg_wpm"),
-      eb.fn.avg<string>("accuracy").as("avg_accuracy"),
-      eb.fn.countAll<string>().as("races"),
-      sql<string>`count(*) filter (where rank = 1)`.as("wins"),
-    ])
-    .executeTakeFirst();
+  const rp = raceParticipants;
+  const [row] = await db
+    .select({
+      best_wpm: max(rp.wpm),
+      avg_wpm: avg(rp.wpm),
+      avg_accuracy: avg(rp.accuracy),
+      races: count(),
+      wins: sql<number>`(count(*) filter (where ${rp.rank} = 1))::int`,
+    })
+    .from(rp)
+    .where(and(eq(rp.user_id, userId), eq(rp.status, "finished"), eq(rp.role, "participant")));
   return {
     bestWpm: row?.best_wpm ?? 0,
     avgWpm: row?.avg_wpm != null ? Number(row.avg_wpm) : null,

@@ -1,6 +1,8 @@
-import { sql } from "kysely";
+import { and, asc, desc, eq, ne, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
-import { kysely as db } from "@/lib/db";
+import { db } from "@/lib/db";
+import { lobbies, raceParticipants, races } from "@/db/schema";
 import type { ParticipantStatus } from "@/db/types";
 import {
   HISTORY_SECTIONS,
@@ -76,29 +78,39 @@ const historyQuerySchema = z.object({
 export function parseHistoryQuery(query: Record<string, RawParam>): HistoryQuery {
   const q = historyQuerySchema.parse(query);
   // La section « spectateur » n'a pas de MPM ni de rang personnels : seul le tri par date a un sens.
-  return { section: q.section, sort: q.section === "spectated" ? "date" : q.sort, dir: q.dir, page: q.page };
+  return {
+    section: q.section,
+    sort: q.section === "spectated" ? "date" : q.sort,
+    dir: q.dir,
+    page: q.page,
+  };
 }
 
-function baseFor(userId: string, section: HistorySection) {
-  const base = db
-    .selectFrom("race_participants")
-    .innerJoin("races", "races.id", "race_participants.race_id")
-    .where("race_participants.user_id", "=", userId)
-    .where("race_participants.hidden_from_history", "=", false)
-    .where("races.status", "=", "finished");
-  if (section === "all") return base;
-  if (section === "spectated") return base.where("race_participants.role", "=", "spectator");
-  const played = base.where("race_participants.role", "=", "participant");
-  return section === "abandoned"
-    ? played.where("race_participants.status", "=", "abandoned")
-    : played.where("race_participants.status", "<>", "abandoned");
+const rp = raceParticipants;
+
+/** Lignes de l'historique d'un compte pour une section (à appliquer sur race_participants ⋈ races). */
+function sectionFilter(userId: string, section: HistorySection): SQL | undefined {
+  const base = [
+    eq(rp.user_id, userId),
+    eq(rp.hidden_from_history, false),
+    eq(races.status, "finished"),
+  ];
+  if (section === "all") return and(...base);
+  if (section === "spectated") return and(...base, eq(rp.role, "spectator"));
+  return and(
+    ...base,
+    eq(rp.role, "participant"),
+    section === "abandoned" ? eq(rp.status, "abandoned") : ne(rp.status, "abandoned"),
+  );
 }
 
 async function countFor(userId: string, section: HistorySection): Promise<number> {
-  const row = await baseFor(userId, section)
-    .select((eb) => eb.fn.countAll<string>().as("total"))
-    .executeTakeFirstOrThrow();
-  return Number(row.total);
+  const [row] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(rp)
+    .innerJoin(races, eq(races.id, rp.race_id))
+    .where(sectionFilter(userId, section));
+  return row?.total ?? 0;
 }
 
 export async function loadHistory(
@@ -119,56 +131,51 @@ export async function loadHistory(
   const pages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE));
   const page = Math.min(Math.max(1, query.page), pages);
 
-  let select = baseFor(userId, section)
-    .innerJoin("lobbies", "lobbies.id", "races.lobby_id")
-    .select([
-      "races.id as race_id",
-      "lobbies.code as lobby_code",
-      "races.created_at as played_at",
-      "race_participants.rank",
-      "race_participants.wpm",
-      "race_participants.accuracy",
-      "race_participants.status",
-      "race_participants.role",
-      (eb) =>
-        eb
-          .selectFrom("race_participants as rp")
-          .select((e) => e.fn.countAll<string>().as("n"))
-          .whereRef("rp.race_id", "=", "races.id")
-          .where("rp.role", "=", "participant")
-          .as("participant_count"),
-      (eb) =>
-        eb
-          .selectFrom("race_participants as w")
-          .select("w.display_name")
-          .whereRef("w.race_id", "=", "races.id")
-          .where("w.role", "=", "participant")
-          .where("w.rank", "=", 1)
-          .limit(1)
-          .as("winner_name"),
-      (eb) =>
-        eb
-          .selectFrom("race_participants as w")
-          .select("w.wpm")
-          .whereRef("w.race_id", "=", "races.id")
-          .where("w.role", "=", "participant")
-          .where("w.rank", "=", 1)
-          .limit(1)
-          .as("winner_wpm"),
-    ]);
+  // Le vainqueur de la course (section « spectateur ») et le nombre de participants.
+  const other = alias(raceParticipants, "other");
+  const winner = alias(raceParticipants, "winner");
+  const winnerOf = and(
+    eq(winner.race_id, races.id),
+    eq(winner.role, "participant"),
+    eq(winner.rank, 1),
+  );
+  const participantCount = db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(other)
+    .where(and(eq(other.race_id, races.id), eq(other.role, "participant")));
+  const winnerName = db.select({ name: winner.display_name }).from(winner).where(winnerOf).limit(1);
+  const winnerWpm = db.select({ wpm: winner.wpm }).from(winner).where(winnerOf).limit(1);
 
   // Tri demandé, puis la date en départage (toujours la plus récente d'abord) pour un ordre stable.
-  if (sort === "wpm")
-    select = select.orderBy(sql`race_participants.wpm ${sql.raw(dir)} nulls last`);
-  else if (sort === "rank")
-    select = select.orderBy(sql`race_participants.rank ${sql.raw(dir)} nulls last`);
-  else select = select.orderBy(sql`races.created_at ${sql.raw(dir)}`);
-  if (sort !== "date") select = select.orderBy("races.created_at", "desc");
+  const by = dir === "asc" ? asc : desc;
+  const order =
+    sort === "wpm"
+      ? [sql`${by(rp.wpm)} nulls last`, desc(races.created_at)]
+      : sort === "rank"
+        ? [sql`${by(rp.rank)} nulls last`, desc(races.created_at)]
+        : [by(races.created_at)];
 
-  const rows = await select
+  const rows = await db
+    .select({
+      race_id: races.id,
+      lobby_code: lobbies.code,
+      played_at: races.created_at,
+      rank: rp.rank,
+      wpm: rp.wpm,
+      accuracy: rp.accuracy,
+      status: rp.status,
+      role: rp.role,
+      participant_count: sql<number>`(${participantCount})`,
+      winner_name: sql<string | null>`(${winnerName})`,
+      winner_wpm: sql<number | null>`(${winnerWpm})`,
+    })
+    .from(rp)
+    .innerJoin(races, eq(races.id, rp.race_id))
+    .innerJoin(lobbies, eq(lobbies.id, races.lobby_id))
+    .where(sectionFilter(userId, section))
+    .orderBy(...order)
     .limit(HISTORY_PAGE_SIZE)
-    .offset((page - 1) * HISTORY_PAGE_SIZE)
-    .execute();
+    .offset((page - 1) * HISTORY_PAGE_SIZE);
 
   return {
     section,
@@ -197,11 +204,14 @@ export async function loadHistory(
 /** Retire une course de l'historique du compte (toutes ses lignes : joueur ou spectateur). Renvoie vrai si quelque chose a été masqué. */
 export async function hideFromHistory(userId: string, raceId: string): Promise<boolean> {
   const result = await db
-    .updateTable("race_participants")
+    .update(raceParticipants)
     .set({ hidden_from_history: true })
-    .where("user_id", "=", userId)
-    .where("race_id", "=", raceId)
-    .where("hidden_from_history", "=", false)
-    .executeTakeFirst();
-  return Number(result.numUpdatedRows) > 0;
+    .where(
+      and(
+        eq(raceParticipants.user_id, userId),
+        eq(raceParticipants.race_id, raceId),
+        eq(raceParticipants.hidden_from_history, false),
+      ),
+    );
+  return (result.rowCount ?? 0) > 0;
 }

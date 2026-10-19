@@ -1,5 +1,7 @@
 // Tout ce que la page CLASSEMENT affiche, en un seul appel (page serveur et rafraîchissement du client).
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
 import {
   activeBoost,
   currentChampions,
@@ -60,11 +62,10 @@ export async function loadLeaderboardView(
 ): Promise<LeaderboardView> {
   await settleLastWeek(now);
   const user = userId
-    ? await db
-        .selectFrom("users")
-        .select(["league", "xp_boost", "xp_boost_until"])
-        .where("id", "=", userId)
-        .executeTakeFirst()
+    ? await db.query.users.findFirst({
+        columns: { league: true, xp_boost: true, xp_boost_until: true },
+        where: eq(users.id, userId),
+      })
     : undefined;
   const shownLeague = league ?? user?.league ?? 0;
   const [level, wpm, wins, rows, champions, lastWeek] = await Promise.all([

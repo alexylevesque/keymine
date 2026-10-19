@@ -12,7 +12,9 @@ import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { translate, type DictKey, type SiteLang } from "@/lib/i18n-dictionary";
-import { kysely as db } from "@/lib/db";
+import { and, avg, eq, ne } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { raceParticipants } from "@/db/schema";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import {
   isPersonalRecord,
@@ -114,14 +116,17 @@ export default async function ResultatsPage({
   let avgWpm: number | null = null;
   let record = false;
   if (me?.userId) {
-    const avg = await db
-      .selectFrom("race_participants")
-      .select((eb) => eb.fn.avg<number>("wpm").as("avg_wpm"))
-      .where("user_id", "=", me.userId)
-      .where("status", "=", "finished")
-      .where("race_id", "!=", results.race.id)
-      .executeTakeFirst();
-    avgWpm = avg?.avg_wpm != null ? Number(avg.avg_wpm) : null;
+    const [mine] = await db
+      .select({ avg_wpm: avg(raceParticipants.wpm) })
+      .from(raceParticipants)
+      .where(
+        and(
+          eq(raceParticipants.user_id, me.userId),
+          eq(raceParticipants.status, "finished"),
+          ne(raceParticipants.race_id, results.race.id),
+        ),
+      );
+    avgWpm = mine?.avg_wpm != null ? Number(mine.avg_wpm) : null;
     record =
       me.status === "finished" && (await isPersonalRecord(me.userId, results.race.id, me.wpm));
   }

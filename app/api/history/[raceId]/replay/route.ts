@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { msg } from "@/lib/api-messages";
 import { getIdentity } from "@/lib/auth/identity";
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, raceParticipants, races } from "@/db/schema";
 import { findActiveRoom, isHost } from "@/lib/lobby";
 import { createLobby, settingsFromLobby } from "@/lib/lobby-create";
 
@@ -23,14 +25,19 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/history/[r
     return NextResponse.json({ error: await msg("generic"), code: "bad_request" }, { status: 400 });
 
   // Seules les personnes qui ont pris part à cette course (joueur ou spectateur) peuvent la rejouer.
-  const lobby = await db
-    .selectFrom("race_participants")
-    .innerJoin("races", "races.id", "race_participants.race_id")
-    .innerJoin("lobbies", "lobbies.id", "races.lobby_id")
-    .selectAll("lobbies")
-    .where("race_participants.race_id", "=", parsed.data.raceId)
-    .where("race_participants.user_id", "=", identity.userId)
-    .executeTakeFirst();
+  const [row] = await db
+    .select({ lobby: lobbies })
+    .from(raceParticipants)
+    .innerJoin(races, eq(races.id, raceParticipants.race_id))
+    .innerJoin(lobbies, eq(lobbies.id, races.lobby_id))
+    .where(
+      and(
+        eq(raceParticipants.race_id, parsed.data.raceId),
+        eq(raceParticipants.user_id, identity.userId),
+      ),
+    )
+    .limit(1);
+  const lobby = row?.lobby;
   if (!lobby)
     return NextResponse.json(
       { error: await msg("lobby_not_found"), code: "not_found" },
@@ -42,11 +49,9 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/history/[r
   if (current?.id === lobby.id) {
     if (lobby.status === "finished" && isHost(identity, lobby)) {
       await db
-        .updateTable("lobbies")
+        .update(lobbies)
         .set({ status: "lobby", last_host_seen_at: new Date() })
-        .where("id", "=", lobby.id)
-        .where("status", "=", "finished")
-        .execute();
+        .where(and(eq(lobbies.id, lobby.id), eq(lobbies.status, "finished")));
     }
     return NextResponse.json({ code: lobby.code });
   }
