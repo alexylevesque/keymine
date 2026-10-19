@@ -11,6 +11,7 @@ import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
+import { groupBonuses } from "@/lib/bonus-summary";
 import { translate, type DictKey, type SiteLang } from "@/lib/i18n-dictionary";
 import { and, avg, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -65,9 +66,13 @@ const BONUS_KEY = {
   fog: "res.bonus_fog",
 } as const satisfies Record<string, DictKey>;
 
-function bonusSummary(lang: SiteLang, row: ResultRow): string {
-  if (row.bonuses.length === 0) return translate(lang, "res.bonus_none");
-  return row.bonuses.map((b) => translate(lang, BONUS_KEY[b.kind])).join(", ");
+/** Bonus reçus, un type par ligne, regroupés : « Brouillard (2) » (RES-02). */
+function bonusLines(lang: SiteLang, row: ResultRow): string[] {
+  const groups = groupBonuses(row.bonuses);
+  if (groups.length === 0) return [translate(lang, "res.bonus_none")];
+  return groups.map(({ kind, count }) =>
+    count > 1 ? `${translate(lang, BONUS_KEY[kind])} (${count})` : translate(lang, BONUS_KEY[kind]),
+  );
 }
 
 function Message({ lang, text }: { lang: SiteLang; text: DictKey }) {
@@ -157,8 +162,10 @@ export default async function ResultatsPage({
         </span>
       </div>
 
-      <div className="flex flex-col gap-7 lg:flex-row lg:items-start">
-        <div className="flex w-full flex-col gap-6 lg:w-[32rem] lg:flex-none">
+      {/* Côte à côte seulement en grand écran : en dessous, le tableau des résultats prend toute la
+          largeur pour que toutes ses colonnes (bonus compris) restent visibles (RES-02). */}
+      <div className="flex flex-col gap-7 xl:flex-row xl:items-start">
+        <div className="flex w-full flex-col gap-6 xl:w-[24rem] xl:flex-none">
           <PixelPanel className="p-5">
             <h2 className="font-pixel mb-3.5 text-sm text-[#2b2b2b]">{t("res.podium")}</h2>
             <ol className="flex h-72 items-end justify-center gap-2.5">
@@ -219,17 +226,21 @@ export default async function ResultatsPage({
               <div className="mt-3 grid grid-cols-3 gap-2.5">
                 <div className="pixel-slot px-3 py-2 leading-none">
                   <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.speed")}</div>
-                  <div className="mt-1 text-4xl text-white">
-                    {formatNumber(lang, me.wpm)} {t("race.wpm")}
+                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
+                    {formatNumber(lang, me.wpm)} <span className="text-xl">{t("race.wpm")}</span>
                   </div>
                 </div>
                 <div className="pixel-slot px-3 py-2 leading-none">
                   <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.accuracy")}</div>
-                  <div className="mt-1 text-4xl text-white">{formatPercent(lang, me.accuracy)}</div>
+                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
+                    {formatPercent(lang, me.accuracy)}
+                  </div>
                 </div>
                 <div className="pixel-slot px-3 py-2 leading-none">
                   <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.errors")}</div>
-                  <div className="mt-1 text-4xl text-white">{me.errors}</div>
+                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
+                    {me.errors}
+                  </div>
                 </div>
               </div>
             </PixelPanel>
@@ -246,7 +257,7 @@ export default async function ResultatsPage({
                 aria-label={t("res.ranking")}
                 tabIndex={0}
               >
-                <table className="w-full min-w-[40rem] border-collapse text-left text-xl leading-tight">
+                <table className="w-full min-w-[40rem] border-collapse text-left text-lg leading-tight">
                   <caption className="sr-only">{t("res.ranking")}</caption>
                   <thead>
                     <tr>
@@ -290,7 +301,7 @@ export default async function ResultatsPage({
                         <td className="pr-2.5">{formatNumber(lang, p.rawWpm)}</td>
                         <td className="pr-2.5">{formatPercent(lang, p.accuracy)}</td>
                         <td className="pr-2.5">{p.errors}</td>
-                        <td className="pr-2.5">
+                        <td className="pr-2.5 whitespace-nowrap">
                           {p.status === "finished" ? formatRaceTime(lang, p.timeMs) : "—"}
                           {p.status === "finished" && p.penaltyMs > 0 && (
                             <span className="block text-base text-[#3a3a3a]">
@@ -300,7 +311,9 @@ export default async function ResultatsPage({
                             </span>
                           )}
                         </td>
-                        <td className="pr-2.5">{t(STATUS_KEY[p.status] ?? "res.status_other")}</td>
+                        <td className="pr-2.5 whitespace-nowrap">
+                          {t(STATUS_KEY[p.status] ?? "res.status_other")}
+                        </td>
                         <td className="pr-2.5 whitespace-nowrap" data-testid="xp-cell">
                           {p.xp === null ? (
                             "—"
@@ -311,7 +324,13 @@ export default async function ResultatsPage({
                             </span>
                           )}
                         </td>
-                        <td>{bonusSummary(lang, p)}</td>
+                        <td className="whitespace-nowrap">
+                          {bonusLines(lang, p).map((line) => (
+                            <span key={line} className="block">
+                              {line}
+                            </span>
+                          ))}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
