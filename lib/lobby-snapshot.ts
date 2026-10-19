@@ -1,4 +1,6 @@
-import { kysely as db } from "@/lib/db";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers, races, users } from "@/db/schema";
 import type { BotLevel } from "@/db/types";
 import { botDisplayName } from "@/lib/race/bots";
 import { championsCached } from "@/lib/leaderboard";
@@ -76,41 +78,33 @@ export type LobbyView = {
 };
 
 export async function loadLobbySnapshot(code: string): Promise<RawLobbySnapshot | null> {
-  const lobby = await db
-    .selectFrom("lobbies")
-    .selectAll()
-    .where("code", "=", code.toUpperCase())
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({ where: eq(lobbies.code, code.toUpperCase()) });
   if (!lobby) return null;
 
   const players = await db
-    .selectFrom("lobby_players")
-    .leftJoin("users", "users.id", "lobby_players.user_id")
-    .select([
-      "lobby_players.id",
-      "lobby_players.user_id",
-      "lobby_players.guest_id",
-      "lobby_players.guest_name",
-      "lobby_players.role",
-      "lobby_players.is_bot",
-      "lobby_players.bot_level",
-      "lobby_players.joined_at",
-      "users.display_name",
-      "users.avatar_url",
-    ])
-    .where("lobby_players.lobby_id", "=", lobby.id)
-    .where("lobby_players.active", "=", true)
-    .orderBy("lobby_players.joined_at", "asc")
-    .execute();
+    .select({
+      id: lobbyPlayers.id,
+      user_id: lobbyPlayers.user_id,
+      guest_id: lobbyPlayers.guest_id,
+      guest_name: lobbyPlayers.guest_name,
+      role: lobbyPlayers.role,
+      is_bot: lobbyPlayers.is_bot,
+      bot_level: lobbyPlayers.bot_level,
+      joined_at: lobbyPlayers.joined_at,
+      display_name: users.display_name,
+      avatar_url: users.avatar_url,
+    })
+    .from(lobbyPlayers)
+    .leftJoin(users, eq(users.id, lobbyPlayers.user_id))
+    .where(and(eq(lobbyPlayers.lobby_id, lobby.id), eq(lobbyPlayers.active, true)))
+    .orderBy(asc(lobbyPlayers.joined_at));
 
   const champions = await championsCached();
-  const activeRace = await db
-    .selectFrom("races")
-    .select(["id", "status", "starts_at"])
-    .where("lobby_id", "=", lobby.id)
-    .where("status", "in", ["countdown", "racing"])
-    .orderBy("created_at", "desc")
-    .executeTakeFirst();
+  const activeRace = await db.query.races.findFirst({
+    columns: { id: true, status: true, starts_at: true },
+    where: and(eq(races.lobby_id, lobby.id), inArray(races.status, ["countdown", "racing"])),
+    orderBy: desc(races.created_at),
+  });
 
   return {
     lobby: {

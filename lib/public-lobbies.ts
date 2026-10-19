@@ -1,6 +1,7 @@
-import { sql } from "kysely";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { kysely as db } from "@/lib/db";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers, races, users } from "@/db/schema";
 
 // JOIN-02 : explorateur des salles publiques (filtres langue et complexité).
 export const publicLobbyFilters = z.object({
@@ -30,46 +31,50 @@ export async function listPublicLobbies(
   filters: PublicLobbyFilters = {},
   limit = 50,
 ): Promise<PublicLobby[]> {
-  let query = db
-    .selectFrom("lobbies")
-    .leftJoin("users", "users.id", "lobbies.host_user_id")
-    .where("lobbies.access", "=", "public")
-    // Une salle disparaît de la liste dès la fin de la course (écran des résultats) ; elle y revient si l'hôte relance.
-    .where("lobbies.status", "in", ["lobby", "countdown", "racing"])
-    .select((eb) => [
-      "lobbies.code",
-      "lobbies.name",
-      "lobbies.language",
-      "lobbies.complexity",
-      "lobbies.text_type",
-      "lobbies.max_players",
-      "lobbies.status",
-      "users.display_name as host_name",
-      eb
-        .selectFrom("lobby_players")
-        .select((inner) => inner.fn.countAll<string>().as("n"))
-        .whereRef("lobby_players.lobby_id", "=", "lobbies.id")
-        .where("lobby_players.role", "=", "participant")
-        .where("lobby_players.active", "=", true)
-        .as("player_count"),
-      eb
-        .selectFrom("races")
-        .select(
-          // Sans temps maximal (durée 0), pas de temps restant.
-          sql<number | null>`case when races.duration_seconds = 0 then null else extract(epoch from (races.starts_at + make_interval(secs => races.duration_seconds) - now())) end`.as(
-            "left",
-          ),
-        )
-        .whereRef("races.lobby_id", "=", "lobbies.id")
-        .where("races.status", "in", ["countdown", "racing"])
-        .orderBy("races.created_at", "desc")
-        .limit(1)
-        .as("seconds_left"),
-    ]);
-  if (filters.language) query = query.where("lobbies.language", "=", filters.language);
-  if (filters.complexity) query = query.where("lobbies.complexity", "=", filters.complexity);
+  // Temps restant de la course en cours ; sans temps maximal (durée 0), aucun.
+  const secondsLeft = db
+    .select({
+      left: sql<number | null>`case when ${races.duration_seconds} = 0 then null
+        else extract(epoch from (${races.starts_at} + make_interval(secs => ${races.duration_seconds}) - now())) end`,
+    })
+    .from(races)
+    .where(and(eq(races.lobby_id, lobbies.id), inArray(races.status, ["countdown", "racing"])))
+    .orderBy(desc(races.created_at))
+    .limit(1);
 
-  const rows = await query.orderBy("lobbies.created_at", "desc").limit(limit).execute();
+  const rows = await db
+    .select({
+      code: lobbies.code,
+      name: lobbies.name,
+      language: lobbies.language,
+      complexity: lobbies.complexity,
+      text_type: lobbies.text_type,
+      max_players: lobbies.max_players,
+      status: lobbies.status,
+      host_name: users.display_name,
+      player_count: db.$count(
+        lobbyPlayers,
+        and(
+          eq(lobbyPlayers.lobby_id, lobbies.id),
+          eq(lobbyPlayers.role, "participant"),
+          eq(lobbyPlayers.active, true),
+        ),
+      ),
+      seconds_left: sql<number | string | null>`(${secondsLeft})`,
+    })
+    .from(lobbies)
+    .leftJoin(users, eq(users.id, lobbies.host_user_id))
+    .where(
+      and(
+        eq(lobbies.access, "public"),
+        // Une salle disparaît de la liste dès la fin de la course (écran des résultats) ; elle y revient si l'hôte relance.
+        inArray(lobbies.status, ["lobby", "countdown", "racing"]),
+        filters.language ? eq(lobbies.language, filters.language) : undefined,
+        filters.complexity ? eq(lobbies.complexity, filters.complexity) : undefined,
+      ),
+    )
+    .orderBy(desc(lobbies.created_at))
+    .limit(limit);
   return rows.map((r) => {
     const players = Number(r.player_count ?? 0);
     return {

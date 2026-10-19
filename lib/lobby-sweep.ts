@@ -1,4 +1,6 @@
-import { kysely as db } from "@/lib/db";
+import { and, asc, eq, gte, inArray, isNotNull, lt, ne } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import type { LobbyStatus } from "@/db/types";
 
 // Présence en salle d'attente et sur l'écran des résultats (SALLE-08) : l'hôte est considéré parti s'il
@@ -19,23 +21,32 @@ export async function sweepLobbies(now: Date = new Date()): Promise<SweepResult>
 
   // Joueurs disparus d'une salle en attente : on libère leur place.
   const released = await db
-    .updateTable("lobby_players")
+    .update(lobbyPlayers)
     .set({ active: false })
-    .where("active", "=", true)
-    .where("is_bot", "=", false)
-    .where("last_seen_at", "<", playerCutoff)
-    .where("lobby_id", "in", db.selectFrom("lobbies").select("id").where("status", "=", "lobby"))
-    .executeTakeFirst();
-  result.released = Number(released.numUpdatedRows ?? 0);
+    .where(
+      and(
+        eq(lobbyPlayers.active, true),
+        eq(lobbyPlayers.is_bot, false),
+        lt(lobbyPlayers.last_seen_at, playerCutoff),
+        inArray(
+          lobbyPlayers.lobby_id,
+          db.select({ id: lobbies.id }).from(lobbies).where(eq(lobbies.status, "lobby")),
+        ),
+      ),
+    );
+  result.released = released.rowCount ?? 0;
 
   // Hôte absent : en salle d'attente et sur l'écran des résultats (statut « finished »), où l'on
   // peut encore REJOUER ou FERMER LA SALLE. Pendant une course, voir `handOverHostDuringRace`.
   const stale = await db
-    .selectFrom("lobbies")
-    .select(["id", "host_user_id", "status"])
-    .where("status", "in", ["lobby", "finished"])
-    .where("last_host_seen_at", "<", hostCutoff)
-    .execute();
+    .select({ id: lobbies.id, host_user_id: lobbies.host_user_id, status: lobbies.status })
+    .from(lobbies)
+    .where(
+      and(
+        inArray(lobbies.status, ["lobby", "finished"]),
+        lt(lobbies.last_host_seen_at, hostCutoff),
+      ),
+    );
 
   for (const lobby of stale) {
     const outcome = await handOverHost(lobby.id, lobby.host_user_id, {
@@ -69,34 +80,32 @@ export async function handOverHost(
   currentHostUserId: string | null,
   { now, presentSince, closeIfNobody, fromStatuses }: HandOverOptions,
 ): Promise<"transferred" | "closed" | "kept"> {
-  let query = db
-    .selectFrom("lobby_players")
-    .select("user_id")
-    .where("lobby_id", "=", lobbyId)
-    .where("is_bot", "=", false)
-    .where("active", "=", true)
-    .where("user_id", "is not", null)
-    .where("user_id", "!=", currentHostUserId ?? "00000000-0000-0000-0000-000000000000");
-  if (presentSince) query = query.where("last_seen_at", ">=", presentSince);
-  const next = await query.orderBy("joined_at", "asc").executeTakeFirst();
+  const next = await db.query.lobbyPlayers.findFirst({
+    columns: { user_id: true },
+    where: and(
+      eq(lobbyPlayers.lobby_id, lobbyId),
+      eq(lobbyPlayers.is_bot, false),
+      eq(lobbyPlayers.active, true),
+      isNotNull(lobbyPlayers.user_id),
+      currentHostUserId ? ne(lobbyPlayers.user_id, currentHostUserId) : undefined,
+      presentSince ? gte(lobbyPlayers.last_seen_at, presentSince) : undefined,
+    ),
+    orderBy: asc(lobbyPlayers.joined_at),
+  });
 
   if (next?.user_id) {
     const res = await db
-      .updateTable("lobbies")
+      .update(lobbies)
       .set({ host_user_id: next.user_id, host_guest_id: null, last_host_seen_at: now })
-      .where("id", "=", lobbyId)
-      .where("status", "in", fromStatuses)
-      .executeTakeFirst();
-    return Number(res.numUpdatedRows ?? 0) > 0 ? "transferred" : "kept";
+      .where(and(eq(lobbies.id, lobbyId), inArray(lobbies.status, fromStatuses)));
+    return (res.rowCount ?? 0) > 0 ? "transferred" : "kept";
   }
   if (!closeIfNobody) return "kept";
   const res = await db
-    .updateTable("lobbies")
+    .update(lobbies)
     .set({ status: "closed", closed_at: now })
-    .where("id", "=", lobbyId)
-    .where("status", "in", fromStatuses)
-    .executeTakeFirst();
-  return Number(res.numUpdatedRows ?? 0) > 0 ? "closed" : "kept";
+    .where(and(eq(lobbies.id, lobbyId), inArray(lobbies.status, fromStatuses)));
+  return (res.rowCount ?? 0) > 0 ? "closed" : "kept";
 }
 
 /**
@@ -110,11 +119,10 @@ export async function handOverHostDuringRace(
   leavingUserId: string,
   now: Date = new Date(),
 ): Promise<"transferred" | "kept"> {
-  const lobby = await db
-    .selectFrom("lobbies")
-    .select(["host_user_id", "status"])
-    .where("id", "=", lobbyId)
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({
+    columns: { host_user_id: true, status: true },
+    where: eq(lobbies.id, lobbyId),
+  });
   if (!lobby || lobby.host_user_id !== leavingUserId) return "kept";
   if (lobby.status !== "countdown" && lobby.status !== "racing") return "kept";
   const outcome = await handOverHost(lobbyId, leavingUserId, {

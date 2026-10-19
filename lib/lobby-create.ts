@@ -1,8 +1,7 @@
-import { kysely as db } from "@/lib/db";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers, type Lobby } from "@/db/schema";
 import { generateUniqueLobbyCode } from "@/lib/lobby";
 import type { LobbySettings } from "@/lib/lobby-schema";
-import type { Selectable } from "kysely";
-import type { LobbiesTable } from "@/db/types";
 import { toAccentTypes, toBonusKinds } from "@/lib/lobby-choices";
 
 /** Crée une salle pour un compte avec ces réglages ; l'hôte y entre avec son rôle. Renvoie le code. */
@@ -11,8 +10,8 @@ export async function createLobby(
   s: LobbySettings & { name: string },
 ): Promise<string> {
   const code = await generateUniqueLobbyCode();
-  const lobby = await db
-    .insertInto("lobbies")
+  const [lobby] = await db
+    .insert(lobbies)
     .values({
       code,
       host_user_id: userId,
@@ -38,20 +37,15 @@ export async function createLobby(
       accent_wanted: s.accentWanted,
       accent_forbidden: s.accentForbidden,
     })
-    .returning(["id", "code"])
-    .executeTakeFirstOrThrow();
+    .returning({ id: lobbies.id, code: lobbies.code });
+  if (!lobby) throw new Error("création de salle : aucune ligne créée");
 
-  await db
-    .insertInto("lobby_players")
-    .values({ lobby_id: lobby.id, user_id: userId, role: s.hostRole })
-    .execute();
+  await db.insert(lobbyPlayers).values({ lobby_id: lobby.id, user_id: userId, role: s.hostRole });
   return lobby.code;
 }
 
 /** Les réglages d'une salle existante, tels qu'on les redonnerait à `createLobby` (REJOUER depuis l'historique). */
-export function settingsFromLobby(
-  lobby: Selectable<LobbiesTable>,
-): LobbySettings & { name: string } {
+export function settingsFromLobby(lobby: Lobby): LobbySettings & { name: string } {
   return {
     name: lobby.name,
     access: lobby.access,

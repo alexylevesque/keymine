@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
-import { getLobbyByCode, isHost } from "@/lib/lobby";
+import { getLobbyByCode, isHost, isPlayer } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";
 
 // COUR-13/COUR-15: présence du joueur (reconnexion) et de l'hôte (transfert
@@ -13,26 +15,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
 
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
 
   await db
-    .updateTable("lobby_players")
+    .update(lobbyPlayers)
     .set({ last_seen_at: new Date() })
-    .where("lobby_id", "=", lobby.id)
-    .where((eb) =>
-      identity.kind === "user"
-        ? eb("user_id", "=", identity.userId)
-        : eb("guest_id", "=", identity.guestId),
-    )
-    .execute();
+    .where(and(eq(lobbyPlayers.lobby_id, lobby.id), isPlayer(identity)));
 
   if (isHost(identity, lobby)) {
-    await db
-      .updateTable("lobbies")
-      .set({ last_host_seen_at: new Date() })
-      .where("id", "=", lobby.id)
-      .execute();
+    await db.update(lobbies).set({ last_host_seen_at: new Date() }).where(eq(lobbies.id, lobby.id));
   }
 
   return NextResponse.json({ ok: true });

@@ -1,6 +1,8 @@
 import { customAlphabet } from "nanoid";
 import { lobbyCodeSchema } from "@/lib/api-input";
-import { kysely as db } from "@/lib/db";
+import { and, eq, inArray, ne } from "drizzle-orm";
+import { db, isUniqueViolation } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import type { Identity } from "@/lib/auth/identity";
 import { isBanned } from "@/lib/bans";
 
@@ -11,12 +13,10 @@ const nanoLobbyCode = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
 export async function generateUniqueLobbyCode(): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const code = nanoLobbyCode();
-    const existing = await db
-      .selectFrom("lobbies")
-      .select("id")
-      .where("code", "=", code)
-      .where("status", "in", ["lobby", "countdown", "racing"])
-      .executeTakeFirst();
+    const existing = await db.query.lobbies.findFirst({
+      columns: { id: true },
+      where: and(eq(lobbies.code, code), inArray(lobbies.status, ["lobby", "countdown", "racing"])),
+    });
     if (!existing) return code;
   }
   throw new Error("Impossible de générer un code de salle unique");
@@ -34,10 +34,17 @@ export function isHost(
 export async function getLobbyByCode(code: string) {
   const parsed = lobbyCodeSchema.safeParse(code);
   if (!parsed.success) return undefined;
-  return db.selectFrom("lobbies").selectAll().where("code", "=", parsed.data).executeTakeFirst();
+  return db.query.lobbies.findFirst({ where: eq(lobbies.code, parsed.data) });
 }
 
 type PlayerRole = "participant" | "spectator";
+
+/** Condition « cette ligne de lobby_players est cette personne » (compte ou invité). */
+export function isPlayer(identity: Identity) {
+  return identity.kind === "user"
+    ? eq(lobbyPlayers.user_id, identity.userId)
+    : eq(lobbyPlayers.guest_id, identity.guestId);
+}
 
 export type JoinResult =
   | { ok: true }
@@ -47,29 +54,30 @@ export type JoinResult =
 
 /** Salle active (non fermée) où cette personne se trouve déjà, s'il y en a une (SALLE-06). */
 export async function findActiveRoom(identity: Identity) {
-  return db
-    .selectFrom("lobby_players")
-    .innerJoin("lobbies", "lobbies.id", "lobby_players.lobby_id")
-    .select(["lobbies.id", "lobbies.code"])
-    .where("lobby_players.active", "=", true)
-    .where("lobbies.status", "<>", "closed") // une salle fermée ne retient plus personne
-    .where((eb) =>
-      identity.kind === "user"
-        ? eb("lobby_players.user_id", "=", identity.userId)
-        : eb("lobby_players.guest_id", "=", identity.guestId),
+  const [room] = await db
+    .select({ id: lobbies.id, code: lobbies.code })
+    .from(lobbyPlayers)
+    .innerJoin(lobbies, eq(lobbies.id, lobbyPlayers.lobby_id))
+    .where(
+      and(
+        eq(lobbyPlayers.active, true),
+        ne(lobbies.status, "closed"), // une salle fermée ne retient plus personne
+        isPlayer(identity),
+      ),
     )
-    .executeTakeFirst();
+    .limit(1);
+  return room;
 }
 
 async function participantCount(lobbyId: string): Promise<number> {
-  const count = await db
-    .selectFrom("lobby_players")
-    .select((eb) => eb.fn.countAll<number>().as("n"))
-    .where("lobby_id", "=", lobbyId)
-    .where("role", "=", "participant")
-    .where("active", "=", true)
-    .executeTakeFirst();
-  return Number(count?.n ?? 0);
+  return db.$count(
+    lobbyPlayers,
+    and(
+      eq(lobbyPlayers.lobby_id, lobbyId),
+      eq(lobbyPlayers.role, "participant"),
+      eq(lobbyPlayers.active, true),
+    ),
+  );
 }
 
 /**
@@ -87,28 +95,22 @@ export async function joinLobby(
   // SALLE-07 : une personne expulsée ne peut plus rejoindre cette salle.
   if (await isBanned(lobby.id, identity)) return { ok: false, reason: "banned" };
 
-  const existing = await db
-    .selectFrom("lobby_players")
-    .select(["id", "active", "role"])
-    .where("lobby_id", "=", lobby.id)
-    .where((eb) =>
-      identity.kind === "user"
-        ? eb("user_id", "=", identity.userId)
-        : eb("guest_id", "=", identity.guestId),
-    )
-    .executeTakeFirst();
+  const existing = await db.query.lobbyPlayers.findFirst({
+    columns: { id: true, active: true, role: true },
+    where: and(eq(lobbyPlayers.lobby_id, lobby.id), isPlayer(identity)),
+  });
 
   const wanted: PlayerRole = role ?? existing?.role ?? "participant";
-  const needsSeat = wanted === "participant" && !(existing?.active && existing.role === "participant");
+  const needsSeat =
+    wanted === "participant" && !(existing?.active && existing.role === "participant");
   const full = needsSeat && (await participantCount(lobby.id)) >= lobby.max_players;
 
   if (existing?.active) {
     if (full) return { ok: false, reason: "full" };
     await db
-      .updateTable("lobby_players")
+      .update(lobbyPlayers)
       .set({ role: wanted, last_seen_at: new Date() })
-      .where("id", "=", existing.id)
-      .execute();
+      .where(eq(lobbyPlayers.id, existing.id));
     return { ok: true };
   }
 
@@ -119,25 +121,21 @@ export async function joinLobby(
   try {
     if (existing) {
       await db
-        .updateTable("lobby_players")
+        .update(lobbyPlayers)
         .set({ active: true, role: wanted, last_seen_at: new Date(), joined_at: new Date() })
-        .where("id", "=", existing.id)
-        .execute();
+        .where(eq(lobbyPlayers.id, existing.id));
     } else {
-      await db
-        .insertInto("lobby_players")
-        .values({
-          lobby_id: lobby.id,
-          user_id: identity.kind === "user" ? identity.userId : null,
-          guest_id: identity.kind === "guest" ? identity.guestId : null,
-          guest_name: identity.kind === "guest" ? identity.displayName : null,
-          role: wanted,
-        })
-        .execute();
+      await db.insert(lobbyPlayers).values({
+        lobby_id: lobby.id,
+        user_id: identity.kind === "user" ? identity.userId : null,
+        guest_id: identity.kind === "guest" ? identity.guestId : null,
+        guest_name: identity.kind === "guest" ? identity.displayName : null,
+        role: wanted,
+      });
     }
   } catch (error) {
     // Course entre deux onglets: l'index unique de SALLE-06 a refusé le doublon.
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+    if (isUniqueViolation(error)) {
       const concurrent = await findActiveRoom(identity);
       if (concurrent && concurrent.id === lobby.id) return { ok: true };
       if (concurrent) return { ok: false, reason: "already_in_room", currentCode: concurrent.code };

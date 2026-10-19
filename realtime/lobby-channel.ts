@@ -1,6 +1,8 @@
 import { Client } from "pg";
 import type { WebSocket } from "ws";
-import { kysely as db } from "@/lib/db";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { loadLobbySnapshot, viewLobby, type Viewer } from "@/lib/lobby-snapshot";
 import { sweepLobbies } from "@/lib/lobby-sweep";
 import type { RealtimeIdentity } from "./auth";
@@ -52,7 +54,9 @@ async function refresh(code: string) {
   const keys = connectedKeys(code);
   for (const m of [...members]) {
     const stillIn = raw.players.some((p) =>
-      m.identity.kind === "user" ? p.userId === m.identity.userId : p.guestId === m.identity.guestId,
+      m.identity.kind === "user"
+        ? p.userId === m.identity.userId
+        : p.guestId === m.identity.guestId,
     );
     if (!stillIn) {
       send(m.socket, { type: "removed" });
@@ -75,19 +79,21 @@ export function scheduleRefresh(code: string) {
 }
 
 async function isActiveMember(code: string, identity: RealtimeIdentity): Promise<boolean> {
-  const row = await db
-    .selectFrom("lobby_players")
-    .innerJoin("lobbies", "lobbies.id", "lobby_players.lobby_id")
-    .select("lobby_players.id")
-    .where("lobbies.code", "=", code)
-    .where("lobbies.status", "!=", "closed")
-    .where("lobby_players.active", "=", true)
-    .where((eb) =>
-      identity.kind === "user"
-        ? eb("lobby_players.user_id", "=", identity.userId)
-        : eb("lobby_players.guest_id", "=", identity.guestId),
+  const [row] = await db
+    .select({ id: lobbyPlayers.id })
+    .from(lobbyPlayers)
+    .innerJoin(lobbies, eq(lobbies.id, lobbyPlayers.lobby_id))
+    .where(
+      and(
+        eq(lobbies.code, code),
+        ne(lobbies.status, "closed"),
+        eq(lobbyPlayers.active, true),
+        identity.kind === "user"
+          ? eq(lobbyPlayers.user_id, identity.userId)
+          : eq(lobbyPlayers.guest_id, identity.guestId),
+      ),
     )
-    .executeTakeFirst();
+    .limit(1);
   return !!row;
 }
 
@@ -135,34 +141,35 @@ export async function attachLobbySocket(
 async function touchPresence(code: string) {
   const members = channels.get(code);
   if (!members || members.size === 0) return;
-  const userIds = [...members].flatMap((m) => (m.identity.kind === "user" ? [m.identity.userId] : []));
-  const guestIds = [...members].flatMap((m) => (m.identity.kind === "guest" ? [m.identity.guestId] : []));
+  const userIds = [...members].flatMap((m) =>
+    m.identity.kind === "user" ? [m.identity.userId] : [],
+  );
+  const guestIds = [...members].flatMap((m) =>
+    m.identity.kind === "guest" ? [m.identity.guestId] : [],
+  );
   const now = new Date();
 
-  const lobby = await db
-    .selectFrom("lobbies")
-    .select(["id", "host_user_id", "host_guest_id"])
-    .where("code", "=", code)
-    .executeTakeFirst();
+  const lobby = await db.query.lobbies.findFirst({
+    columns: { id: true, host_user_id: true, host_guest_id: true },
+    where: eq(lobbies.code, code),
+  });
   if (!lobby) return;
 
+  const connected = or(
+    userIds.length ? inArray(lobbyPlayers.user_id, userIds) : undefined,
+    guestIds.length ? inArray(lobbyPlayers.guest_id, guestIds) : undefined,
+  );
+  if (!connected) return; // sans condition, la mise à jour toucherait toute la salle
   await db
-    .updateTable("lobby_players")
+    .update(lobbyPlayers)
     .set({ last_seen_at: now })
-    .where("lobby_id", "=", lobby.id)
-    .where((eb) =>
-      eb.or([
-        ...(userIds.length ? [eb("user_id", "in", userIds)] : []),
-        ...(guestIds.length ? [eb("guest_id", "in", guestIds)] : []),
-      ]),
-    )
-    .execute();
+    .where(and(eq(lobbyPlayers.lobby_id, lobby.id), connected));
 
   const hostHere =
     (lobby.host_user_id && userIds.includes(lobby.host_user_id)) ||
     (lobby.host_guest_id && guestIds.includes(lobby.host_guest_id));
   if (hostHere) {
-    await db.updateTable("lobbies").set({ last_host_seen_at: now }).where("id", "=", lobby.id).execute();
+    await db.update(lobbies).set({ last_host_seen_at: now }).where(eq(lobbies.id, lobby.id));
   }
 }
 

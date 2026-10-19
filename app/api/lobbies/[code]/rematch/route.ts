@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import { assertTransition, canTransition } from "@/lib/race/state";
@@ -15,22 +17,26 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
 
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
   if (!isHost(identity, lobby)) {
     return NextResponse.json({ error: await msg("host_only_rematch") }, { status: 403 });
   }
   if (lobby.status === "lobby") return NextResponse.json({ ok: true }); // déjà en attente
   if (!canTransition(lobby.status, "lobby")) {
-    return NextResponse.json({ error: await msg("not_finished"), code: "not_finished" }, { status: 409 });
+    return NextResponse.json(
+      { error: await msg("not_finished"), code: "not_finished" },
+      { status: 409 },
+    );
   }
 
   assertTransition(lobby.status, "lobby");
   await db
-    .updateTable("lobbies")
+    .update(lobbies)
     .set({ status: "lobby", last_host_seen_at: new Date() })
-    .where("id", "=", lobby.id)
-    .where("status", "=", "finished")
-    .execute();
+    .where(and(eq(lobbies.id, lobby.id), eq(lobbies.status, "finished")));
   return NextResponse.json({ ok: true });
 }

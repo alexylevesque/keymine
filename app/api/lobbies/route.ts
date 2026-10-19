@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { findActiveRoom } from "@/lib/lobby";
 import { createLobby } from "@/lib/lobby-create";
@@ -11,31 +13,26 @@ import { getRequestLang } from "@/lib/i18n-server";
 
 // COUR-16: liste des lobbys publics affichée à l'accueil.
 export async function GET() {
-  const lobbies = await db
-    .selectFrom("lobbies")
-    .where("status", "=", "lobby")
-    .where("access", "=", "public")
-    .select((eb) => [
-      "id",
-      "code",
-      "name",
-      "language",
-      "text_type",
-      "complexity",
-      "max_players",
-      eb
-        .selectFrom("lobby_players")
-        .select((inner) => inner.fn.countAll<number>().as("count"))
-        .whereRef("lobby_players.lobby_id", "=", "lobbies.id")
-        .where("role", "=", "participant")
-        .as("player_count"),
-    ])
-    .orderBy("created_at", "desc")
-    .limit(20)
-    .execute();
+  const rows = await db
+    .select({
+      code: lobbies.code,
+      name: lobbies.name,
+      language: lobbies.language,
+      text_type: lobbies.text_type,
+      complexity: lobbies.complexity,
+      max_players: lobbies.max_players,
+      player_count: db.$count(
+        lobbyPlayers,
+        and(eq(lobbyPlayers.lobby_id, lobbies.id), eq(lobbyPlayers.role, "participant")),
+      ),
+    })
+    .from(lobbies)
+    .where(and(eq(lobbies.status, "lobby"), eq(lobbies.access, "public")))
+    .orderBy(desc(lobbies.created_at))
+    .limit(20);
 
   return NextResponse.json({
-    lobbies: lobbies.map((l) => ({
+    lobbies: rows.map((l) => ({
       code: l.code,
       name: l.name,
       language: l.language,
@@ -52,7 +49,9 @@ export async function POST(request: Request) {
   const raw: unknown = await request.json().catch(() => ({}));
   // CONF-02 : sans langue précisée (partie rapide, salle par défaut), le texte suit la langue du site.
   const withLanguage =
-    raw && typeof raw === "object" && !("language" in raw) ? { ...raw, language: await getRequestLang() } : raw;
+    raw && typeof raw === "object" && !("language" in raw)
+      ? { ...raw, language: await getRequestLang() }
+      : raw;
   const body = lobbySettingsSchema.safeParse(withLanguage);
   if (!body.success) {
     return NextResponse.json(

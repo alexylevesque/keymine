@@ -5,7 +5,9 @@ import { clientIpFrom } from "@/lib/client-ip";
 import { redeemInvite } from "@/lib/invites";
 import { isJoinRateLimited, recordFailedJoin } from "@/lib/join-limit";
 import { joinLobby } from "@/lib/lobby";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyInvites } from "@/db/schema";
 import { msg } from "@/lib/api-messages";
 import { inviteTokenSchema } from "@/lib/api-input";
 
@@ -30,20 +32,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
 
   if (!parsedToken.success) {
     await recordFailedJoin(ip);
-    return NextResponse.json({ error: await msg("invite_invalid"), code: "invalid" }, { status: 404 });
+    return NextResponse.json(
+      { error: await msg("invite_invalid"), code: "invalid" },
+      { status: 404 },
+    );
   }
   const token = parsedToken.data;
 
-  const invite = await db
-    .selectFrom("lobby_invites")
-    .select("lobby_id")
-    .where("token", "=", token)
-    .executeTakeFirst();
+  const invite = await db.query.lobbyInvites.findFirst({
+    columns: { lobby_id: true },
+    where: eq(lobbyInvites.token, token),
+  });
   if (invite && (await isBanned(invite.lobby_id, identity))) {
     return NextResponse.json({ error: await msg("banned"), code: "banned" }, { status: 403 });
   }
@@ -55,15 +62,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: await msg(key), code: redeemed.reason }, { status });
   }
 
-  const lobby = await db.selectFrom("lobbies").selectAll().where("id", "=", redeemed.lobbyId).executeTakeFirstOrThrow();
+  const lobby = await db.query.lobbies.findFirst({ where: eq(lobbies.id, redeemed.lobbyId) });
+  if (!lobby) throw new Error("invitation : salle introuvable");
   if (lobby.status === "countdown" || lobby.status === "racing") {
-    return NextResponse.json({ error: await msg("race_in_progress"), code: "race_in_progress" }, { status: 409 });
+    return NextResponse.json(
+      { error: await msg("race_in_progress"), code: "race_in_progress" },
+      { status: 409 },
+    );
   }
   const result = await joinLobby(lobby, identity);
   if (!result.ok) {
     if (result.reason === "already_in_room") {
       return NextResponse.json(
-        { error: await msg("already_in_room"), code: "already_in_room", currentCode: result.currentCode },
+        {
+          error: await msg("already_in_room"),
+          code: "already_in_room",
+          currentCode: result.currentCode,
+        },
         { status: 409 },
       );
     }

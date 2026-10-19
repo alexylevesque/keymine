@@ -602,3 +602,9 @@ export const shopOffers = pgTable(
     check("shop_offers_check", sql`(bought >= 0) AND (bought <= stock)`),
   ],
 );
+
+export type User = typeof users.$inferSelect;
+export type Lobby = typeof lobbies.$inferSelect;
+export type LobbyPlayer = typeof lobbyPlayers.$inferSelect;
+export type Race = typeof races.$inferSelect;
+export type RaceParticipant = typeof raceParticipants.$inferSelect;

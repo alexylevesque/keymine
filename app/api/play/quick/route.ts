@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { sql } from "kysely";
-import { kysely as db } from "@/lib/db";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { joinLobby } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";
@@ -13,26 +14,31 @@ import { msg } from "@/lib/api-messages";
 export async function POST() {
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
 
+  const participants = db.$count(
+    lobbyPlayers,
+    and(
+      eq(lobbyPlayers.lobby_id, lobbies.id),
+      eq(lobbyPlayers.role, "participant"),
+      eq(lobbyPlayers.active, true),
+    ),
+  );
   const candidates = await db
-    .selectFrom("lobbies")
-    .select([
-      "lobbies.id",
-      "lobbies.code",
-      "lobbies.max_players",
-      sql<number>`(select count(*) from lobby_players lp
-                   where lp.lobby_id = lobbies.id and lp.role = 'participant' and lp.active)`.as(
-        "participants",
-      ),
-    ])
-    .where("lobbies.status", "=", "lobby")
-    .where("lobbies.access", "=", "public")
-    .orderBy(sql`lobbies.max_players - (select count(*) from lobby_players lp
-                   where lp.lobby_id = lobbies.id and lp.role = 'participant' and lp.active)`)
-    .orderBy("lobbies.created_at", "asc")
-    .execute();
+    .select({
+      id: lobbies.id,
+      code: lobbies.code,
+      max_players: lobbies.max_players,
+      participants,
+    })
+    .from(lobbies)
+    .where(and(eq(lobbies.status, "lobby"), eq(lobbies.access, "public")))
+    // Le moins de places libres d'abord ; à égalité, la plus ancienne.
+    .orderBy(sql`${lobbies.max_players} - ${participants}`, asc(lobbies.created_at));
 
   for (const lobby of candidates) {
     if (Number(lobby.participants) >= lobby.max_players) continue;
@@ -40,14 +46,22 @@ export async function POST() {
     if (result.ok) return NextResponse.json({ code: lobby.code });
     if (result.reason === "already_in_room") {
       return NextResponse.json(
-        { error: await msg("already_in_room"), code: "already_in_room", currentCode: result.currentCode },
+        {
+          error: await msg("already_in_room"),
+          code: "already_in_room",
+          currentCode: result.currentCode,
+        },
         { status: 409 },
       );
     }
   }
 
   return NextResponse.json(
-    { error: await msg("none_available"), code: "none_available", canCreate: identity.kind === "user" },
+    {
+      error: await msg("none_available"),
+      code: "none_available",
+      canCreate: identity.kind === "user",
+    },
     { status: 404 },
   );
 }

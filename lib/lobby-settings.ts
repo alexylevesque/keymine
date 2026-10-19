@@ -1,4 +1,6 @@
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import type { LobbyUpdate } from "@/lib/lobby-schema";
 
 // CONF-12 : application des modifications de réglages faites par l'hôte.
@@ -17,19 +19,23 @@ type LobbyRow = {
   accent_forbidden: string[];
 };
 
-export async function applyLobbySettings(lobby: LobbyRow, s: LobbyUpdate): Promise<ApplySettingsResult> {
+export async function applyLobbySettings(
+  lobby: LobbyRow,
+  s: LobbyUpdate,
+): Promise<ApplySettingsResult> {
   if (lobby.status !== "lobby") return { ok: false, reason: "not_waiting" };
 
   // Réduire la capacité sous le nombre de participants actuel n'a pas de sens.
   if (s.maxPlayers !== undefined) {
-    const count = await db
-      .selectFrom("lobby_players")
-      .select((eb) => eb.fn.countAll<string>().as("n"))
-      .where("lobby_id", "=", lobby.id)
-      .where("role", "=", "participant")
-      .where("active", "=", true)
-      .executeTakeFirst();
-    if (s.maxPlayers < Number(count?.n ?? 0)) return { ok: false, reason: "capacity_too_low" };
+    const count = await db.$count(
+      lobbyPlayers,
+      and(
+        eq(lobbyPlayers.lobby_id, lobby.id),
+        eq(lobbyPlayers.role, "participant"),
+        eq(lobbyPlayers.active, true),
+      ),
+    );
+    if (s.maxPlayers < count) return { ok: false, reason: "capacity_too_low" };
   }
 
   // Un caractère ne peut pas être à la fois inclus et exclu (CONF-07), y compris
@@ -41,10 +47,11 @@ export async function applyLobbySettings(lobby: LobbyRow, s: LobbyUpdate): Promi
   if (
     include.some((c) => exclude.includes(c)) ||
     accentWanted.some((a) => accentForbidden.includes(a))
-  ) return { ok: false, reason: "include_exclude_conflict" };
+  )
+    return { ok: false, reason: "include_exclude_conflict" };
 
   const updated = await db
-    .updateTable("lobbies")
+    .update(lobbies)
     .set({
       ...(s.name !== undefined && { name: s.name }),
       ...(s.access !== undefined && { access: s.access }),
@@ -67,10 +74,8 @@ export async function applyLobbySettings(lobby: LobbyRow, s: LobbyUpdate): Promi
       ...(s.comebackBonus !== undefined && { comeback_bonus: s.comebackBonus }),
       ...(s.bonusKinds !== undefined && { bonus_kinds: s.bonusKinds }),
     })
-    .where("id", "=", lobby.id)
-    .where("status", "=", "lobby")
-    .executeTakeFirst();
+    .where(and(eq(lobbies.id, lobby.id), eq(lobbies.status, "lobby")));
   // La salle a quitté l'attente entre la lecture et l'écriture (démarrage concurrent).
-  if (Number(updated.numUpdatedRows) === 0) return { ok: false, reason: "not_waiting" };
+  if ((updated.rowCount ?? 0) === 0) return { ok: false, reason: "not_waiting" };
   return { ok: true };
 }

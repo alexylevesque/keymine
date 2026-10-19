@@ -41,3 +41,15 @@ if (process.env.NODE_ENV !== "production") {
   globalThis.__keymineDb = db;
   globalThis.__keymineKysely = kysely;
 }
+
+/** Erreur PostgreSQL « valeur en double » (index unique), même enveloppée par Drizzle. */
+export function isUniqueViolation(error: unknown): boolean {
+  for (
+    let e: unknown = error;
+    typeof e === "object" && e !== null;
+    e = (e as { cause?: unknown }).cause
+  ) {
+    if ("code" in e && e.code === "23505") return true;
+  }
+  return false;
+}

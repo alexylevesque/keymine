@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyPlayers } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import { sweepLobbies } from "@/lib/lobby-sweep";
@@ -45,17 +47,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   if (lobby.status !== "closed") {
     assertTransition(lobby.status, "closed");
     await db
-      .updateTable("lobbies")
+      .update(lobbies)
       .set({ status: "closed", closed_at: new Date() })
-      .where("id", "=", lobby.id)
-      .execute();
+      .where(eq(lobbies.id, lobby.id));
     await revokeAllInvites(lobby.id); // SALLE-04 : plus aucun lien ne fonctionne
     // Une salle fermée ne retient plus personne : chacun peut en créer ou en rejoindre une autre (SALLE-06).
-    await db
-      .updateTable("lobby_players")
-      .set({ active: false })
-      .where("lobby_id", "=", lobby.id)
-      .execute();
+    await db.update(lobbyPlayers).set({ active: false }).where(eq(lobbyPlayers.lobby_id, lobby.id));
   }
 
   return NextResponse.json({ ok: true });

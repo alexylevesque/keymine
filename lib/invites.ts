@@ -1,4 +1,6 @@
-import { kysely as db } from "@/lib/db";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbies, lobbyInvites } from "@/db/schema";
 import type { Identity } from "@/lib/auth/identity";
 import { generateInviteToken } from "@/lib/invite-token";
 
@@ -19,30 +21,26 @@ export type InviteView = {
 export const MAX_INVITES_PER_LOBBY = 60;
 
 export async function createInvite(lobbyId: string, label?: string | null) {
-  const count = await db
-    .selectFrom("lobby_invites")
-    .select((eb) => eb.fn.countAll<string>().as("n"))
-    .where("lobby_id", "=", lobbyId)
-    .where("revoked_at", "is", null)
-    .executeTakeFirst();
-  if (Number(count?.n ?? 0) >= MAX_INVITES_PER_LOBBY) return null;
-  return db
-    .insertInto("lobby_invites")
+  const count = await db.$count(
+    lobbyInvites,
+    and(eq(lobbyInvites.lobby_id, lobbyId), isNull(lobbyInvites.revoked_at)),
+  );
+  if (count >= MAX_INVITES_PER_LOBBY) return null;
+  const [invite] = await db
+    .insert(lobbyInvites)
     .values({ lobby_id: lobbyId, token: generateInviteToken(), label: label?.trim() || null })
-    .returning(["id", "token"])
-    .executeTakeFirstOrThrow();
+    .returning({ id: lobbyInvites.id, token: lobbyInvites.token });
+  if (!invite) throw new Error("invitation : aucune ligne créée");
+  return invite;
 }
 
 // Un lien révoqué disparaît de la liste (et ne compte plus dans la limite) pour que l'hôte
 // puisse réinviter la personne ; la ligne reste en base pour que le lien soit refusé (« révoqué »).
 export async function listInvites(lobbyId: string): Promise<InviteView[]> {
-  const rows = await db
-    .selectFrom("lobby_invites")
-    .selectAll()
-    .where("lobby_id", "=", lobbyId)
-    .where("revoked_at", "is", null)
-    .orderBy("created_at", "asc")
-    .execute();
+  const rows = await db.query.lobbyInvites.findMany({
+    where: and(eq(lobbyInvites.lobby_id, lobbyId), isNull(lobbyInvites.revoked_at)),
+    orderBy: asc(lobbyInvites.created_at),
+  });
   return rows.map((r) => ({
     id: r.id,
     token: r.token,
@@ -55,13 +53,16 @@ export async function listInvites(lobbyId: string): Promise<InviteView[]> {
 
 export async function revokeInvite(lobbyId: string, inviteId: string): Promise<boolean> {
   const res = await db
-    .updateTable("lobby_invites")
+    .update(lobbyInvites)
     .set({ revoked_at: new Date() })
-    .where("id", "=", inviteId)
-    .where("lobby_id", "=", lobbyId)
-    .where("revoked_at", "is", null)
-    .executeTakeFirst();
-  return Number(res.numUpdatedRows) > 0;
+    .where(
+      and(
+        eq(lobbyInvites.id, inviteId),
+        eq(lobbyInvites.lobby_id, lobbyId),
+        isNull(lobbyInvites.revoked_at),
+      ),
+    );
+  return (res.rowCount ?? 0) > 0;
 }
 
 /** Révoque tous les liens utilisés par cette personne (expulsion, SALLE-07). */
@@ -70,26 +71,25 @@ export async function revokeInvitesOf(
   who: { userId?: string | null; guestId?: string | null },
 ) {
   await db
-    .updateTable("lobby_invites")
+    .update(lobbyInvites)
     .set({ revoked_at: new Date() })
-    .where("lobby_id", "=", lobbyId)
-    .where("revoked_at", "is", null)
-    .where((eb) =>
-      who.userId
-        ? eb("claimed_user_id", "=", who.userId)
-        : eb("claimed_guest_id", "=", who.guestId ?? ""),
-    )
-    .execute();
+    .where(
+      and(
+        eq(lobbyInvites.lobby_id, lobbyId),
+        isNull(lobbyInvites.revoked_at),
+        who.userId
+          ? eq(lobbyInvites.claimed_user_id, who.userId)
+          : eq(lobbyInvites.claimed_guest_id, who.guestId ?? ""),
+      ),
+    );
 }
 
 /** Fermeture de la salle : tous les liens deviennent invalides. */
 export async function revokeAllInvites(lobbyId: string) {
   await db
-    .updateTable("lobby_invites")
+    .update(lobbyInvites)
     .set({ revoked_at: new Date() })
-    .where("lobby_id", "=", lobbyId)
-    .where("revoked_at", "is", null)
-    .execute();
+    .where(and(eq(lobbyInvites.lobby_id, lobbyId), isNull(lobbyInvites.revoked_at)));
 }
 
 export type RedeemResult =
@@ -106,19 +106,19 @@ export async function redeemInvite(
   identity: Identity,
   ip: string,
 ): Promise<RedeemResult> {
-  const invite = await db
-    .selectFrom("lobby_invites")
-    .innerJoin("lobbies", "lobbies.id", "lobby_invites.lobby_id")
-    .select([
-      "lobby_invites.id as id",
-      "lobby_invites.revoked_at as revoked_at",
-      "lobby_invites.claimed_ip as claimed_ip",
-      "lobbies.id as lobby_id",
-      "lobbies.code as lobby_code",
-      "lobbies.status as lobby_status",
-    ])
-    .where("lobby_invites.token", "=", token)
-    .executeTakeFirst();
+  const [invite] = await db
+    .select({
+      id: lobbyInvites.id,
+      revoked_at: lobbyInvites.revoked_at,
+      claimed_ip: lobbyInvites.claimed_ip,
+      lobby_id: lobbies.id,
+      lobby_code: lobbies.code,
+      lobby_status: lobbies.status,
+    })
+    .from(lobbyInvites)
+    .innerJoin(lobbies, eq(lobbies.id, lobbyInvites.lobby_id))
+    .where(eq(lobbyInvites.token, token))
+    .limit(1);
 
   if (!invite) return { ok: false, reason: "invalid" };
   if (invite.lobby_status === "closed") return { ok: false, reason: "closed" };
@@ -128,7 +128,7 @@ export async function redeemInvite(
 
   if (!invite.claimed_ip) {
     const claimed = await db
-      .updateTable("lobby_invites")
+      .update(lobbyInvites)
       .set({
         claimed_at: new Date(),
         claimed_ip: ip,
@@ -136,16 +136,13 @@ export async function redeemInvite(
         claimed_guest_id: identity.kind === "guest" ? identity.guestId : null,
         claimed_name: identity.displayName,
       })
-      .where("id", "=", invite.id)
-      .where("claimed_ip", "is", null)
-      .executeTakeFirst();
-    if (Number(claimed.numUpdatedRows) > 0) return ok;
+      .where(and(eq(lobbyInvites.id, invite.id), isNull(lobbyInvites.claimed_ip)));
+    if ((claimed.rowCount ?? 0) > 0) return ok;
     // Quelqu'un l'a pris entre-temps : on retombe sur la vérification d'IP.
-    const fresh = await db
-      .selectFrom("lobby_invites")
-      .select("claimed_ip")
-      .where("id", "=", invite.id)
-      .executeTakeFirst();
+    const fresh = await db.query.lobbyInvites.findFirst({
+      columns: { claimed_ip: true },
+      where: eq(lobbyInvites.id, invite.id),
+    });
     return fresh?.claimed_ip === ip ? ok : { ok: false, reason: "wrong_ip" };
   }
 

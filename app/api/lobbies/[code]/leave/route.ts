@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { kysely as db } from "@/lib/db";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { lobbyPlayers } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
-import { getLobbyByCode } from "@/lib/lobby";
+import { getLobbyByCode, isPlayer } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";
 
 export async function POST(_request: Request, { params }: { params: Promise<{ code: string }> }) {
@@ -11,17 +13,12 @@ export async function POST(_request: Request, { params }: { params: Promise<{ co
 
   const identity = await getIdentity();
   if (!identity) {
-    return NextResponse.json({ error: await msg("pseudo_required"), code: "pseudo_required" }, { status: 401 });
+    return NextResponse.json(
+      { error: await msg("pseudo_required"), code: "pseudo_required" },
+      { status: 401 },
+    );
   }
-  await db
-    .deleteFrom("lobby_players")
-    .where("lobby_id", "=", lobby.id)
-    .where((eb) =>
-      identity.kind === "user"
-        ? eb("user_id", "=", identity.userId)
-        : eb("guest_id", "=", identity.guestId),
-    )
-    .execute();
+  await db.delete(lobbyPlayers).where(and(eq(lobbyPlayers.lobby_id, lobby.id), isPlayer(identity)));
 
   return NextResponse.json({ ok: true });
 }
