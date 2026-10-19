@@ -116,6 +116,12 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Détection.** En lançant toute la suite e2e en local avant un push, à la demande de l'étudiant : 3 à 4 tests de `race-flow.spec.ts` échouaient sur une machine plus lente. L'agent a enregistré les messages WebSocket et vu la frappe partir juste après « racing » sans qu'aucun avancement ne soit envoyé.
 **Correction.** On peut taper dès que le serveur annonce le départ, ou dès l'heure de départ si l'annonce n'est pas encore arrivée (le serveur accepte déjà l'avancement dès l'heure de départ) ; l'écoute du clavier se met en place avant l'affichage (`useLayoutEffect`). Un test e2e qui confondait l'annonceur de navigation de Next.js avec le message d'erreur a aussi été précisé. Les 63 tests e2e passent. Leçon : un test qui échoue « seulement sur une machine lente » révèle souvent un vrai problème de timing que les joueurs rencontreront aussi.
 
+### 18. Un « ORM » qui n'en était pas un
+
+**Ce qui s'est passé.** TECH-04 demande « PostgreSQL, avec l'ORM de votre choix (Prisma, Drizzle, etc.) ». Comme le binaire de Prisma ne se téléchargeait pas, l'agent a choisi Kysely, un simple constructeur de requêtes, puis a déclaré TECH-04 « complet » en notant seulement « pas un ORM : choix à défendre ». Il a aussi écrit dans l'ADR que le cahier « laisse le choix de l'ORM », ce qui est vrai pour l'outil, mais pas pour le fait d'utiliser un ORM.
+**Détection.** L'étudiant a relu le cahier et a demandé si on utilisait bien un ORM, puisque chaque exigence avait été annoncée comme vérifiée.
+**Correction.** Tout l'accès aux données passe maintenant par Drizzle ORM : schéma dans `db/schema.ts`, puis migration fichier par fichier, en 6 commits avec les tests à chaque étape. Un nouveau test vérifie que le schéma correspond aux migrations. La matrice et l'ADR ont été corrigés, et toutes les exigences ont été relues une par une contre le PDF. Leçon : une exigence n'est pas « complète » parce qu'on peut défendre un écart ; si l'écart existe, c'est « partiel », et c'est à l'étudiant de décider s'il le garde.
+
 ## Réflexion sur notre façon de travailler avec les agents
 
 _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._

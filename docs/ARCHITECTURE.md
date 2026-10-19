@@ -12,8 +12,8 @@ flowchart LR
   PG[("PostgreSQL")]
   Browser -- "HTTPS : pages, API" --> Next
   Browser -- "WSS : salle, course" --> RT
-  Next -- "Kysely (SQL)" --> PG
-  RT -- "Kysely + LISTEN/NOTIFY" --> PG
+  Next -- "Drizzle ORM" --> PG
+  RT -- "Drizzle ORM + LISTEN/NOTIFY" --> PG
 ```
 
 Deux processus applicatifs partagent la même base :
@@ -102,7 +102,8 @@ Points notables :
 - **Une seule salle par personne (SALLE-06)** est garantie par la base, pas seulement par l'interface : deux index uniques partiels (`lobby_players_one_room_user` / `_guest`, `where active`). Un déclencheur libère les joueurs quand la salle passe à `closed`.
 - **Invités** : pas de ligne `users` ; identité = cookie JWT signé (`km_guest`) avec pseudonyme, stockée dans `lobby_players.guest_id`. À la connexion, l'historique de l'invité est fusionné dans son compte.
 - **Corpus en base (CONF-03)** : `corpus_texts` (passages du domaine public, difficulté calculée) et `corpus_words` (dictionnaire classé par rang de fréquence), remplis par `db/seed.ts`.
-- **Migrations** : fichiers SQL versionnés dans `db/migrations/`, appliqués par `db/migrate.ts` (table `_migrations`). Types Kysely écrits à la main dans `db/types.ts`.
+- **ORM (TECH-04)** : Drizzle ORM. Toutes les tables sont décrites en TypeScript dans `db/schema.ts` ; toutes les lectures et écritures de l'application, du serveur temps réel, du seed et des outils passent par cet ORM (`lib/db.ts`). Seuls quelques morceaux qu'un ORM ne sait pas écrire restent en SQL à l'intérieur des requêtes Drizzle (fonctions de fenêtre `row_number()` du classement, `count(*) filter`, fuseau horaire de Toronto, `date_trunc`).
+- **Migrations** : fichiers SQL versionnés dans `db/migrations/`, appliqués par `db/migrate.ts` (table `_migrations`). Le test `tests/db/schema.test.ts` vérifie que le schéma Drizzle correspond exactement à la base migrée (mêmes tables, mêmes colonnes, même nullabilité).
 
 ## 3. Machine à états de la course (COURSE-01)
 
@@ -244,7 +245,7 @@ Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16
 
 - Comptes : mot de passe haché (bcrypt), session JWT en cookie `httpOnly`, `sameSite=lax`, `secure` en production ; verrouillage temporaire après des échecs répétés ; OAuth Discord/GitHub optionnels.
 - Invités : pseudonyme (3 à 20 caractères) dans un cookie JWT signé ; un invité **ne crée pas** de salle et ne peut pas être hôte.
-- Validation : Zod sur toutes les routes et tous les messages temps réel ; requêtes SQL paramétrées (Kysely) ; WebSocket protégé par origine + cookie ; limitation de débit des messages.
+- Validation : Zod sur toutes les routes et tous les messages temps réel ; requêtes paramétrées par l'ORM (Drizzle) ; WebSocket protégé par origine + cookie ; limitation de débit des messages.
 
 ### Invitations, expulsions et limitation des tentatives (SALLE-03, 04, 07, 10)
 
@@ -272,6 +273,6 @@ La langue est décidée côté serveur (cookie `km_lang`, sinon `Accept-Language
 
 ## 11. Décisions notables (ADR courts)
 
-- **ADR-002 — Kysely plutôt qu'un ORM complet.** Le cahier laisse le choix de l'« ORM ». Kysely est un *query builder* typé : le SQL reste visible, les migrations sont du SQL versionné, pas de génération de code ni de moteur binaire à déployer. Compromis : les types de tables sont écrits à la main.
+- **ADR-002 — Drizzle ORM (remplace Kysely, 19 oct. 2026).** Le cahier demande « l'ORM de votre choix (Prisma, Drizzle, etc.) ». Le projet avait d'abord pris Kysely, qui n'est qu'un *query builder* : ce n'était pas conforme (voir `docs/IA.md` n° 18). Drizzle est un ORM cité par le cahier, écrit en TypeScript, sans moteur binaire à télécharger ni à déployer (Prisma avait été écarté pour cette raison). Le schéma est décrit dans `db/schema.ts` et les requêtes sont typées à partir de lui. Les migrations restent les fichiers SQL versionnés déjà appliqués en production : les réécrire aurait obligé à toucher la base en ligne. Un test vérifie que le schéma et les migrations ne divergent pas.
 - **ADR-003 — Bun.** Un seul outil pour installer, exécuter les scripts TypeScript (migrations, seed, serveur temps réel) et lancer les tests ; le même binaire sert en production.
 - **ADR-004 — Rôle d'hôte réservé aux comptes.** « Personne humaine connectée » est interprété comme un compte : un invité ne peut pas créer de salle (AUTH), donc pas la gérer non plus.

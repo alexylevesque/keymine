@@ -47,18 +47,21 @@ référence**, avec ses identifiants (`AUTH-01`, `SALLE-04`, `COURSE-06`,
 
 - Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS v4, Bun.
 - `app/` pages et routes API (`app/api/**`). `components/` composants UI.
-- `lib/` logique serveur/partagée : `db.ts` (Kysely + pg), `auth/` (sessions
+- `lib/` logique serveur/partagée : `db.ts` (Drizzle ORM + pg), `auth/` (sessions
   JWT `jose`, invités, OAuth Discord/GitHub fait main), `lobby*.ts`, `stats.ts`,
   `text/` (génération de textes), `i18n.tsx`, `heatmap.ts`.
-- `db/` : `migrations/*.sql`, `migrate.ts`, `types.ts` (types Kysely écrits
-  à la main — garder en phase avec les migrations).
+- `db/` : `migrations/*.sql`, `migrate.ts`, `schema.ts` (schéma Drizzle de
+  toutes les tables — garder en phase avec les migrations ; vérifié par
+  `tests/db/schema.test.ts`), `types.ts` (valeurs énumérées).
 - `realtime/` : serveur WebSocket séparé (`ws`), `server.ts` + `bots.ts`.
   Lancé par `bun run realtime`, indépendant de Next.
 - `scripts/` : outils de dev (Postgres embarqué, build contre une vraie base).
 - `tests/unit` (Vitest) et `tests/e2e` (Playwright).
-- Kysely est un query builder, pas un ORM : le choix est documenté dans
-  `docs/ARCHITECTURE.md` (ADR). Ne pas migrer vers Prisma : son binaire est
-  bloqué par le réseau de l'environnement de dev.
+- Accès aux données : **Drizzle ORM** seulement (TECH-04 exige un ORM ; ADR-002
+  dans `docs/ARCHITECTURE.md`). Pas de SQL écrit à la main hors des
+  migrations, sauf un fragment `sql` dans une requête Drizzle quand l'ORM ne
+  sait pas l'exprimer. Ne pas migrer vers Prisma : son binaire est bloqué par
+  le réseau de l'environnement de dev.
 
 ## Commandes
 

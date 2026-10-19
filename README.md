@@ -13,7 +13,7 @@ classement est calculé par le serveur. Projet de session du cours Web V.
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript strict · Tailwind CSS v4 ·
-**PostgreSQL** (Kysely + `pg`, migrations SQL versionnées) · serveur WebSocket
+**PostgreSQL** (ORM Drizzle + `pg`, migrations SQL versionnées) · serveur WebSocket
 séparé (`ws`) avec `LISTEN/NOTIFY` · Zod · Vitest · Playwright · Bun.
 
 ## Installation locale

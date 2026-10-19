@@ -2,7 +2,19 @@
 // comptes de démonstration et leur historique de courses. Idempotent : peut
 // être relancé sans créer de doublons. Usage : `bun run db:seed`.
 import bcrypt from "bcryptjs";
-import { Client } from "pg";
+import { eq } from "drizzle-orm";
+import { closeDb, db } from "@/lib/db";
+import {
+  corpusTexts,
+  corpusWords,
+  keyStats,
+  lobbies,
+  raceParticipants,
+  races,
+  users,
+} from "@/db/schema";
+import type { BotLevel } from "@/db/types";
+import { recomputeUserStats } from "@/lib/stats";
 import { classifyText, hasAccent } from "@/lib/text/difficulty";
 import { createRng } from "@/lib/text/rng";
 import { PASSAGES } from "./seed-data/corpus";
@@ -24,92 +36,105 @@ const BOTS = [
   { level: "expert", name: "Bot expert", wpm: 80 },
 ] as const;
 
-async function seedCorpus(client: Client) {
+async function seedCorpus() {
   for (const p of PASSAGES) {
-    await client.query(
-      `insert into corpus_texts (language, title, source, content, word_count, difficulty, has_accents, has_digits, has_punctuation)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       on conflict (language, content) do nothing`,
-      [
-        p.language,
-        p.title,
-        p.source,
-        p.content,
-        p.content.split(/\s+/).length,
-        classifyText(p.content),
-        hasAccent(p.content),
-        /\d/.test(p.content),
-        /[.,;:!?]/.test(p.content),
-      ],
-    );
+    await db
+      .insert(corpusTexts)
+      .values({
+        language: p.language,
+        title: p.title,
+        source: p.source,
+        content: p.content,
+        word_count: p.content.split(/\s+/).length,
+        difficulty: classifyText(p.content),
+        has_accents: hasAccent(p.content),
+        has_digits: /\d/.test(p.content),
+        has_punctuation: /[.,;:!?]/.test(p.content),
+      })
+      .onConflictDoNothing({ target: [corpusTexts.language, corpusTexts.content] });
   }
   for (const [language, words] of [
     ["fr", WORDS_FR],
     ["en", WORDS_EN],
   ] as const) {
     for (const [index, word] of words.entries()) {
-      await client.query(
-        `insert into corpus_words (language, word, frequency_rank, has_accents)
-         values ($1, $2, $3, $4) on conflict (language, word) do nothing`,
-        [language, word, index + 1, hasAccent(word)],
-      );
+      await db
+        .insert(corpusWords)
+        .values({ language, word, frequency_rank: index + 1, has_accents: hasAccent(word) })
+        .onConflictDoNothing({ target: [corpusWords.language, corpusWords.word] });
     }
   }
 }
 
-async function seedUsers(client: Client) {
+async function seedUsers() {
   const hash = await bcrypt.hash(DEMO_PASSWORD, 12);
   const ids: Record<string, string> = {};
   for (const u of DEMO_USERS) {
-    const { rows } = await client.query<{ id: string }>(
-      `insert into users (username, password_hash, display_name)
-       values ($1, $2, $3)
-       on conflict (username) do update set display_name = excluded.display_name
-       returning id`,
-      [u.username, hash, u.displayName],
-    );
-    ids[u.username] = rows[0]!.id;
+    const [row] = await db
+      .insert(users)
+      .values({ username: u.username, password_hash: hash, display_name: u.displayName })
+      .onConflictDoUpdate({ target: users.username, set: { display_name: u.displayName } })
+      .returning({ id: users.id });
+    ids[u.username] = row!.id;
   }
   return ids;
 }
 
 const LETTERS = "etaoinshrdlucmfwypvbgkjqxz";
 
-async function seedHistory(client: Client, userId: string, displayName: string, skill: number, seed: number) {
-  const { rows } = await client.query<{ n: string }>(
-    `select count(*) as n from race_participants where user_id = $1`,
-    [userId],
-  );
-  if (Number(rows[0]!.n) > 0) return; // historique déjà créé
+async function seedHistory(userId: string, displayName: string, skill: number, seed: number) {
+  const existing = await db.$count(raceParticipants, eq(raceParticipants.user_id, userId));
+  if (existing > 0) return; // historique déjà créé
 
   const rng = createRng(seed);
-  const races = 14;
+  const raceCount = 14;
   const keyCorrect: Record<string, number> = {};
   const keyErrors: Record<string, number> = {};
 
-  for (let i = 0; i < races; i++) {
-    const daysAgo = races - i;
+  for (let i = 0; i < raceCount; i++) {
+    const daysAgo = raceCount - i;
     const finishedAt = new Date(Date.now() - daysAgo * 86_400_000 * 1.5 - rng() * 3_600_000);
-    const wpm = Math.max(10, skill + (i - races / 2) * 0.8 + (rng() - 0.5) * 12);
+    const wpm = Math.max(10, skill + (i - raceCount / 2) * 0.8 + (rng() - 0.5) * 12);
     const accuracy = Math.min(100, Math.max(80, 92 + (rng() - 0.5) * 10));
     const passage = PASSAGES[Math.floor(rng() * PASSAGES.length)]!;
     const text = passage.content;
     const errors = Math.round(text.length * (1 - accuracy / 100));
 
-    const lobby = await client.query<{ id: string }>(
-      `insert into lobbies (code, host_user_id, name, status, language, closed_at, created_at)
-       values ($1, $2, $3, 'closed', $4, $5, $5) returning id`,
-      [`D${userId.slice(0, 3)}${i}${Math.floor(rng() * 90 + 10)}`.toUpperCase().slice(0, 8), userId, "Démo", passage.language, finishedAt],
-    );
-    const race = await client.query<{ id: string }>(
-      `insert into races (lobby_id, text_content, language, status, starts_at, duration_seconds, ends_at, created_at)
-       values ($1, $2, $3, 'finished', $4, 300, $5, $4) returning id`,
-      [lobby.rows[0]!.id, text, passage.language, new Date(finishedAt.getTime() - 60_000), finishedAt],
-    );
+    const [lobby] = await db
+      .insert(lobbies)
+      .values({
+        code: `D${userId.slice(0, 3)}${i}${Math.floor(rng() * 90 + 10)}`.toUpperCase().slice(0, 8),
+        host_user_id: userId,
+        name: "Démo",
+        status: "closed",
+        language: passage.language,
+        closed_at: finishedAt,
+        created_at: finishedAt,
+      })
+      .returning({ id: lobbies.id });
+    const startedAt = new Date(finishedAt.getTime() - 60_000);
+    const [race] = await db
+      .insert(races)
+      .values({
+        lobby_id: lobby!.id,
+        text_content: text,
+        language: passage.language,
+        status: "finished",
+        starts_at: startedAt,
+        duration_seconds: 300,
+        ends_at: finishedAt,
+        created_at: startedAt,
+      })
+      .returning({ id: races.id });
 
     const field = [
-      { userId, name: null as string | null, bot: null as string | null, wpm },
-      ...BOTS.map((b) => ({ userId: null, name: b.name, bot: b.level as string, wpm: b.wpm * (0.9 + rng() * 0.2) })),
+      { userId, name: null as string | null, bot: null as BotLevel | null, wpm },
+      ...BOTS.map((b) => ({
+        userId: null,
+        name: b.name,
+        bot: b.level as BotLevel,
+        wpm: b.wpm * (0.9 + rng() * 0.2),
+      })),
     ].sort((a, b) => b.wpm - a.wpm);
 
     for (const [index, entry] of field.entries()) {
@@ -128,75 +153,62 @@ async function seedHistory(client: Client, userId: string, displayName: string, 
         for (const [k, v] of Object.entries(kc)) keyCorrect[k] = (keyCorrect[k] ?? 0) + v;
         for (const [k, v] of Object.entries(ke)) keyErrors[k] = (keyErrors[k] ?? 0) + v;
       }
-      await client.query(
-        `insert into race_participants
-           (race_id, user_id, display_name, is_bot, bot_level, progress_chars, error_count, status, wpm, accuracy, finished_at, rank, key_correct, key_errors, created_at)
-         values ($1, $2, $3, $4, $5, $6, $7, 'finished', $8, $9, $10, $11, $12, $13, $10)`,
-        [
-          race.rows[0]!.id,
-          entry.userId,
-          isMe ? displayName : entry.name,
-          !isMe,
-          entry.bot,
-          text.length,
-          isMe ? errors : 0,
-          Math.round(entry.wpm * 10) / 10,
-          isMe ? Math.round(accuracy * 10) / 10 : 98,
-          finishedAt,
-          index + 1,
-          JSON.stringify(kc),
-          JSON.stringify(ke),
-        ],
-      );
+      await db.insert(raceParticipants).values({
+        race_id: race!.id,
+        user_id: entry.userId,
+        display_name: isMe ? displayName : (entry.name ?? displayName),
+        is_bot: !isMe,
+        bot_level: entry.bot,
+        progress_chars: text.length,
+        error_count: isMe ? errors : 0,
+        status: "finished",
+        wpm: Math.round(entry.wpm * 10) / 10,
+        accuracy: isMe ? Math.round(accuracy * 10) / 10 : 98,
+        finished_at: finishedAt,
+        rank: index + 1,
+        key_correct: kc,
+        key_errors: ke,
+        created_at: finishedAt,
+      });
     }
   }
 
   for (const char of new Set([...Object.keys(keyCorrect), ...Object.keys(keyErrors)])) {
-    await client.query(
-      `insert into key_stats (user_id, char, correct_count, error_count) values ($1, $2, $3, $4)
-       on conflict (user_id, char) do update set correct_count = excluded.correct_count, error_count = excluded.error_count`,
-      [userId, char, keyCorrect[char] ?? 0, keyErrors[char] ?? 0],
-    );
+    const counts = { correct_count: keyCorrect[char] ?? 0, error_count: keyErrors[char] ?? 0 };
+    await db
+      .insert(keyStats)
+      .values({ user_id: userId, char, ...counts })
+      .onConflictDoUpdate({ target: [keyStats.user_id, keyStats.char], set: counts });
   }
 
-  await client.query(
-    `update users set
-       best_wpm = agg.best, total_races = agg.n, total_errors = agg.errs,
-       total_chars_typed = agg.chars, last_race_at = agg.last
-     from (
-       select max(wpm) as best, count(*) as n, sum(error_count) as errs,
-              sum(progress_chars) as chars, max(finished_at) as last
-       from race_participants where user_id = $1 and status = 'finished'
-     ) agg
-     where users.id = $1`,
-    [userId],
-  );
+  await recomputeUserStats(userId);
 }
 
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error("DATABASE_URL manquant (voir .env.example).");
-  const client = new Client({ connectionString: databaseUrl });
-  await client.connect();
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL manquant (voir .env.example).");
   try {
-    await seedCorpus(client);
+    await seedCorpus();
     // SEED_DEMO_USERS=false : en production, ne crée pas les comptes publics de démonstration.
     if (process.env.SEED_DEMO_USERS !== "false") {
-      const ids = await seedUsers(client);
+      const ids = await seedUsers();
       for (const [index, u] of DEMO_USERS.entries()) {
-        await seedHistory(client, ids[u.username]!, u.displayName, u.skill, 1000 + index);
+        await seedHistory(ids[u.username]!, u.displayName, u.skill, 1000 + index);
       }
     }
-    const backfilled = await backfillXp(client);
+    const backfilled = await backfillXp();
     if (backfilled) console.log(`[seed] expérience calculée pour ${backfilled} participations`);
-    const counts = await client.query(
-      `select (select count(*) from corpus_texts) as textes, (select count(*) from corpus_words) as mots,
-              (select count(*) from users) as utilisateurs, (select count(*) from races) as courses`,
+    const counts = {
+      textes: await db.$count(corpusTexts),
+      mots: await db.$count(corpusWords),
+      utilisateurs: await db.$count(users),
+      courses: await db.$count(races),
+    };
+    console.log("[seed] terminé :", counts);
+    console.log(
+      `[seed] comptes de démonstration : ${DEMO_USERS.map((u) => u.username).join(", ")} (mot de passe : ${DEMO_PASSWORD})`,
     );
-    console.log("[seed] terminé :", counts.rows[0]);
-    console.log(`[seed] comptes de démonstration : ${DEMO_USERS.map((u) => u.username).join(", ")} (mot de passe : ${DEMO_PASSWORD})`);
   } finally {
-    await client.end();
+    await closeDb();
   }
 }
 

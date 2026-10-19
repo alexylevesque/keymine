@@ -2,50 +2,77 @@
 // et cette semaine par les comptes de démonstration, pour voir le classement, les classes, les prix
 // (alice gagne la semaine passée en bronze) et les couronnes sans attendre une semaine.
 // Usage : bun run demo:week     Refuse de toucher une base qui n'est pas sur cet ordinateur.
-import { Client } from "pg";
+import { eq, inArray } from "drizzle-orm";
+import {
+  leagueHistory,
+  lobbies,
+  raceParticipants,
+  races,
+  users,
+  weeklyRewards,
+  weeklySettlements,
+} from "@/db/schema";
 import { previousWeekStart, weekStart } from "@/lib/league";
+import { localDemoDb } from "./demo-db";
 
-const url = process.env.DATABASE_URL ?? "postgresql://keymine:keymine@127.0.0.1:54329/keymine";
-const host = new URL(url).hostname;
-if (host !== "127.0.0.1" && host !== "localhost") {
-  console.error(`[demo] base « ${host} » : ce script ne sert qu'en local, rien n'a été changé.`);
-  process.exit(1);
-}
-
-const client = new Client({ connectionString: url });
-await client.connect();
-const { rows: users } = await client.query<{ id: string; username: string }>(
-  `select id, username from users where username in ('alice', 'bruno', 'camille', 'dani', 'eloi')`,
-);
-const id = (name: string) => users.find((u) => u.username === name)?.id;
+const { db, closeDb } = await localDemoDb();
+const demoUsers = await db
+  .select({ id: users.id, username: users.username })
+  .from(users)
+  .where(inArray(users.username, ["alice", "bruno", "camille", "dani", "eloi"]));
+const id = (name: string) => demoUsers.find((u) => u.username === name)?.id;
 if (!id("alice")) {
   console.error("[demo] comptes de démonstration introuvables (lance d'abord bun run db:seed).");
   process.exit(1);
 }
-const host_ = id("alice")!;
-const { rows: lobby } = await client.query<{ id: string }>(
-  `insert into lobbies (code, host_user_id, name, status) values ($1, $2, 'Démo classement', 'closed') returning id`,
-  [`D${Math.random().toString(36).slice(2, 7).toUpperCase()}`, host_],
-);
+const [lobby] = await db
+  .insert(lobbies)
+  .values({
+    code: `D${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+    host_user_id: id("alice")!,
+    name: "Démo classement",
+    status: "closed",
+  })
+  .returning({ id: lobbies.id });
 
 /** Une course gagnée par `winner` contre un bot, le jour donné (midi, heure de Toronto). */
 async function win(day: string, winner: string, wpm: number) {
-  const at = `${day}T16:00:00Z`;
-  const { rows } = await client.query<{ id: string }>(
-    `insert into races (lobby_id, text_content, language, status, starts_at, duration_seconds, created_at, ends_at)
-     values ($1, 'demo', 'fr', 'finished', $2, 60, $2, $2) returning id`,
-    [lobby[0]!.id, at],
-  );
-  await client.query(
-    `insert into race_participants (race_id, user_id, display_name, status, rank, wpm, accuracy, finished_at)
-     values ($1, $2, 'demo', 'finished', 1, $3, 97, $4)`,
-    [rows[0]!.id, winner, wpm, at],
-  );
-  await client.query(
-    `insert into race_participants (race_id, display_name, is_bot, bot_level, status, rank, wpm, finished_at)
-     values ($1, 'Bot Noob', true, 'noob', 'finished', 2, 15, $2)`,
-    [rows[0]!.id, at],
-  );
+  const at = new Date(`${day}T16:00:00Z`);
+  const [race] = await db
+    .insert(races)
+    .values({
+      lobby_id: lobby!.id,
+      text_content: "demo",
+      language: "fr",
+      status: "finished",
+      starts_at: at,
+      duration_seconds: 60,
+      created_at: at,
+      ends_at: at,
+    })
+    .returning({ id: races.id });
+  await db.insert(raceParticipants).values([
+    {
+      race_id: race!.id,
+      user_id: winner,
+      display_name: "demo",
+      status: "finished",
+      rank: 1,
+      wpm,
+      accuracy: 97,
+      finished_at: at,
+    },
+    {
+      race_id: race!.id,
+      display_name: "Bot Noob",
+      is_bot: true,
+      bot_level: "noob",
+      status: "finished",
+      rank: 2,
+      wpm: 15,
+      finished_at: at,
+    },
+  ]);
 }
 
 const now = new Date();
@@ -76,8 +103,8 @@ for (const [name, count] of [
   if (user) for (let i = 0; i < count; i++) await win(current, user, 70 + i);
 }
 // Les résultats de la semaine passée seront recalculés à la prochaine visite de la page CLASSEMENT.
-await client.query(`delete from weekly_settlements where week_start = $1`, [last]);
-await client.query(`delete from weekly_rewards where week_start = $1`, [last]);
-await client.query(`delete from league_history where week_start = $1`, [last]);
-await client.end();
+await db.delete(weeklySettlements).where(eq(weeklySettlements.week_start, last));
+await db.delete(weeklyRewards).where(eq(weeklyRewards.week_start, last));
+await db.delete(leagueHistory).where(eq(leagueHistory.week_start, last));
+await closeDb();
 console.log("[demo] courses inventées : ouvre /classement (alice a gagné la semaine passée).");

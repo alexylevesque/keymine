@@ -155,9 +155,9 @@ describe("expérience en fin de course", () => {
       rank: 2,
       accuracy: 90,
     });
-    await backfillXp(client);
+    await backfillXp();
     expect(await xpOf(old)).toBe(26); // exemple du tableau
-    await backfillXp(client);
+    await backfillXp();
     expect(await xpOf(old)).toBe(26);
   });
 
@@ -172,10 +172,10 @@ describe("expérience en fin de course", () => {
       rank: 2,
       accuracy: 90,
     });
-    await backfillXp(client);
+    await backfillXp();
     expect(await xpOf(buyer)).toBe(26);
     await client.query(`update users set xp_total = xp_total - 20 where id = $1`, [buyer]); // achat
-    await backfillXp(client); // déploiement suivant
+    await backfillXp(); // déploiement suivant
     expect(await xpOf(buyer)).toBe(6);
   });
 });
