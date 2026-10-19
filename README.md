@@ -10,6 +10,26 @@ classement est calculé par le serveur. Projet de session du cours Web V.
 - Utilisation de l'IA : [`docs/IA.md`](docs/IA.md)
 - Déploiement sur un VPS : [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md)
 
+## Captures d'écran
+
+Prises le 19 octobre 2026 sur une base fraîchement remplie par `bun run db:seed`, avec le compte de démonstration `alice` (thème sombre, 1280 × 800).
+
+| Accueil | Salle d'attente |
+| --- | --- |
+| ![Accueil : bouton JOUER, code de salle et liste des salles publiques](docs/captures/accueil.png) | ![Salle d'attente : code de la salle, joueurs et bots, réglages de l'hôte](docs/captures/salle-attente.png) |
+
+| Course en cours | Résultats |
+| --- | --- |
+| ![Course : zone de frappe, MPM et précision en direct, piste avec les bots et annonces de bonus](docs/captures/course.png) | ![Résultats : podium, tableau complet, courbes de MPM et carte de chaleur du clavier](docs/captures/resultats.png) |
+
+| Profil et historique | Classement |
+| --- | --- |
+| ![Profil : statistiques, progression du MPM, touches à travailler et historique](docs/captures/profil.png) | ![Classement général et classes de la semaine](docs/captures/classement.png) |
+
+| Inventaire (fonctionnalité ajoutée) |
+| --- |
+| ![Inventaire : armure, fabrication 3 × 3, four et table d'enchantement](docs/captures/inventaire.png) |
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript strict · Tailwind CSS v4 ·
