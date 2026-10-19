@@ -153,6 +153,74 @@ Les transitions autorisées sont codées dans une table unique (`lib/race/state.
 - Repli : si le WebSocket échoue, la page de salle interroge l'API HTTP et envoie un battement de présence ; le WebSocket est retenté en arrière-plan.
 - Présence : l'hôte absent 30 s est remplacé par le compte connecté présent depuis le plus longtemps ; s'il n'en reste aucun, la salle est fermée (SALLE-08). Un joueur silencieux 60 s est libéré.
 
+### Flux des messages temps réel
+
+Deux connexions WebSocket, toutes deux authentifiées par cookie : `/lobby?code=ABC234` (salle d'attente et écran des résultats) et `/?race=<uuid>` (une course). Next.js et le serveur temps réel ne se parlent jamais directement : ils passent par PostgreSQL (`pg_notify`).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant H as Hôte (navigateur)
+  participant J as Joueur (navigateur)
+  participant N as Next.js (API HTTP)
+  participant DB as PostgreSQL
+  participant RT as Serveur temps réel (ws)
+
+  Note over H,RT: Salle d'attente
+  J->>N: POST /api/lobbies/CODE/join
+  N->>DB: insert lobby_players
+  DB-->>RT: NOTIFY lobby_changed (CODE)
+  J->>RT: WS /lobby?code=CODE (cookie)
+  RT-->>H: { type: "lobby", lobby, players }
+  RT-->>J: { type: "lobby", lobby, players }
+  J->>RT: { type: "ping" } (présence)
+  RT-->>J: { type: "pong" }
+  H->>N: PATCH /api/lobbies/CODE (réglages)
+  N->>DB: update lobbies
+  DB-->>RT: NOTIFY lobby_changed
+  RT-->>J: { type: "lobby", ... } (nouveaux réglages, CONF-12)
+
+  Note over H,RT: Départ (COURSE-01, COURSE-03)
+  H->>N: POST /api/lobbies/CODE/start
+  N->>DB: transaction : lobbies → countdown, insert races + race_participants
+  DB-->>RT: NOTIFY race_created (raceId) et lobby_changed
+  RT-->>J: { type: "lobby", activeRace } (redirection vers /course/CODE)
+  J->>RT: WS /?race=ID (cookie)
+  RT-->>J: { type: "text", text, progress }
+  RT-->>J: { type: "state", phase: "countdown", startsAt, serverNow, participants }
+
+  Note over H,RT: Course (COURSE-05, COURSE-06, PERF-02)
+  loop au plus 10 fois par seconde
+    J->>RT: { type: "progress", progressChars, errorCount, keyCorrect, keyErrors }
+  end
+  loop toutes les 250 ms (tick)
+    RT-->>H: { type: "state", phase: "racing", participants (position, MPM) }
+    RT-->>J: { type: "state", ... }
+  end
+  RT-->>J: { type: "bonus", bonus, label } (BONUS-03, diffusé à tous)
+  RT-->>J: { type: "text", text, progress } (texte allongé ou raccourci, au joueur ciblé)
+  RT->>DB: toutes les 2 s : progression des humains (reprise après redémarrage)
+  J->>RT: { type: "abandon" } (COURSE-07)
+
+  Note over H,RT: Fin (COURSE-09, RES-05)
+  RT->>DB: résultats, XP, races → finished, lobbies → finished
+  RT-->>H: { type: "state", phase: "finished" } (redirection vers /resultats/CODE)
+  RT-->>J: { type: "state", phase: "finished" }
+```
+
+| Sens | Message | Contenu | Quand |
+| --- | --- | --- | --- |
+| client → salle | `ping` | — | battement de présence |
+| salle → client | `lobby` | réglages, joueurs (rôle, hôte, connecté, « moi »), course active | à chaque `lobby_changed` et à chaque connexion ou départ |
+| salle → client | `pong` / `closed` / `removed` | — | réponse au ping, salle fermée, personne expulsée |
+| client → course | `progress` | caractères validés, erreurs, compteurs par touche | regroupé, au plus 10 par seconde (`lib/race/throttle.ts`) |
+| client → course | `abandon` | — | après la confirmation |
+| course → client | `text` | texte du joueur et sa progression | à la connexion, et quand un bonus change son texte |
+| course → client | `state` | phase, départ, fin, heure du serveur, participants (position, MPM, avatar) | toutes les 250 ms et à la connexion |
+| course → client | `bonus` | type de bonus et annonce | quand un bonus est appliqué |
+
+Tous les messages entrants sont validés par Zod (`realtime/protocol.ts`) ; le serveur refuse au-delà de 25 messages par seconde en course et 30 par 10 s en salle.
+
 ## 5. Course serveur-autoritaire (COURSE-06)
 
 Le client n'envoie que son **avancement** (caractères validés, erreurs, compteurs par touche). Le serveur :
