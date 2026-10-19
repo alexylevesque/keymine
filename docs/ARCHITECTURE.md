@@ -230,14 +230,37 @@ Le client n'envoie que son **avancement** (caractères validés, erreurs, compte
 - **rejette les progressions impossibles** : retour en arrière, saut supérieur à ce que permet la vitesse maximale (250 MPM) plus une petite marge, dépassement de la longueur du texte ;
 - calcule le classement (COURSE-10) et applique les bonus.
 
-## 6. Bots (BOT-01 à BOT-05) : approche
+## 6. Bots (BOT-01 à BOT-05) : ADR-005
 
-Les bots sont simulés **côté serveur** par un moteur pur et **déterministe** : `(niveau, graine, texte, temps écoulé) → caractères tapés`. La graine rend le moteur testable unitairement (même graine ⇒ même course).
+**Contexte.** Les bots complètent une salle (CONF-10) et doivent paraître humains : vitesse variable (BOT-02), erreurs qui coûtent du temps et respect du mode d'erreur (BOT-03), mêmes bonus et malus que les humains (BOT-04), et un comportement reproductible pour les tests (BOT-05). Le serveur est la seule autorité pendant une course (COURSE-06).
 
-- Cinq niveaux (Noob, Débutant, Intermédiaire, Expert, Impossible) avec une plage de MPM et un taux d'erreur ; valeurs ajustées et documentées dans `lib/race/bots.ts`.
-- La vitesse **varie** : bruit lissé (accélérations/ralentissements), hésitations aléatoires, ralentissement sur les mots longs ou accentués.
-- Une erreur coûte du temps de correction ; en mode « correction obligatoire » le bot s'arrête jusqu'à avoir corrigé, en mode « libre » il continue et l'erreur est comptée.
-- Les bots reçoivent bonus et malus comme les humains et sont identifiés dans l'interface.
+**Options étudiées.**
+
+| Option | Pour | Contre |
+| --- | --- | --- |
+| Bot = faux client WebSocket qui tape (un processus ou une boucle par bot) | Passe exactement par le même chemin que les humains | Coût réseau et minuteries pour chaque bot (30 bots par salle) ; résultat dépendant du temps réel, donc difficile à tester |
+| Vitesse constante calculée à chaque tick (`MPM × temps écoulé`) | Très simple | Refusé par BOT-02 (vitesse constante interdite) ; pas d'erreurs réalistes |
+| **Ligne de temps précalculée, pure et déterministe, dans le serveur temps réel** | Aucune entrée/sortie, testable unitairement avec une graine ; coût négligeable par tick ; indépendante de la cadence du tick | Doit être recalculée quand un bonus change le texte du bot |
+
+**Décision.** Chaque bot est un objet `BotTimeline` (`lib/race/bots.ts`) créé au départ avec son niveau, une graine (`graine de la course × 1000 + rang`), le texte et le mode d'erreur. Il calcule d'avance l'instant où chaque caractère sera validé et le nombre d'erreurs cumulées. À chaque tick (250 ms), le moteur demande `sample(temps écoulé)`, une recherche dichotomique dans cette ligne de temps. Le bot n'envoie donc aucun message réseau, et le serveur reste la source de vérité.
+
+**Règles de simulation** (valeurs dans `lib/race/bots.ts`, testées dans `tests/unit/race-bots.test.ts`) :
+
+| Niveau | MPM visé | Taux d'erreur |
+| --- | --- | --- |
+| Noob | 10 à 20 | 12 % |
+| Débutant | 20 à 35 | 8 % |
+| Intermédiaire | 35 à 60 | 5 % |
+| Expert | 70 à 100 | 2 % |
+| Impossible | 140 à 170 | 0,5 % |
+
+- Vitesse de base tirée dans la plage du niveau. Elle change de « forme » toutes les 1,5 à 4 s (facteur de 0,78 à 1,28) : accélérations et ralentissements.
+- Hésitation de 250 à 750 ms à 7 % des espaces. Les mots de 8 lettres ou plus sont 25 % plus lents, et les mots avec accent, chiffre ou ponctuation 20 % plus lents. Les erreurs y sont 1,5 fois plus probables.
+- Erreur en mode « correction obligatoire » : réaction, effacement et nouvelle frappe (180 à 350 ms plus deux frappes). En mode « libre » : léger trébuchement, et l'erreur est comptée.
+- Bonus et malus (BOT-04) : `rebase()` garde les caractères déjà tapés et recalcule la suite sur le nouveau texte, à partir de l'instant courant.
+- Les bots s'appellent « Bot … » dans la langue de l'interface et ont un avatar gris. Ils portent l'étiquette BOT dans la salle d'attente et sur la piste ; dans les résultats, leur courbe de MPM est en pointillés. Ils ne gagnent pas d'XP.
+
+**Conséquences.** Même graine ⇒ même course, ce qui permet des tests exacts ; l'arrivée d'un bot ne dépend pas de la cadence du tick. 29 bots dans une salle de 30 restent fluides (PERF-03, `tests/e2e/perf.spec.ts`). En contrepartie, un bot ne « réagit » pas à la course, sauf quand un bonus change son texte.
 
 ## 7. Bonus de remontée (BONUS-01 à 04) : règle documentée
 
