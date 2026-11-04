@@ -7,6 +7,8 @@ import { PixelAvatar } from "./ui";
 import { LanguageSelect } from "./LanguageSelect";
 import { XpBar } from "./XpBar";
 import { useLanguage } from "@/lib/i18n";
+import { levelFromXp } from "@/lib/xp";
+import { formatNumber } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 
 type NavKey = "jouer" | "lobbys" | "stats" | "classement" | "inventaire" | "boutique" | null;
@@ -39,7 +41,7 @@ export function PixelShell({
   rightSlot?: ReactNode;
   children: ReactNode;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { toggle: toggleTheme } = useTheme();
   const viewer = useViewer();
   const viewerName = viewer?.name ?? t("common.guest");
@@ -58,7 +60,7 @@ export function PixelShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  const navLinks = (onNavigate?: () => void) => (
+  const navLinks = (onNavigate?: () => void, mobile = false) => (
     <>
       <Link
         href="/jouer/creer"
@@ -76,14 +78,17 @@ export function PixelShell({
       >
         {t("nav.lobbys")}
       </Link>
-      <Link
-        href="/profil"
-        data-active={active === "stats"}
-        className="pixel-nav-link"
-        onClick={onNavigate}
-      >
-        {t("nav.stats")}
-      </Link>
+      {/* Les comptes ont leur profil dans la puce du compte ; les invités gardent STATS. */}
+      {viewer?.kind !== "user" && (
+        <Link
+          href="/profil"
+          data-active={active === "stats"}
+          className="pixel-nav-link"
+          onClick={onNavigate}
+        >
+          {t("nav.stats")}
+        </Link>
+      )}
       <Link
         href="/classement"
         data-active={active === "classement"}
@@ -110,6 +115,11 @@ export function PixelShell({
           >
             {t("nav.boutique")}
           </Link>
+          {mobile && (
+            <Link href="/historique" className="pixel-nav-link" onClick={onNavigate}>
+              {t("nav.historique")}
+            </Link>
+          )}
         </>
       )}
     </>
@@ -120,77 +130,93 @@ export function PixelShell({
       type="button"
       onClick={toggleTheme}
       aria-label={t("theme.toggle")}
-      className="flex h-10 w-10 shrink-0 items-center justify-center border-3 border-white bg-[#c6c6c6]"
-      style={{ borderColor: "#fff #555 #555 #fff" }}
+      className="shell-btn flex h-9 w-9 shrink-0 items-center justify-center"
     >
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-        <circle cx="9" cy="9" r="7.5" fill="none" stroke="#2b2b2b" strokeWidth="2" />
-        <path d="M9 1.5a7.5 7.5 0 0 0 0 15z" fill="#2b2b2b" />
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 1a7 7 0 1 0 0 14V1z" fill="currentColor" />
+        <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     </button>
   );
 
-  const account = rightSlot ?? (
+  const level = viewer?.kind === "user" ? levelFromXp(viewer.xp).level : null;
+  const avatar = (size: string) => (
+    <PixelAvatar
+      label={viewerName.slice(0, 1).toUpperCase()}
+      color="#b0281c"
+      className={`${size} shrink-0 text-xs`}
+      src={viewer?.kind === "user" ? viewer.avatarUrl : null}
+      seed={viewer ? viewerName : null}
+    />
+  );
+  const accountHref = viewer?.kind === "user" ? "/profil" : "/connexion";
+  const accountLabel = viewer?.kind === "user" ? t("a11y.profile_link") : t("a11y.login_link");
+  const accountChip = (
     <Link
-      href={viewer?.kind === "user" ? "/profil" : "/connexion"}
-      className="flex min-w-0 shrink items-center gap-2 text-xl text-white"
+      href={accountHref}
+      className="shell-me flex min-w-0 shrink-0 items-center gap-2.5 border-2 border-black lg:py-1 lg:pr-2.5 lg:pl-1"
     >
-      <PixelAvatar
-        label={viewerName.slice(0, 1).toUpperCase()}
-        color="#3d6fc4"
-        className="h-9 w-9 shrink-0 text-sm"
-        src={viewer?.kind === "user" ? viewer.avatarUrl : null}
-        seed={viewer ? viewerName : null}
-      />
-      <span className="hidden max-w-40 min-w-0 truncate xl:inline">{viewerName}</span>
-      <span className="sr-only xl:hidden">
-        {viewer?.kind === "user" ? t("a11y.profile_link") : t("a11y.login_link")}
+      {avatar("h-9 w-9 lg:h-8 lg:w-8")}
+      <span className="hidden min-w-0 flex-col leading-none lg:flex">
+        <span className="max-w-40 truncate text-xl">{viewerName}</span>
+        {level != null && (
+          <span className="font-pixel text-[8px] whitespace-nowrap text-[#7fc45a]">
+            {t("xp.short", { level: formatNumber(lang, level) })}
+          </span>
+        )}
       </span>
+      <span className="sr-only">{accountLabel}</span>
     </Link>
   );
+  const account = rightSlot ?? accountChip;
 
   return (
     <div className="pixel-night min-h-screen overflow-x-clip">
       <a href="#contenu" className="skip-link font-pixel text-[11px]">
         {t("a11y.skip")}
       </a>
-      <div className="pixel-grass h-5 border-b-4 border-[#2f5d1c]" />
 
-      <header className="border-b-4 border-black bg-[#241a10]">
-        <div className="flex h-16 items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:gap-4 lg:px-6 xl:gap-6 xl:px-8">
-          <Link href="/" className="flex shrink-0 items-center gap-1" aria-label="KeyMine">
+      <header className="shell-header relative z-20">
+        <div className="shell-grass" aria-hidden="true" />
+        <div className="mx-auto flex max-w-[1216px] items-center gap-3 px-3.5 py-2.5 sm:px-8 lg:gap-7 lg:py-3.5">
+          <Link
+            href="/"
+            className="shell-logo flex shrink-0 items-center gap-2 lg:gap-3"
+            aria-label="KeyMine"
+          >
             <Image
               src="/logo-rond.png"
               alt=""
-              width={44}
-              height={44}
-              className="mr-1 h-9 w-9 sm:mr-2 sm:h-11 sm:w-11"
+              width={40}
+              height={40}
+              className="h-8 w-8 lg:h-10 lg:w-10"
             />
-            <span className="pixel-key max-[439px]:hidden">K</span>
-            <span className="pixel-key bg-[#7fc45a] max-[439px]:hidden">E</span>
-            <span className="pixel-key max-[439px]:hidden">Y</span>
-            <span className="font-pixel ml-1 text-xs text-white [text-shadow:3px_3px_0_#000] sm:ml-2 sm:text-lg">
-              MINE
-            </span>
+            <Image
+              src="/logo-texte.png"
+              alt=""
+              width={410}
+              height={70}
+              unoptimized
+              className="h-4 w-auto [image-rendering:pixelated] lg:h-[22px]"
+            />
           </Link>
 
           {/* Grand écran (≥ 1024 px) : navigation complète. */}
-          <nav aria-label={t("a11y.main_nav")} className="hidden flex-grow gap-1.5 lg:flex">
+          <nav
+            aria-label={t("a11y.main_nav")}
+            className="hidden flex-auto flex-wrap gap-1.5 lg:flex"
+          >
             {navLinks()}
           </nav>
-          {/* Expérience : petite barre ; sur petit écran elle prend la place libre entre logo et compte. */}
-          <div className="flex min-w-0 flex-grow justify-end lg:hidden">
-            {viewer?.kind === "user" && <XpBar totalXp={viewer.xp} className="w-full max-w-44" />}
-          </div>
+          <span className="flex-auto lg:hidden" />
 
-          <div className="hidden items-center gap-3 lg:flex">
+          <div className="hidden items-center gap-2.5 lg:flex">
             <LanguageSelect />
             {themeButton}
           </div>
 
+          {/* Puce du compte ; sous 1024 px, seulement l'avatar, à côté du « hamburger ». */}
           {account}
-
-          {/* Tablette et téléphone : menu « hamburger ». */}
           <button
             id="menu-toggle"
             type="button"
@@ -204,31 +230,29 @@ export function PixelShell({
           </button>
         </div>
 
-        {/* Grand écran : la barre d'expérience fait toute la largeur, collée sous l'en-tête (style Minecraft). */}
-        {viewer?.kind === "user" && (
-          <XpBar totalXp={viewer.xp} size="strip" className="hidden lg:flex" />
+        {/* Barre d'expérience : bande fine pleine largeur sous l'en-tête. */}
+        {viewer?.kind === "user" ? (
+          <XpBar totalXp={viewer.xp} size="strip" />
+        ) : (
+          <div className="shell-xp-empty" aria-hidden="true" />
         )}
 
-        <div
-          id="menu-mobile"
-          hidden={!menuOpen}
-          className="border-t-4 border-black bg-[#241a10] px-3 pb-4 sm:px-6 lg:hidden"
-        >
-          <nav aria-label={t("a11y.main_nav")} className="flex flex-col gap-1.5 pt-3">
-            {navLinks(() => setMenuOpen(false))}
+        <div id="menu-mobile" hidden={!menuOpen} className="shell-menu lg:hidden">
+          <nav aria-label={t("a11y.main_nav")} className="flex flex-col">
+            {navLinks(() => setMenuOpen(false), true)}
           </nav>
-          <div className="mt-3 flex items-center gap-3 border-t-2 border-dotted border-[#6b6b6b] pt-3">
+          <div className="shell-menu-foot flex items-center gap-2">
             <LanguageSelect />
             {themeButton}
           </div>
         </div>
       </header>
 
-      <main id="contenu" tabIndex={-1} className="px-4 py-6 sm:px-8 sm:py-7">
-        <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+      <main id="contenu" tabIndex={-1} className="px-4 py-6 sm:px-8 sm:py-10 lg:py-12">
+        <div className="mx-auto w-full max-w-[1216px]">{children}</div>
       </main>
 
-      <footer className="border-t-4 border-black bg-[#241a10] px-4 py-4 text-center text-xl text-[#f1e6c9] sm:px-8">
+      <footer className="border-t-4 border-black bg-[#1b1209] px-4 py-4 text-center text-xl text-[#f1e6c9] sm:px-8">
         {t("footer.text")}
       </footer>
     </div>

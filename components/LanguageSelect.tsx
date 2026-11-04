@@ -8,8 +8,7 @@ export function LanguageSelect() {
   return (
     <select
       aria-label={t("lang.select")}
-      className="font-pixel h-10 shrink-0 border-3 border-white bg-[#c6c6c6] px-1 text-[11px] sm:px-2"
-      style={{ borderColor: "#fff #555 #555 #fff" }}
+      className="shell-btn font-pixel h-9 shrink-0 px-2 text-[10px]"
       value={lang}
       onChange={(e) => {
         setLang(e.target.value as SiteLang);

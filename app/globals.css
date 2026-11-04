@@ -1243,3 +1243,214 @@ html,
     scroll-behavior: auto !important;
   }
 }
+
+/* --- En-tête de la refonte (maquette « Composant · En-tête », 4 nov.) -------
+   Même en-tête dans les deux thèmes : bande d'herbe, logo, liens soulignés or,
+   boutons à bord brun, puce du compte et barre d'XP fine pleine largeur. */
+.shell-header {
+  background: #1b1209;
+  color: #f1e6c9;
+}
+.shell-grass {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, #5e9c3a 0 8px, #4a8a2c 8px 16px);
+}
+.shell-logo img:first-child {
+  transition: transform 0.2s steps(4);
+}
+.shell-logo:hover img:first-child {
+  transform: rotate(-12deg) scale(1.08);
+}
+.shell-btn {
+  border: 2px solid #5a4632;
+  background: transparent;
+  color: #f1e6c9;
+  transition: transform 0.08s steps(2);
+}
+.shell-btn:hover {
+  border-color: #f0b429;
+  color: #ffe08a;
+  transform: translate(-2px, -2px);
+  box-shadow: 3px 3px 0 #000;
+}
+.shell-btn:active {
+  transform: none;
+  box-shadow: none;
+}
+@media (min-width: 1024px) {
+  .shell-me {
+    border-color: #5a4632;
+    color: #f1e6c9;
+    transition: transform 0.08s steps(2);
+  }
+  .shell-me:hover {
+    border-color: #f0b429;
+    color: #ffe08a;
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0 #000;
+  }
+}
+select.shell-btn option {
+  background: #1b1209;
+  color: #f1e6c9;
+}
+.shell-header .pixel-nav-link {
+  position: relative;
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 12px 14px;
+  color: #f1e6c9;
+  background: none;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  transition:
+    transform 0.1s steps(2),
+    color 0.1s steps(2);
+}
+.shell-header .pixel-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -4px;
+  height: 4px;
+  background: #f0b429;
+  transform: scaleX(0);
+  transition: transform 0.16s steps(4);
+}
+.shell-header .pixel-nav-link:hover {
+  color: #ffe08a;
+  background: none;
+  transform: translateY(-3px);
+}
+.shell-header .pixel-nav-link:hover::after {
+  transform: scaleX(1);
+}
+.shell-header .pixel-nav-link[data-active="true"] {
+  color: #ffe08a;
+  background: none;
+  border-color: transparent;
+  border-bottom-color: #f0b429;
+}
+.shell-header .pixel-nav-link[data-active="true"]::after {
+  display: none;
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .shell-header .pixel-nav-link {
+    padding: 12px 8px;
+    letter-spacing: 0;
+  }
+}
+
+/* Barre d'XP : 6 px, noire, remplie de vert (le niveau est dans la puce du compte). */
+.shell-header .pixel-xp[data-size="strip"] {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: #000;
+}
+.shell-header .pixel-xp[data-size="strip"] .pixel-xp-level {
+  display: none;
+}
+.shell-header .pixel-xp[data-size="strip"] .pixel-xp-track {
+  height: 6px;
+  border: 0;
+  background: #000;
+  box-shadow: none;
+}
+.shell-header .pixel-xp[data-size="strip"] .pixel-xp-track::after {
+  display: none;
+}
+.shell-header .pixel-xp[data-size="strip"] .pixel-xp-fill {
+  background: #7fc45a;
+}
+.shell-xp-empty {
+  height: 6px;
+  background: #000;
+}
+
+/* Hamburger (< 1024 px) : bord brun, barres crème, bord or quand le menu est ouvert. */
+.shell-header .pixel-menu-toggle {
+  width: 44px;
+  height: 44px;
+  border: 3px solid #5a4632;
+  background: transparent;
+  transition: transform 0.08s steps(2);
+}
+.shell-header .pixel-menu-toggle:hover {
+  border-color: #f0b429;
+  transform: translateY(-2px);
+}
+.shell-header .pixel-menu-toggle[aria-expanded="true"] {
+  border-color: #f0b429;
+  background: #2b1e13;
+}
+.shell-header .pixel-burger,
+.shell-header .pixel-burger::before,
+.shell-header .pixel-burger::after {
+  width: 22px;
+  background: #f1e6c9;
+}
+.shell-header .pixel-burger::before {
+  top: -10px;
+}
+.shell-header .pixel-burger::after {
+  top: 10px;
+}
+.shell-header .pixel-burger[data-open="true"] {
+  background: transparent;
+}
+.shell-header .pixel-burger[data-open="true"]::before,
+.shell-header .pixel-burger[data-open="true"]::after {
+  top: 0;
+}
+
+/* Menu déroulant du téléphone : une ligne par lien, flèche à droite, bord or à gauche. */
+.shell-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  background: #1b1209;
+  border-bottom: 4px solid #000;
+  box-shadow: 0 8px 0 #000;
+}
+.shell-menu .pixel-nav-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  font-size: 11px;
+  color: #f1e6c9;
+  background: none;
+  border: 0;
+  border-top: 2px solid #2b1e13;
+  border-left: 6px solid transparent;
+  transform: none;
+}
+.shell-menu .pixel-nav-link::after {
+  content: ">";
+  color: #5a4632;
+}
+.shell-menu .pixel-nav-link:hover,
+.shell-menu .pixel-nav-link[data-active="true"] {
+  background: #2b1e13;
+  border-color: #2b1e13;
+  border-left-color: #f0b429;
+  color: #ffe08a;
+  transform: none;
+}
+.shell-menu .pixel-nav-link[data-active="true"]::after {
+  color: #f0b429;
+}
+.shell-menu-foot {
+  padding: 14px 18px;
+  border-top: 2px solid #3b2a1a;
+}
+
+/* Thème sombre de la refonte : fond uni (plus de damier). */
+:root:not([data-theme="light"]) .pixel-night {
+  background-image: none;
+  background-color: #2b1e13;
+}
