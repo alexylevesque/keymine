@@ -9,11 +9,10 @@ export const LETTER_ROWS: KeyRow[] = [
 ];
 
 // Tous les symboles du clavier, y compris ceux « de code » : `. , / ; ' [ ] \ ` ! @ # $ % ^ & * ( ) _ + - = < > ? { } | ~ " :`.
+// Symboles : deux rangées de 16, comme la maquette.
 export const SYMBOL_ROWS: KeyRow[] = [
-  { indent: 0, keys: [..."!@#$%^&*"] },
-  { indent: 0, keys: [..."()_+-={}"] },
-  { indent: 0, keys: [..."[]|\\/`~:"] },
-  { indent: 0, keys: [..."\";'<>,.?"] },
+  { indent: 0, keys: [..."!@#$%^&*()_+-={}"] },
+  { indent: 0, keys: [..."[]|\\/`~:\";'<>,.?"] },
 ];
 
 // Chiffres : deux rangées de cinq, pour tenir à côté de la carte des lettres.
