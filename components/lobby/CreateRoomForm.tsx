@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PixelButton, PixelLabel } from "@/components/ui";
-import { Chip, SettingsForm } from "./SettingsForm";
+import { PixelButton } from "@/components/ui";
+import { SettingsForm } from "./SettingsForm";
 import { DEFAULT_SETTINGS, settingsToPayload, toggled, type SettingsState } from "./settings";
 import { BOT_LEVELS } from "@/lib/race/bots";
 import type { BotLevel } from "@/db/types";
@@ -93,60 +93,133 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
 
   const complexity = t(`set.${settings.complexity}` as const);
 
+  const durationText =
+    settings.duration === 0 ? t("create.dur_none") : formatDuration(lang, settings.duration);
+
   return (
     <div className="ui-dark">
-      <h1 className="font-pixel mb-6 text-xl text-white [text-shadow:4px_4px_0_#000]">
-        {t("create.title")}
-      </h1>
+      <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="font-pixel text-xl text-white [text-shadow:4px_4px_0_#000] sm:text-[26px]">
+          {t("create.title_room")}
+        </h1>
+        <span className="text-xl text-[#cdbf9c]">{t("create.subtitle")}</span>
+      </div>
 
-      <div hidden={step !== "settings"}>
-        <SettingsForm
-          requireName
-          compact
-          value={settings}
-          onChange={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
-          leftExtra={
-            <>
-              <div>
-                <PixelLabel>{t("create.role")}</PixelLabel>
-                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2">
+      <div hidden={step !== "settings"} className="flex flex-wrap items-start gap-7">
+        <div className="min-w-0 flex-[999_1_640px]">
+          <SettingsForm
+            requireName
+            compact
+            layout="numbered"
+            value={settings}
+            onChange={(patch) => setSettings((prev) => ({ ...prev, ...patch }))}
+            roleSlot={
+              <fieldset className="min-w-0">
+                <legend className="create-lbl font-pixel">{t("create.role_short")}</legend>
+                <div className="flex flex-wrap gap-1.5">
                   {(
                     [
-                      ["participant", t("create.role_participant"), t("create.role_participant_sub")],
-                      ["spectator", t("create.role_spectator"), t("create.role_spectator_sub")],
+                      ["participant", t("create.role_run")],
+                      ["spectator", t("create.role_watch")],
                     ] as const
-                  ).map(([key, title, sub]) => (
+                  ).map(([key, title]) => (
                     <button
                       key={key}
                       type="button"
                       onClick={() => setHostRole(key)}
                       data-on={hostRole === key}
                       aria-pressed={hostRole === key}
-                      className="pixel-chip flex flex-col items-start gap-1 leading-tight"
+                      className="create-opt font-pixel"
                     >
-                      <b className="font-pixel text-[11px] font-normal">{title}</b>
-                      <span className="text-lg">{sub}</span>
+                      {title}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div>
-                <PixelLabel>{t("create.bots", { count: bots.length })}</PixelLabel>
+              </fieldset>
+            }
+            botsSlot={
+              <fieldset className="min-w-0">
+                <legend className="create-lbl font-pixel">
+                  {t("create.bots", { count: bots.length }).toUpperCase()}
+                </legend>
                 <div className="flex flex-wrap gap-2">
-                  {BOT_LEVELS.map((lvl) => (
-                    <Chip
-                      key={lvl}
-                      on={bots.includes(lvl)}
-                      onClick={() => setBots(toggled(bots, lvl))}
-                    >
-                      {t(`bot.${lvl}`).toUpperCase()}
-                    </Chip>
-                  ))}
+                  {BOT_LEVELS.map((lvl) => {
+                    const on = bots.includes(lvl);
+                    const name = t(`bot.${lvl}`)
+                      .normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")
+                      .toUpperCase();
+                    return (
+                      <button
+                        key={lvl}
+                        type="button"
+                        onClick={() => setBots(toggled(bots, lvl))}
+                        data-on={on}
+                        aria-pressed={on}
+                        className="create-opt font-pixel"
+                      >
+                        {on ? name : `+ ${name}`}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-            </>
-          }
-        />
+              </fieldset>
+            }
+          />
+        </div>
+
+        <aside className="create-aside min-w-0 flex-[1_1_320px]">
+          <section aria-labelledby="apercu" className="create-panel !gap-0 !p-0">
+            <div className="flex items-center justify-between gap-2 border-b-2 border-[#3b2a1a] px-4 py-3.5">
+              <h2 id="apercu" className="font-pixel text-[10px] text-white">
+                {t("create.preview_box")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setDraw((n) => n + 1)}
+                className="create-refresh font-pixel"
+                aria-label={t("create.preview_another")}
+                title={t("create.preview_another")}
+              >
+                <svg
+                  viewBox="0 0 8 8"
+                  width="14"
+                  height="14"
+                  shapeRendering="crispEdges"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M2 1h4v1h1v2h-1v-1h-1v-1h-3zM1 2h1v2h1v1h-1v1h3v1h-3v-1h-1z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </div>
+            <p className="create-ptxt">
+              {preview ? (
+                <>
+                  <span className="create-preview-cur">{preview.slice(0, 1)}</span>
+                  <span className="text-[#a8966e]">{preview.slice(1)}</span>
+                </>
+              ) : (
+                "…"
+              )}
+            </p>
+            <div className="create-pmeta">
+              <span>
+                <b className="font-pixel">{settings.length}</b> {t("create.meta_words")}
+              </span>
+              <span>
+                <b className="font-pixel">{settings.language.toUpperCase()}</b>{" "}
+                {complexity.toLowerCase()}
+              </span>
+              <span>
+                <b className="font-pixel">{durationText}</b>{" "}
+                {settings.duration === 0 ? "" : t("create.meta_max")}
+              </span>
+            </div>
+          </section>
+        </aside>
       </div>
 
       {step === "preview" && (
@@ -166,7 +239,9 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
           <p className="create-preview-name">{normalizeRoomName(settings.name)}</p>
           <ul className="create-preview-facts" aria-label={t("create.preview_facts")}>
             <li>{settings.language.toUpperCase()}</li>
-            <li>{settings.textType === "aleatoire" ? t("set.text_random") : t("set.text_coherent")}</li>
+            <li>
+              {settings.textType === "aleatoire" ? t("set.text_random") : t("set.text_coherent")}
+            </li>
             <li>{complexity}</li>
             <li>{t("create.preview_words", { count: settings.length })}</li>
             <li>{formatDuration(lang, settings.duration)}</li>
@@ -185,8 +260,13 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
         </section>
       )}
 
-      <div className="pixel-dark create-bar mt-8 flex flex-col items-center gap-4 border-t-4 border-black px-4 py-5 sm:flex-row sm:justify-between">
-        <p className="text-2xl text-[#f1e6c9]">{error ?? t("create.hint")}</p>
+      <div className="create-sticky mt-7 flex flex-wrap items-center gap-4 px-4 py-3.5 sm:px-8">
+        <p
+          role={error ? "alert" : undefined}
+          className={`flex-[1_1_300px] text-xl ${error ? "text-[#f39a8c]" : "hidden text-[#cdbf9c] sm:block"}`}
+        >
+          {error ?? t("create.hint")}
+        </p>
         <div className="flex flex-wrap justify-center gap-3.5">
           {accountRequired && (
             <PixelButton href="/connexion" variant="gold" className="h-13 px-5 text-[13px]">

@@ -33,7 +33,6 @@ const COMPLEXITY_KEYS = {
 // Ponctuation et Accents ouvrent chacun une carte de touches ; Nombres et Majuscules sont dans « Lettres ».
 const TEXT_OPTIONS: TextOption[] = ["Ponctuation", "Accents"];
 
-
 export function Chip({
   on,
   onClick,
@@ -105,10 +104,12 @@ export function SettingsForm({
   leftExtra,
   requireName = false,
   compact = false,
+  roleSlot,
+  botsSlot,
 }: {
   value: SettingsState;
   onChange: (patch: Partial<SettingsState>) => void;
-  layout?: "split" | "stacked";
+  layout?: "split" | "stacked" | "numbered";
   /** Éléments propres à la création (rôle de l'hôte, bots) insérés dans le panneau de gauche. */
   leftExtra?: ReactNode;
   /** Création : le nom de la salle est obligatoire (la modification garde l'ancien s'il est vide). */
@@ -118,6 +119,9 @@ export function SettingsForm({
    * en onglets, pas d'aperçu dans le formulaire (il vient à l'étape « continuer »).
    */
   compact?: boolean;
+  /** Mise en page « numbered » (création) : rôle de l'hôte et bots, rangés dans la section 1. */
+  roleSlot?: ReactNode;
+  botsSlot?: ReactNode;
 }) {
   const { t, lang } = useLanguage();
   const v = value;
@@ -320,7 +324,9 @@ export function SettingsForm({
         label={t("set.accent_types")}
         wanted={v.accentWanted}
         forbidden={v.accentForbidden}
-        onChange={(next) => onChange({ accentWanted: next.wanted, accentForbidden: next.forbidden })}
+        onChange={(next) =>
+          onChange({ accentWanted: next.wanted, accentForbidden: next.forbidden })
+        }
       />
       <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.accent_note")}</p>
     </div>
@@ -473,7 +479,9 @@ export function SettingsForm({
       ) : (
         <>
           <fieldset className="min-w-0 border-2 border-[#6b6b6b] p-3">
-            <legend className="font-pixel px-1 text-[11px] text-[#3a3a3a]">{t("set.options")}</legend>
+            <legend className="font-pixel px-1 text-[11px] text-[#3a3a3a]">
+              {t("set.options")}
+            </legend>
             <div className="flex flex-wrap gap-2">{TEXT_OPTIONS.map(optionChip)}</div>
             <p className="mt-1.5 text-lg text-[#3a3a3a]">{optionsNote}</p>
             <div className="mt-3">
@@ -519,6 +527,244 @@ export function SettingsForm({
       )}
     </div>
   );
+
+  // Création (maquette « 2b · Créer une salle ») : trois sections numérotées, choix en segments.
+  if (layout === "numbered") {
+    const seg = <K extends string>(
+      label: string,
+      options: readonly (readonly [K, string])[],
+      current: K,
+      pick: (k: K) => void,
+    ) => (
+      <fieldset className="min-w-0">
+        <legend className="create-lbl font-pixel">{label}</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {options.map(([key, text]) => (
+            <button
+              key={key}
+              type="button"
+              data-on={current === key}
+              aria-pressed={current === key}
+              onClick={() => pick(key)}
+              className="create-opt font-pixel"
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+    );
+    const accessSub = {
+      public: t("set.access_public_sub"),
+      unlisted: t("set.access_unlisted_sub"),
+      private: t("set.access_private_sub"),
+    }[v.access];
+    const durLabel = (sec: number) =>
+      sec === 0
+        ? t("create.dur_none")
+        : sec < 60
+          ? t("create.dur_s", { n: sec })
+          : t("create.dur_min", { n: sec / 60 });
+    const BONUS_LOOK = {
+      minus_words: { c: "#45cfc8", who: t("create.who_last"), d: ["M1 3h6v2h-6z"] },
+      plus_words: { c: "#f0b429", who: t("create.who_first"), d: ["M1 3h6v2h-6z", "M3 1h2v6h-2z"] },
+      fog: {
+        c: "#c77dff",
+        who: t("create.who_first"),
+        d: ["M0 2h5v1h-5z", "M2 4h6v1h-6z", "M1 6h4v1h-4z"],
+      },
+    } as const;
+
+    return (
+      <div className="flex flex-col gap-6">
+        <section aria-labelledby="sec-room" className="create-panel">
+          <h2 id="sec-room" className="font-pixel text-[13px] text-white">
+            <span className="text-[#7fc45a]">1</span> {t("create.sec_room")}
+          </h2>
+          <div>
+            <label htmlFor="room-name" className="create-lbl font-pixel">
+              {t("set.name")}
+            </label>
+            <input
+              id="room-name"
+              type="text"
+              value={v.name}
+              onChange={(e) => onChange({ name: e.target.value })}
+              maxLength={ROOM_NAME_MAX + 10}
+              required={requireName}
+              aria-invalid={v.name !== "" && nameProblem !== null}
+              aria-describedby="room-name-hint"
+              autoComplete="off"
+              className="home-code h-[52px] w-full px-3.5 text-[26px]"
+            />
+            <p
+              id="room-name-hint"
+              role={v.name !== "" && nameProblem ? "alert" : undefined}
+              className={`create-hint ${v.name !== "" && nameProblem ? "text-[#f39a8c]" : ""}`}
+            >
+              {v.name !== "" && nameProblem ? t(`err.${nameProblem}` as const) : t("set.name_hint")}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-6">
+            <div className="min-w-0">
+              {seg(
+                t("create.who"),
+                [
+                  ["public", t("set.access_public")],
+                  ["unlisted", t("set.access_unlisted")],
+                  ["private", t("set.access_private")],
+                ] as const,
+                v.access,
+                (access) => onChange({ access }),
+              )}
+              <p className="create-hint">{accessSub}</p>
+            </div>
+            {roleSlot}
+          </div>
+          <div>
+            <label htmlFor="room-size" className="create-lbl font-pixel">
+              {t("create.max_players", { count: v.lobbySize })}
+            </label>
+            <input
+              id="room-size"
+              type="range"
+              min={2}
+              max={30}
+              value={v.lobbySize}
+              onChange={(e) => onChange({ lobbySize: Number(e.target.value) })}
+              className="w-full accent-[#7fc45a]"
+            />
+          </div>
+          {botsSlot}
+        </section>
+
+        <section aria-labelledby="sec-text" className="create-panel">
+          <h2 id="sec-text" className="font-pixel text-[13px] text-white">
+            <span className="text-[#7fc45a]">2</span> {t("create.sec_text")}
+          </h2>
+          <div className="flex flex-wrap gap-6">
+            {seg(
+              t("create.lang_short"),
+              [
+                ["fr", "FR"],
+                ["en", "EN"],
+              ] as const,
+              v.language,
+              (language) => onChange({ language }),
+            )}
+            {seg(
+              t("create.type"),
+              [
+                ["coherent", t("create.type_passages")],
+                ["aleatoire", t("create.type_random")],
+              ] as const,
+              v.textType,
+              (textType) => onChange({ textType }),
+            )}
+            {seg(
+              t("set.complexity"),
+              (Object.keys(COMPLEXITY_KEYS) as Difficulty[]).map(
+                (level) => [level, t(COMPLEXITY_KEYS[level][0])] as const,
+              ),
+              v.complexity,
+              (complexity) => onChange({ complexity }),
+            )}
+          </div>
+          <p className="create-hint -mt-2">{t(COMPLEXITY_KEYS[v.complexity][1])}</p>
+          <div>
+            <label htmlFor="room-length" className="create-lbl font-pixel">
+              {t("set.length", { count: v.length })}
+            </label>
+            <input
+              id="room-length"
+              type="range"
+              min={10}
+              max={400}
+              value={v.length}
+              onChange={(e) => onChange({ length: Number(e.target.value) })}
+              className="w-full accent-[#7fc45a]"
+            />
+          </div>
+          {advanced}
+        </section>
+
+        <section aria-labelledby="sec-rules" className="create-panel">
+          <h2 id="sec-rules" className="font-pixel text-[13px] text-white">
+            <span className="text-[#7fc45a]">3</span> {t("create.sec_rules")}
+          </h2>
+          {seg(
+            t("create.max_time"),
+            DURATIONS.map((sec) => [String(sec), durLabel(sec)] as const),
+            String(v.duration),
+            (sec) => onChange({ duration: Number(sec) }),
+          )}
+          <fieldset className="min-w-0">
+            <legend className="create-lbl font-pixel">{t("create.on_error")}</legend>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {(
+                [
+                  ["accumuler", t("create.err_go"), t("create.err_go_sub")],
+                  ["bloquer", t("create.err_fix"), t("create.err_fix_sub")],
+                ] as [ErrorMode, string, string][]
+              ).map(([key, title, sub]) => (
+                <button
+                  key={key}
+                  type="button"
+                  data-on={v.errorMode === key}
+                  aria-pressed={v.errorMode === key}
+                  onClick={() => onChange({ errorMode: key })}
+                  className="create-card"
+                >
+                  <b className="font-pixel text-[9px] font-normal text-white">{title}</b>
+                  <span className="text-lg leading-[1.1] text-[#a8966e]">{sub}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="min-w-0">
+            <legend className="create-lbl font-pixel">{t("create.bonus_title")}</legend>
+            <div className="flex flex-col gap-2">
+              {BONUS_KINDS.map((kind) => {
+                const on = v.comebackBonus && v.bonusKinds.includes(kind);
+                const look = BONUS_LOOK[kind];
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={on}
+                    data-on={on}
+                    onClick={() => onChange(toggleBonusKind(v, kind))}
+                    className="create-bonus"
+                  >
+                    <span
+                      className="create-bonus-ico"
+                      style={{ boxShadow: `inset 0 0 0 2px ${look.c}` }}
+                    >
+                      <svg viewBox="0 0 8 8" shapeRendering="crispEdges" aria-hidden="true">
+                        {look.d.map((d) => (
+                          <path key={d} d={d} fill={look.c} />
+                        ))}
+                      </svg>
+                    </span>
+                    <span className="flex min-w-0 flex-auto flex-col gap-1 text-left">
+                      <span className="font-pixel text-[9px] text-white">
+                        {t(`set.bonus_${kind}`)}
+                      </span>
+                      <span className="text-lg leading-[1.1] text-[#a8966e]">
+                        {t(`create.bonus_${kind}_sub`)}
+                      </span>
+                    </span>
+                    <span className="create-who font-pixel">{look.who}</span>
+                    <span className="create-toggle" aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        </section>
+      </div>
+    );
+  }
 
   if (layout === "stacked") {
     return (
