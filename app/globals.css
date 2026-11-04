@@ -838,7 +838,11 @@ body {
     bottom: 3px;
     width: 80%;
     height: 3px;
-    background: linear-gradient(to right, var(--color-green-light) var(--fill), #000000 var(--fill));
+    background: linear-gradient(
+      to right,
+      var(--color-green-light) var(--fill),
+      #000000 var(--fill)
+    );
   }
 
   .item-info-btn {
@@ -948,15 +952,27 @@ body {
       animation: none;
     }
   }
-
 }
 
-/* --- Curseur pixel (refonte du 4 nov.) -------------------------------------
-   Dessin original (public/cursors/fleche.png) : la même flèche partout, même sur ce qui se
-   clique (demande de l'étudiant : pas de main). Le curseur système reste en secours. */
+/* --- Curseur « précision » (choix de l'étudiant, 4 nov.) -------------------
+   Dessin original (public/cursors/precision.png, croix creuse) partout, même sur ce qui se
+   clique (pas de main). La croix du système reste en secours. */
 html,
-:is(a, button, label, summary, select, [role="button"], [role="tab"], input[type="checkbox"], input[type="radio"], input[type="range"]):not(:disabled) {
-  cursor: url("/cursors/fleche.png") 0 0, default;
+:is(
+  a,
+  button,
+  label,
+  summary,
+  select,
+  [role="button"],
+  [role="tab"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"]
+):not(:disabled) {
+  cursor:
+    url("/cursors/precision.png") 12 12,
+    crosshair;
 }
 
 /* --- Style sombre de la refonte (maquettes du 4 nov.) ----------------------
