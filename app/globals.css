@@ -1908,3 +1908,180 @@ a.lobby-row:hover .lobby-go {
     display: none;
   }
 }
+
+/* --- Salle d'attente de la refonte (maquette « 2 · Salle d'attente », 4 nov.) --- */
+.room-tag {
+  font-size: 8px;
+  padding: 6px 8px;
+  border: 3px solid #000;
+  background: #1b1209;
+  color: #cdbf9c;
+}
+.room-code {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 56px;
+  font-size: 20px;
+  color: #ffe08a;
+  background: #3b2a1a;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+  transition: transform 0.1s steps(2);
+}
+.room-code:hover {
+  transform: translateY(-4px);
+}
+@media (max-width: 639px) {
+  .room-code {
+    width: 36px;
+    height: 46px;
+    font-size: 15px;
+  }
+}
+.room-lift {
+  border: 4px solid #000;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s steps(2);
+}
+.room-lift:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35),
+    4px 4px 0 #000;
+}
+.room-lift:active {
+  transform: translate(1px, 1px);
+}
+.room-pcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  min-height: 72px;
+  background: #2b1e13;
+  border: 3px solid #000;
+  border-left: 8px solid #f0b429;
+  transition: transform 0.08s steps(2);
+}
+.room-pcard:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000;
+  background: #3b2a1a;
+}
+.room-kick {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  font-size: 9px;
+  background: #3b2a1a;
+  color: #f39a8c;
+  border: 3px solid #000;
+  opacity: 0.35;
+}
+.room-pcard:hover .room-kick,
+.room-kick:focus-visible {
+  opacity: 1;
+}
+.room-kick:hover {
+  background: #b0281c;
+  color: #fff;
+}
+.room-free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  border: 3px dashed #3b2a1a;
+  color: #5a4632;
+  transition:
+    color 0.1s steps(2),
+    border-color 0.1s steps(2);
+}
+.room-free:hover {
+  border-color: #7fc45a;
+  color: #7fc45a;
+}
+.room-start {
+  height: 92px;
+  background: #3f7d24;
+  color: #fff;
+  font-size: 26px;
+  text-shadow: 3px 3px 0 #000;
+  border: 4px solid #000;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35);
+  animation: room-ready 1.6s steps(2) infinite;
+  transition: transform 0.08s steps(2);
+}
+.room-start:hover {
+  animation: none;
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35),
+    6px 6px 0 #000;
+}
+.room-start:active {
+  transform: translate(2px, 2px);
+}
+@keyframes room-ready {
+  50% {
+    background: #5e9c3a;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-start {
+    animation: none;
+  }
+}
+.room-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px;
+  font-size: 21px;
+  line-height: 1.1;
+  border-left: 6px solid transparent;
+}
+.room-kv:hover {
+  background: #2b1e13;
+  border-left-color: #f0b429;
+}
+.room-kv dd {
+  margin: 0;
+  text-align: right;
+}
+.room-bon {
+  font-size: 7px;
+  padding: 5px 6px;
+  background: #2b1e13;
+  color: #ffe08a;
+  border: 2px solid #3b2a1a;
+  white-space: nowrap;
+}
+.room-details > summary {
+  list-style: none;
+}
+.room-details > summary::-webkit-details-marker {
+  display: none;
+}
+.room-details > summary:hover h2 {
+  color: #ffe08a;
+}
+.room-danger {
+  padding: 10px;
+  font-size: 10px;
+  color: #f39a8c;
+  background: transparent;
+}
+.room-danger:hover {
+  color: #fff;
+  background: #b0281c;
+}
