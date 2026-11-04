@@ -951,6 +951,16 @@ body {
 
 }
 
+/* --- Curseur pixel (refonte du 4 nov.) -------------------------------------
+   Dessins originaux (public/cursors) : flèche partout, main sur ce qui se clique.
+   Le curseur système reste en secours si l'image ne charge pas. */
+html {
+  cursor: url("/cursors/fleche.png") 0 0, auto;
+}
+:is(a, button, label, summary, select, [role="button"], [role="tab"], input[type="checkbox"], input[type="radio"], input[type="range"]):not(:disabled) {
+  cursor: url("/cursors/main.png") 10 0, pointer;
+}
+
 /* --- Thème clair (UI-3) --------------------------------------------------
    Bascule via le bouton de PixelShell (voir components/PixelShell.tsx), qui
    pose data-theme="light" sur <html> et le garde en localStorage. Le fond
