@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/components/items/ItemIcon";
-import { PixelButton, PixelDisclosure, PixelPanel } from "@/components/ui";
+import { PixelAvatar, PixelButton } from "@/components/ui";
+import { identicon } from "@/lib/identicon";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { useLanguage, type DictKey } from "@/lib/i18n";
 import { itemName } from "@/lib/item-text";
@@ -23,6 +24,15 @@ const TABS: { id: Tab; label: DictKey }[] = [
 ];
 const REFRESH_MS = 15_000;
 
+/** Objet qui représente chaque classe sur l'échelle (bronze → netherite). */
+const LEAGUE_ITEM: ItemId[] = [
+  "copper_ore",
+  "iron_ingot",
+  "gold_ingot",
+  "diamond",
+  "netherite_ingot",
+];
+
 /** Temps restant : jours (traduits) et « hh:mm:ss ». */
 function countdown(ms: number): { days: number; hms: string } {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -38,6 +48,7 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
   const router = useRouter();
   const [view, setView] = useState(initial);
   const [tab, setTab] = useState<Tab>("level");
+  const [pane, setPane] = useState<"mine" | "general">("mine");
   const [league, setLeague] = useState(initial.week.league);
   const [skew] = useState(() => initial.serverNow - Date.now());
   const [now, setNow] = useState(() => Date.now() + skew);
@@ -94,17 +105,6 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
   const itemsText = (items: { item: ItemId; count: number }[]) =>
     items.map((i) => `${itemName(t, i.item)} × ${i.count}`).join(", ");
 
-  const name = (row: { userId: string; name: string; league: number }) => (
-    <span className="flex min-w-0 items-center gap-2">
-      <LeagueBadge league={row.league} />
-      <span className="truncate">{row.name}</span>
-      {champions.has(row.userId) && <Crown league={champions.get(row.userId)!} />}
-      {me?.userId === row.userId && (
-        <b className="font-pixel text-[9px] text-[#9a6b0a]">{t("lb.you")}</b>
-      )}
-    </span>
-  );
-
   // Progression dans ma classe (idée C).
   const myLeague = me?.league ?? null;
   const rows = view.week.rows;
@@ -123,8 +123,54 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
   }
   const prizes = view.prizes.league[league]!;
 
+  const ends = (() => {
+    const left = countdown(view.week.endsAt - now);
+    return left.days > 0 ? t("lb.days", { d: left.days, hms: left.hms }) : left.hms;
+  })();
+  const avatar = (row: { name: string; avatarUrl?: string | null }) => (
+    <PixelAvatar
+      label={row.name[0]?.toUpperCase() ?? "?"}
+      color={identicon(row.name).color}
+      src={row.avatarUrl ?? null}
+      seed={row.name}
+      className="h-[34px] w-[34px] flex-none text-[11px]"
+    />
+  );
+  const who = (row: { userId: string; name: string; avatarUrl?: string | null }) => (
+    <span className="flex min-w-0 items-center gap-2.5">
+      {avatar(row)}
+      <span className="truncate text-2xl text-white">{row.name}</span>
+      {champions.has(row.userId) && <Crown league={champions.get(row.userId)!} />}
+      {me?.userId === row.userId && <span className="lb-youtag font-pixel">{t("lb.you")}</span>}
+    </span>
+  );
+
   return (
     <div className="flex flex-col gap-6">
+      <div className="-mt-2 flex flex-wrap items-end justify-between gap-4">
+        <span className="text-xl text-[#cdbf9c]">{t("lb.subtitle")}</span>
+        <div role="tablist" aria-label={t("lb.title")} className="flex gap-1.5">
+          {(
+            [
+              ["mine", t("lb.tab_mine")],
+              ["general", t("lb.tab_general")],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={pane === id}
+              data-on={pane === id}
+              onClick={() => setPane(id)}
+              className="lb-tab font-pixel"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {message && (
         <p
           role={message.error ? "alert" : "status"}
@@ -134,209 +180,159 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
         </p>
       )}
 
-      {me?.rewards.map((reward) => (
-        <PixelPanel key={reward.id} className="flex flex-wrap items-center gap-4 p-4">
-          <div className="flex gap-1">
-            {reward.items.map((i) => (
-              <span
-                key={i.item}
-                className="pixel-slot relative flex h-14 w-14 items-center justify-center"
+      {pane === "mine" && (
+        <>
+          {me?.rewards.map((reward) => (
+            <section key={reward.id} className="lb-reward" aria-label={t("lb.reward_box")}>
+              <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1.5">
+                <h2 className="font-pixel text-[10px] text-[#ffe08a]">{t("lb.reward_box")}</h2>
+                <span className="text-[21px]">
+                  {reward.kind === "wins"
+                    ? t("lb.reward_wins", {
+                        place: place(reward.rank),
+                        league: leagueName(reward.league),
+                        date: formatDate(lang, `${reward.weekStart}T12:00:00`),
+                      })
+                    : t("lb.reward_wpm", {
+                        date: formatDate(lang, `${reward.weekStart}T12:00:00`),
+                      })}
+                </span>
+              </div>
+              <div
+                className="flex gap-2"
+                aria-label={t("lb.reward_gives", {
+                  list: [
+                    reward.xp > 0 ? `${formatNumber(lang, reward.xp)} XP` : null,
+                    reward.items.length > 0 ? itemsText(reward.items) : null,
+                    reward.boost > 0 ? t("lb.reward_boost", { boost: pct(reward.boost) }) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                })}
               >
-                <ItemIcon item={i.item} className="h-3/4 w-3/4" />
-                {i.count > 1 && <span className="inv-count">{i.count}</span>}
-              </span>
-            ))}
-          </div>
-          <div className="min-w-56 flex-1 text-2xl text-[#2b2b2b]">
-            <h2 className="font-pixel mb-1 text-sm">{t("lb.reward_title")}</h2>
-            <p>
-              {reward.kind === "wins"
-                ? t("lb.reward_wins", {
-                    place: place(reward.rank),
-                    league: leagueName(reward.league),
-                    date: formatDate(lang, `${reward.weekStart}T12:00:00`),
-                  })
-                : t("lb.reward_wpm", { date: formatDate(lang, `${reward.weekStart}T12:00:00`) })}
-            </p>
-            <p className="text-xl">
-              {t("lb.reward_gives", {
-                list: [
-                  reward.xp > 0 ? `${formatNumber(lang, reward.xp)} XP` : null,
-                  reward.items.length > 0 ? itemsText(reward.items) : null,
-                  reward.boost > 0 ? t("lb.reward_boost", { boost: pct(reward.boost) }) : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · "),
-              })}
-            </p>
-          </div>
-          <PixelButton
-            variant="gold"
-            disabled={busy}
-            onClick={() => void claim(reward.id)}
-            className="h-12 px-5 text-[11px]"
-          >
-            {t("lb.claim")}
-          </PixelButton>
-        </PixelPanel>
-      ))}
-
-      {me && (me.lastMove || me.boost > 0) && (
-        <PixelPanel className="flex flex-col gap-1 p-4 text-2xl text-[#2b2b2b]">
-          {me.lastMove && me.lastMove.to > me.lastMove.from && (
-            <p>{t("lb.moved_up", { league: leagueName(me.lastMove.to) })}</p>
-          )}
-          {me.lastMove && me.lastMove.to < me.lastMove.from && (
-            <p>{t("lb.moved_down", { league: leagueName(me.lastMove.to) })}</p>
-          )}
-          {me.boost > 0 && me.boostUntil && (
-            <p>
-              {t("lb.boost_active", {
-                boost: pct(me.boost),
-                date: formatDate(lang, new Date(me.boostUntil), true),
-              })}
-            </p>
-          )}
-        </PixelPanel>
-      )}
-      {!me && (
-        <PixelPanel className="p-4 text-2xl text-[#2b2b2b]">
-          <p className="mb-3">{t("lb.guest")}</p>
-          <PixelButton href="/connexion" className="h-11 px-5 text-[10px]">
-            {t("home.account")}
-          </PixelButton>
-        </PixelPanel>
-      )}
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        {/* Classement général */}
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-1 text-sm text-[#2b2b2b]">{t("lb.general")}</h2>
-          <p className="mb-3 text-xl text-[#3a3a3a]">{t("lb.live")}</p>
-          <div role="tablist" aria-label={t("lb.general")} className="mb-3 flex flex-wrap gap-2">
-            {TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                id={`lb-tab-${item.id}`}
-                aria-selected={tab === item.id}
-                aria-controls="lb-board"
-                onClick={() => setTab(item.id)}
-                data-variant={tab === item.id ? "green" : "slate"}
-                className="pixel-btn h-10 px-3 text-[9px]"
-              >
-                {t(item.label)}
-              </button>
-            ))}
-          </div>
-          <div
-            id="lb-board"
-            role="tabpanel"
-            aria-labelledby={`lb-tab-${tab}`}
-            className="overflow-x-auto"
-          >
-            <table className="w-full text-left text-xl text-[#2b2b2b]">
-              <thead>
-                <tr className="text-lg text-[#3a3a3a]">
-                  <th scope="col" className="w-14 pr-2">
-                    {t("lb.col_rank")}
-                  </th>
-                  <th scope="col" className="w-full">
-                    {t("lb.col_player")}
-                  </th>
-                  <th scope="col" className="text-right">
-                    {tab === "level"
-                      ? t("lb.col_level")
-                      : tab === "wpm"
-                        ? t("lb.col_wpm")
-                        : t("lb.col_wins")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {view.boards[tab].map((row) => (
-                  <tr
-                    key={row.userId}
-                    data-me={me?.userId === row.userId}
-                    className="border-t-2 border-dotted border-[#9a9a9a] data-[me=true]:bg-[#ffe08a]"
-                  >
-                    <td className="font-pixel py-1 pr-2 text-[11px]">{row.position}</td>
-                    <td className="w-full max-w-0 py-1">{name(row)}</td>
-                    <td className="py-1 text-right">
-                      {tab === "level"
-                        ? levelFromXp(row.xp).level
-                        : tab === "wpm"
-                          ? formatNumber(lang, row.bestWpm, 1)
-                          : row.wins}
-                    </td>
-                  </tr>
+                {reward.xp > 0 && (
+                  <span className="lb-cell">
+                    <ItemIcon item="xp_bottle" className="h-10 w-10" />
+                    <span className="lb-qty font-pixel">{reward.xp}</span>
+                  </span>
+                )}
+                {reward.items.map((i) => (
+                  <span key={i.item} className="lb-cell">
+                    <ItemIcon item={i.item} className="h-10 w-10" />
+                    {i.count > 1 && <span className="lb-qty font-pixel">{i.count}</span>}
+                  </span>
                 ))}
-              </tbody>
-            </table>
-            {view.boards[tab].length === 0 && <p className="text-xl">{t("lb.empty")}</p>}
-          </div>
-        </PixelPanel>
-
-        {/* Classes de la semaine */}
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-1 text-sm text-[#2b2b2b]">{t("lb.week_title")}</h2>
-          <p className="mb-3 text-xl text-[#3a3a3a]">
-            {(() => {
-              const left = countdown(view.week.endsAt - now);
-              const time = left.days > 0 ? t("lb.days", { d: left.days, hms: left.hms }) : left.hms;
-              return t("lb.ends", { time });
-            })()}
-          </p>
-          <div role="group" aria-label={t("lb.league_pick")} className="mb-3 flex flex-wrap gap-2">
-            {[0, 1, 2, 3, 4].map((l) => (
+                {reward.boost > 0 && (
+                  <span className="lb-cell flex-col">
+                    <span className="font-pixel text-[9px] text-[#7fc45a]">
+                      +{pct(reward.boost)}
+                    </span>
+                    <span className="text-[15px] text-[#a8966e]">7 j</span>
+                  </span>
+                )}
+              </div>
               <button
-                key={l}
                 type="button"
-                aria-pressed={league === l}
-                onClick={() => pickLeague(l)}
-                className="lb-league-btn"
-                style={{ ["--league" as string]: LEAGUE_COLORS[l] }}
+                disabled={busy}
+                onClick={() => void claim(reward.id)}
+                className="lb-claim font-pixel"
               >
-                {leagueName(l)}
+                {t("lb.claim")}
               </button>
-            ))}
-          </div>
-          <p className="mb-1 text-xl text-[#2b2b2b]">
-            {t("lb.rules", {
-              active: rows.length,
-              up: view.week.up,
-              down: league === 0 ? 0 : view.week.down,
-              min: view.week.minWins,
-            })}
-          </p>
-          {progress && <p className="mb-3 text-xl text-[#23501a]">{progress}</p>}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xl text-[#2b2b2b]">
-              <thead>
-                <tr className="text-lg text-[#3a3a3a]">
-                  <th scope="col" className="w-14 pr-2">
-                    {t("lb.col_rank")}
-                  </th>
-                  <th scope="col" className="w-full">
-                    {t("lb.col_player")}
-                  </th>
-                  <th scope="col" className="text-right">
-                    {t("lb.col_wins")}
-                  </th>
-                  <th
-                    scope="col"
-                    className="hidden px-2 text-right whitespace-nowrap sm:table-cell"
+            </section>
+          ))}
+
+          {me &&
+            ((me.lastMove && me.lastMove.to !== me.lastMove.from) ||
+              (me.boost > 0 && me.boostUntil)) && (
+              <div className="lobby-panel flex flex-col gap-1 px-5 py-3 text-2xl">
+                {me.lastMove && me.lastMove.to > me.lastMove.from && (
+                  <p>{t("lb.moved_up", { league: leagueName(me.lastMove.to) })}</p>
+                )}
+                {me.lastMove && me.lastMove.to < me.lastMove.from && (
+                  <p>{t("lb.moved_down", { league: leagueName(me.lastMove.to) })}</p>
+                )}
+                {me.boost > 0 && me.boostUntil && (
+                  <p>
+                    {t("lb.boost_active", {
+                      boost: pct(me.boost),
+                      date: formatDate(lang, new Date(me.boostUntil), true),
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+          {!me && (
+            <div className="lobby-panel px-5 py-4 text-2xl">
+              <p className="mb-3">{t("lb.guest")}</p>
+              <PixelButton href="/connexion" className="h-11 px-5 text-[10px]">
+                {t("home.account")}
+              </PixelButton>
+            </div>
+          )}
+
+          <section className="lobby-panel" aria-labelledby="ladder">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#3b2a1a] px-5 py-3.5">
+              <h2 id="ladder" className="font-pixel text-[11px] text-white">
+                {t("lb.classes")}
+              </h2>
+              <span className="text-xl text-[#a8966e]">
+                {t("lb.classes_rule", { up: view.week.up, down: view.week.down })}
+              </span>
+            </div>
+            <ol className="lb-ladder" aria-label={t("lb.league_pick")}>
+              {[0, 1, 2, 3, 4].map((l) => (
+                <li key={l} className="contents">
+                  {l > 0 && (
+                    <span
+                      className={`lb-link ${myLeague != null && l <= myLeague ? "lb-lit" : ""}`}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    aria-pressed={league === l}
+                    onClick={() => pickLeague(l)}
+                    className={`lb-lg ${myLeague != null && l < myLeague ? "lb-done" : ""} ${myLeague === l ? "lb-here" : ""} ${league === l ? "lb-picked" : ""}`}
+                    style={{ ["--c" as string]: LEAGUE_COLORS[l] }}
                   >
-                    {t("lb.col_week_wpm")}
-                  </th>
-                  <th scope="col" className="w-20 text-right">
-                    <span className="sr-only">{t("lb.zone_up")}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
+                    {myLeague === l && (
+                      <span className="lb-you font-pixel">{t("lb.you_here")}</span>
+                    )}
+                    <span className="lb-lgic">
+                      <ItemIcon item={LEAGUE_ITEM[l]!} className="h-11 w-11" />
+                    </span>
+                    <span className="lb-lgn font-pixel">{leagueName(l).toUpperCase()}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <div className="flex flex-wrap items-start gap-7">
+            <section className="lobby-panel min-w-0 flex-[999_1_620px]" aria-labelledby="semaine">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#3b2a1a] px-5 py-3.5">
+                <h2 id="semaine" className="font-pixel text-[11px] text-white">
+                  {t("lb.week_of", { league: leagueName(league).toUpperCase() })}
+                </h2>
+                <span className="flex items-center gap-2 text-xl text-white">
+                  <i className="lobby-live" aria-hidden="true" />
+                  {t("lb.ends_short", { time: ends })}
+                </span>
+              </div>
+              {progress && <p className="px-5 pt-3 text-xl text-[#7fc45a]">{progress}</p>}
+              <div role="table" aria-label={t("lb.week_of", { league: leagueName(league) })}>
+                <div role="row" className="lb-cols lb-thead font-pixel">
+                  <span role="columnheader">#</span>
+                  <span role="columnheader">{t("lb.col_player").toUpperCase()}</span>
+                  <span role="columnheader">{t("lb.col_wins").toUpperCase()}</span>
+                  <span role="columnheader">{t("lb.best")}</span>
+                  <span role="columnheader" className="text-right">
+                    {t("lb.zone")}
+                  </span>
+                </div>
+                {rows.length === 0 && <p className="px-5 py-4 text-xl">{t("lb.empty")}</p>}
+                {rows.map((row, i) => {
                   const up =
                     row.position <= view.week.up && row.wins >= view.week.minWins && league < 4;
                   const down =
@@ -344,89 +340,214 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
                     view.week.down > 0 &&
                     row.position > rows.length - view.week.down &&
                     row.position > view.week.up;
+                  const next = rows[i + 1];
+                  const nextDown =
+                    !!next &&
+                    league > 0 &&
+                    view.week.down > 0 &&
+                    next.position > rows.length - view.week.down &&
+                    next.position > view.week.up;
                   return (
-                    <tr
-                      key={row.userId}
-                      data-me={me?.userId === row.userId}
-                      className="border-t-2 border-dotted border-[#9a9a9a] data-[me=true]:bg-[#ffe08a]"
-                    >
-                      <td className="font-pixel py-1 pr-2 text-[11px]">{row.position}</td>
-                      <td className="w-full max-w-0 py-1">{name(row)}</td>
-                      <td className="py-1 text-right">{row.wins}</td>
-                      <td className="hidden py-1 text-right sm:table-cell">
-                        {formatNumber(lang, row.bestWpm, 1)}
-                      </td>
-                      <td className="font-pixel py-1 text-right text-[8px]">
-                        {up && <span className="text-[#23501a]">▲ {t("lb.zone_up")}</span>}
-                        {down && <span className="text-[#9b3a2e]">▼ {t("lb.zone_down")}</span>}
-                      </td>
-                    </tr>
+                    <div key={row.userId} className="contents">
+                      <div
+                        role="row"
+                        className={`lb-cols lb-row ${me?.userId === row.userId ? "lb-me" : ""}`}
+                      >
+                        <span role="cell" className="font-pixel text-xs text-[#a8966e]">
+                          {row.position}
+                        </span>
+                        <span role="cell" className="min-w-0">
+                          {who(row)}
+                        </span>
+                        <span
+                          role="cell"
+                          className="lb-wins"
+                          aria-label={t("lb.wins_aria", { n: row.wins })}
+                        >
+                          {Array.from({ length: 5 }, (_, k) => (
+                            <span key={k} data-on={k < row.wins} aria-hidden="true" />
+                          ))}
+                          <b aria-hidden="true">{row.wins}</b>
+                        </span>
+                        <span role="cell" className="text-2xl text-white">
+                          {formatNumber(lang, Math.round(row.bestWpm))}{" "}
+                          <span className="text-[17px] text-[#a8966e]">{t("race.wpm")}</span>
+                        </span>
+                        <span role="cell" className="font-pixel text-right text-[8px]">
+                          {up && <span className="text-[#7fc45a]">{t("lb.zone_up")}</span>}
+                          {down && <span className="text-[#f39a8c]">{t("lb.zone_down")}</span>}
+                        </span>
+                      </div>
+                      {row.position === view.week.up && i < rows.length - 1 && league < 4 && (
+                        <div className="lb-sep font-pixel">{t("lb.line_up")}</div>
+                      )}
+                      {!down && nextDown && (
+                        <div className="lb-sep font-pixel">{t("lb.line_down")}</div>
+                      )}
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-            {rows.length === 0 && <p className="text-xl">{t("lb.empty")}</p>}
-          </div>
-          <PixelDisclosure title={t("lb.prizes")} className="mt-4">
-            <ul className="list-none text-xl text-[#2b2b2b]">
-              {prizes.map((prize, i) => (
-                <li key={i}>
-                  {t("lb.prize_line", {
-                    place: place(i + 1),
-                    xp: prize.xp,
-                    items: itemsText(prize.items),
-                    boost: pct(prize.boost),
-                  })}
-                </li>
-              ))}
-              <li>{t("lb.prize_other", { boost: pct(view.prizes.otherBoost[league] ?? 0) })}</li>
-              <li className="mt-2">
-                {t("lb.prize_wpm", {
-                  xp: view.prizes.wpm.xp,
-                  items: itemsText(view.prizes.wpm.items),
-                })}
-              </li>
-            </ul>
-          </PixelDisclosure>
-        </PixelPanel>
-      </div>
+              </div>
+            </section>
 
-      {/* Semaine passée */}
-      <PixelPanel className="p-4">
-        <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("lb.last_week")}</h2>
-        {view.lastWeek.length === 0 ? (
-          <p className="text-xl text-[#2b2b2b]">{t("lb.last_week_none")}</p>
-        ) : (
-          <div className="flex flex-wrap gap-6 text-xl text-[#2b2b2b]">
-            {[4, 3, 2, 1, 0].map((l) => {
-              const podium = view.lastWeek.filter((r) => r.kind === "wins" && r.league === l);
-              if (podium.length === 0) return null;
-              return (
-                <div key={l}>
-                  <h3 className="mb-1 flex items-center gap-2 text-2xl">
-                    <LeagueBadge league={l} withName />
-                  </h3>
-                  <ol className="list-none">
-                    {podium.map((r) => (
-                      <li key={r.rank} className="flex items-center gap-2">
-                        {place(r.rank)} · {r.name}
-                        {r.rank === 1 && <Crown league={l} />}
-                      </li>
+            <aside className="lobby-panel min-w-0 flex-[1_1_320px]" aria-labelledby="prix">
+              <div className="border-b-2 border-[#3b2a1a] px-5 py-3.5">
+                <h2 id="prix" className="font-pixel text-[11px] text-white">
+                  {t("lb.prizes")}
+                </h2>
+              </div>
+              <ol className="flex flex-col gap-2.5 px-5 py-4.5">
+                {prizes.map((prize, i) => (
+                  <li key={i} className="lb-prize">
+                    <span
+                      className="hist-medal font-pixel"
+                      style={{ background: ["#f0b429", "#c6c6c6", "#c98e58"][i], color: "#1b1209" }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="flex flex-auto flex-col">
+                      <span className="text-[22px] text-white">
+                        {formatNumber(lang, prize.xp)} XP
+                      </span>
+                      <span className="text-lg text-[#a8966e]">
+                        {t("lb.prize_boost", { boost: pct(prize.boost) })}
+                      </span>
+                    </span>
+                    {prize.items.map((it) => (
+                      <span key={it.item} className="relative" title={itemName(t, it.item)}>
+                        <ItemIcon item={it.item} className="h-9 w-9" />
+                        <span className="lb-qty font-pixel">{it.count}</span>
+                      </span>
                     ))}
-                  </ol>
-                </div>
-              );
-            })}
-            {view.lastWeek
-              .filter((r) => r.kind === "wpm")
-              .map((r) => (
-                <p key="wpm" className="self-end">
-                  {t("lb.last_wpm", { name: r.name })}
-                </p>
-              ))}
+                  </li>
+                ))}
+              </ol>
+              <p className="px-5 text-[19px] text-[#a8966e]">
+                {t("lb.prize_other", { boost: pct(view.prizes.otherBoost[league] ?? 0) })}
+              </p>
+              <p className="px-5 pb-4.5 text-[19px] text-[#a8966e]">
+                {t("lb.min_wins_note", { min: view.week.minWins })}
+              </p>
+            </aside>
           </div>
-        )}
-      </PixelPanel>
+
+          <section className="lobby-panel" aria-labelledby="last">
+            <div className="border-b-2 border-[#3b2a1a] px-5 py-3.5">
+              <h2 id="last" className="font-pixel text-[11px] text-white">
+                {t("lb.last_week")}
+              </h2>
+            </div>
+            <div className="px-5 py-4">
+              {view.lastWeek.length === 0 ? (
+                <p className="text-xl">{t("lb.last_week_none")}</p>
+              ) : (
+                <div className="flex flex-wrap gap-6 text-xl">
+                  {[4, 3, 2, 1, 0].map((l) => {
+                    const podium = view.lastWeek.filter((r) => r.kind === "wins" && r.league === l);
+                    if (podium.length === 0) return null;
+                    return (
+                      <div key={l}>
+                        <h3 className="mb-1 flex items-center gap-2 text-2xl">
+                          <LeagueBadge league={l} withName />
+                        </h3>
+                        <ol className="list-none">
+                          {podium.map((r) => (
+                            <li key={r.rank} className="flex items-center gap-2">
+                              {place(r.rank)} · {r.name}
+                              {r.rank === 1 && <Crown league={l} />}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    );
+                  })}
+                  {view.lastWeek
+                    .filter((r) => r.kind === "wpm")
+                    .map((r) => (
+                      <p key="wpm" className="self-end">
+                        {t("lb.last_wpm", { name: r.name })}
+                      </p>
+                    ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {pane === "general" && (
+        <section className="lobby-panel" aria-labelledby="gen">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#3b2a1a] px-5 py-3.5">
+            <h2 id="gen" className="font-pixel text-[11px] text-white">
+              {t("lb.general")}
+            </h2>
+            <div role="tablist" aria-label={t("lb.general")} className="flex flex-wrap gap-1.5">
+              {TABS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  id={`lb-tab-${item.id}`}
+                  aria-selected={tab === item.id}
+                  aria-controls="lb-board"
+                  data-on={tab === item.id}
+                  onClick={() => setTab(item.id)}
+                  className="lobby-filter font-pixel"
+                >
+                  {t(item.label)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div id="lb-board" role="tabpanel" aria-labelledby={`lb-tab-${tab}`}>
+            <div role="table" aria-label={t("lb.general")}>
+              <div role="row" className="lb-gcols lb-thead font-pixel">
+                <span role="columnheader">{t("lb.col_rank").toUpperCase()}</span>
+                <span role="columnheader">{t("lb.col_player").toUpperCase()}</span>
+                <span role="columnheader">{t("lb.col_level").toUpperCase()}</span>
+                <span role="columnheader">{t("lb.col_wpm").toUpperCase()}</span>
+                <span role="columnheader">{t("lb.col_wins").toUpperCase()}</span>
+              </div>
+              {view.boards[tab].map((row) => (
+                <div
+                  key={row.userId}
+                  role="row"
+                  className={`lb-gcols lb-row ${me?.userId === row.userId ? "lb-me" : ""}`}
+                >
+                  <span role="cell">
+                    <span
+                      className="hist-medal font-pixel"
+                      style={{
+                        background:
+                          ["#f0b429", "#c6c6c6", "#c98e58"][row.position - 1] ?? "#2b1e13",
+                        color: row.position <= 3 ? "#1b1209" : "#a8966e",
+                      }}
+                    >
+                      {row.position}
+                    </span>
+                  </span>
+                  <span role="cell" className="min-w-0">
+                    {who(row)}
+                  </span>
+                  <span role="cell" className="text-2xl text-[#ffe08a]">
+                    {levelFromXp(row.xp).level}
+                  </span>
+                  <span role="cell" className="text-2xl text-white">
+                    {formatNumber(lang, Math.round(row.bestWpm))}
+                  </span>
+                  <span role="cell" className="text-2xl text-white">
+                    {row.wins}
+                  </span>
+                </div>
+              ))}
+              {view.boards[tab].length === 0 && (
+                <p className="px-5 py-4 text-xl">{t("lb.empty")}</p>
+              )}
+              <p className="px-5 py-3 text-lg text-[#a8966e]">{t("lb.live")}</p>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
