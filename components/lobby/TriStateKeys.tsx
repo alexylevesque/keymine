@@ -113,7 +113,10 @@ export function AccentKeyMap({
   wanted,
   forbidden,
   onChange,
+  compact = false,
 }: {
+  /** Création : petites touches côte à côte (maquette) au lieu des grandes cartes. */
+  compact?: boolean;
   label: string;
   wanted: AccentType[];
   forbidden: AccentType[];
@@ -122,7 +125,15 @@ export function AccentKeyMap({
   const { t } = useLanguage();
   return (
     <div>
-      <div role="group" aria-label={label} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <div
+        role="group"
+        aria-label={label}
+        className={
+          compact
+            ? "create-accents flex flex-wrap gap-1.5 p-1"
+            : "grid grid-cols-2 gap-2 sm:grid-cols-3"
+        }
+      >
         {ACCENT_TYPES.map((type) => (
           <TriStateKey
             key={type}

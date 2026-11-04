@@ -93,9 +93,6 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
 
   const complexity = t(`set.${settings.complexity}` as const);
 
-  const durationText =
-    settings.duration === 0 ? t("create.dur_none") : formatDuration(lang, settings.duration);
-
   return (
     <div className="ui-dark">
       <div className="mb-6 flex flex-wrap items-baseline justify-between gap-4">
@@ -105,8 +102,8 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
         <span className="text-xl text-[#cdbf9c]">{t("create.subtitle")}</span>
       </div>
 
-      <div hidden={step !== "settings"} className="flex flex-wrap items-start gap-7">
-        <div className="min-w-0 flex-[999_1_640px]">
+      <div hidden={step !== "settings"}>
+        <div className="min-w-0">
           <SettingsForm
             requireName
             compact
@@ -167,59 +164,6 @@ export function CreateRoomForm({ defaultName = "" }: { defaultName?: string }) {
             }
           />
         </div>
-
-        <aside className="create-aside min-w-0 flex-[1_1_320px]">
-          <section aria-labelledby="apercu" className="create-panel !gap-0 !p-0">
-            <div className="flex items-center justify-between gap-2 border-b-2 border-[#3b2a1a] px-4 py-3.5">
-              <h2 id="apercu" className="font-pixel text-[10px] text-white">
-                {t("create.preview_box")}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setDraw((n) => n + 1)}
-                className="create-refresh font-pixel"
-                aria-label={t("create.preview_another")}
-                title={t("create.preview_another")}
-              >
-                <svg
-                  viewBox="0 0 8 8"
-                  width="14"
-                  height="14"
-                  shapeRendering="crispEdges"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2 1h4v1h1v2h-1v-1h-1v-1h-3zM1 2h1v2h1v1h-1v1h3v1h-3v-1h-1z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </button>
-            </div>
-            <p className="create-ptxt">
-              {preview ? (
-                <>
-                  <span className="create-preview-cur">{preview.slice(0, 1)}</span>
-                  <span className="text-[#a8966e]">{preview.slice(1)}</span>
-                </>
-              ) : (
-                "…"
-              )}
-            </p>
-            <div className="create-pmeta">
-              <span>
-                <b className="font-pixel">{settings.length}</b> {t("create.meta_words")}
-              </span>
-              <span>
-                <b className="font-pixel">{settings.language.toUpperCase()}</b>{" "}
-                {complexity.toLowerCase()}
-              </span>
-              <span>
-                <b className="font-pixel">{durationText}</b>{" "}
-                {settings.duration === 0 ? "" : t("create.meta_max")}
-              </span>
-            </div>
-          </section>
-        </aside>
       </div>
 
       {step === "preview" && (

@@ -321,6 +321,7 @@ export function SettingsForm({
   const accentMap = accents ? (
     <div>
       <AccentKeyMap
+        compact={compact}
         label={t("set.accent_types")}
         wanted={v.accentWanted}
         forbidden={v.accentForbidden}
@@ -361,6 +362,26 @@ export function SettingsForm({
     );
   };
 
+  // Création : options en interrupteurs dorés (maquette).
+  const optionSwitch = (o: TextOption) => {
+    const englishAccents = o === "Accents" && v.language === "en";
+    const on = v.options.includes(o);
+    return (
+      <button
+        key={o}
+        type="button"
+        aria-pressed={on}
+        data-on={on && random && !englishAccents}
+        disabled={!random || englishAccents}
+        title={englishAccents ? t("set.accents_fr_only") : undefined}
+        onClick={() => onChange({ options: toggled(v.options, o) })}
+        className="create-sw font-pixel uppercase"
+      >
+        {t(`set.opt_${o}` as const)}
+      </button>
+    );
+  };
+
   const optionsNote = !random
     ? t("set.options_coherent")
     : v.language === "en"
@@ -380,17 +401,52 @@ export function SettingsForm({
           <span className="settings-adv-close">{t("set.advanced_close")}</span>
         </span>
       </summary>
-      <div className="mt-4 flex flex-col gap-4">
+      <div className="mt-4 flex flex-col gap-3.5">
         <div className="flex flex-wrap gap-2">
-          {[...TEXT_OPTIONS, "Nombres" as const, "Majuscules" as const].map(optionChip)}
+          {[...TEXT_OPTIONS, "Nombres" as const, "Majuscules" as const].map(optionSwitch)}
         </div>
-        <p className="text-lg text-[#3a3a3a]">{optionsNote}</p>
-        <Legend />
+        {!random && <p className="text-lg text-[#a8966e]">{optionsNote}</p>}
+        <div className="flex flex-wrap items-center gap-2.5 text-[19px] text-[#cdbf9c]">
+          <span>{t("create.howto")}</span>
+          {(
+            [
+              ["neutral", t("create.st_normal")],
+              ["wanted", t("create.st_often")],
+              ["forbidden", t("create.st_never")],
+            ] as const
+          ).map(([state, label], i) => (
+            <span key={state} className="flex items-center gap-2.5">
+              {i > 0 && (
+                <span className="font-pixel text-[8px] text-[#5a4632]" aria-hidden="true">
+                  &gt;
+                </span>
+              )}
+              <span className="flex items-center gap-1.5">
+                <i className="create-legend" data-state={state} aria-hidden="true" />
+                {label}
+              </span>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                includeChars: [],
+                excludeChars: [],
+                accentWanted: [],
+                accentForbidden: [],
+              })
+            }
+            className="create-reset font-pixel"
+          >
+            {t("create.reset_keys")}
+          </button>
+        </div>
         <div role="tablist" aria-label={t("set.advanced")} className="settings-tabs">
           {(
             [
-              ["letters", t("set.letters")],
-              ["accents", t("set.accent_types")],
+              ["letters", t("create.tab_letters")],
+              ["accents", t("create.tab_accents")],
               ["symbols", t("set.symbols")],
             ] as const
           ).map(([key, label]) => (

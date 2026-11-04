@@ -2228,52 +2228,6 @@ a.lobby-row:hover .lobby-go {
     display: none;
   }
 }
-.create-aside {
-  position: sticky;
-  top: 16px;
-}
-.create-refresh {
-  display: flex;
-  align-items: center;
-  padding: 7px 8px;
-  color: #ffe08a;
-  background: transparent;
-  border: 2px solid #5a4632;
-}
-.create-refresh:hover {
-  border-color: #f0b429;
-  color: #fff;
-}
-.create-refresh:hover svg {
-  animation: create-spin 0.5s steps(4) infinite;
-}
-@keyframes create-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-.create-ptxt {
-  margin: 0;
-  padding: 18px 16px;
-  font-size: 26px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-.create-pmeta {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 16px;
-  font-size: 18px;
-  color: #a8966e;
-  border-top: 2px solid #3b2a1a;
-}
-.create-pmeta b {
-  margin-right: 4px;
-  font-size: 10px;
-  font-weight: normal;
-  color: #ffe08a;
-}
 /* Barre du bas collée en bas de l'écran pendant qu'on règle la salle. */
 .create-sticky {
   position: sticky;
@@ -2289,4 +2243,97 @@ a.lobby-row:hover .lobby-go {
     margin-left: -32px;
     margin-right: -32px;
   }
+}
+
+/* Réglages avancés du texte (création) : interrupteurs dorés, légende en ligne, petites touches d'accents. */
+.create-sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 8px;
+  background: #2b1e13;
+  color: #cdbf9c;
+  border: 3px solid #3b2a1a;
+  transition: transform 0.08s steps(2);
+}
+.create-sw::before {
+  content: "";
+  width: 22px;
+  height: 12px;
+  background: #1b1209;
+  border: 2px solid #000;
+  box-shadow: inset 10px 0 0 #5a4632;
+}
+.create-sw[data-on="true"] {
+  background: #f0b429;
+  color: #1b1209;
+  border-color: #000;
+}
+.create-sw[data-on="true"]::before {
+  box-shadow: inset -10px 0 0 #3f7d24;
+}
+.create-sw:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.create-sw:disabled {
+  opacity: 0.45;
+}
+.create-legend {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  background: #3b2a1a;
+}
+.create-legend[data-state="wanted"] {
+  background: #3f7d24;
+}
+.create-legend[data-state="forbidden"] {
+  background: #b0281c;
+}
+.create-reset {
+  margin-left: auto;
+  padding: 8px;
+  font-size: 7px;
+  color: #cdbf9c;
+  background: transparent;
+  border: 2px solid #5a4632;
+}
+.create-reset:hover {
+  border-color: #f0b429;
+  color: #fff;
+}
+.create-accents .pixel-tri-key[data-wide="true"] {
+  width: auto;
+  min-height: 0;
+  height: 52px;
+  padding: 0 12px;
+  gap: 2px;
+  border: 3px solid #000;
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.35),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.15);
+}
+.create-accents .pixel-accent-name {
+  font-family: var(--font-pixel), monospace;
+  font-size: 7px;
+  letter-spacing: 0;
+}
+.create-accents .pixel-accent-letters {
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+.create-accents .pixel-tri-key[data-state="neutral"] {
+  background: #3b2a1a;
+  color: #f1e6c9;
+}
+.create-accents .pixel-tri-key[data-state="wanted"] {
+  background: #3f7d24;
+  color: #fff;
+}
+.create-accents .pixel-tri-key[data-state="forbidden"] {
+  background: #b0281c;
+  color: #fff;
 }
