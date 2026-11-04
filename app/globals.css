@@ -1447,11 +1447,6 @@ select.shell-btn option {
   border-top: 2px solid #3b2a1a;
 }
 
-/* Thème sombre de la refonte : fond uni (plus de damier). */
-:root:not([data-theme="light"]) .pixel-night {
-  background-image: none;
-  background-color: #2b1e13;
-}
 
 /* --- Accueil de la refonte (maquette « 1 · Accueil », 4 nov.) --------------- */
 .home-caret {
