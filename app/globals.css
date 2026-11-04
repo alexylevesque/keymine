@@ -2335,3 +2335,327 @@ a.lobby-row:hover .lobby-go {
   background: #b0281c;
   color: #fff;
 }
+
+/* --- Course « LA MINE » de la refonte (maquette « 3 · Course », 4 nov.) --- */
+.race-live {
+  width: 8px;
+  height: 8px;
+  background: #b0281c;
+  border: 2px solid #000;
+  animation: home-blink 1.2s steps(1) infinite;
+}
+.race-colon {
+  animation: home-blink 1s steps(1) infinite;
+}
+.race-quit {
+  height: 40px;
+  padding: 0 12px;
+  font-size: 8px;
+  color: #f39a8c;
+  background: transparent;
+  border: 3px solid #5a4632;
+}
+.race-quit:hover {
+  background: #b0281c;
+  color: #fff;
+  border-color: #000;
+}
+.race-stat {
+  min-width: 0;
+  padding: 12px 16px;
+  background: #3b2a1a;
+  color: #f1e6c9;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+}
+.race-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 30px;
+}
+.race-spark i {
+  display: block;
+  width: 7px;
+  background: #5e9c3a;
+  transform-origin: bottom;
+  animation: race-jig 1.2s steps(3) infinite;
+}
+.race-spark i:nth-child(2n) {
+  animation-delay: 0.3s;
+}
+.race-spark i:nth-child(3n) {
+  animation-delay: 0.6s;
+}
+.race-spark i:last-child {
+  background: #7fc45a;
+}
+@keyframes race-jig {
+  50% {
+    transform: scaleY(0.7);
+  }
+}
+.race-combo {
+  display: inline-block;
+  transform-origin: left bottom;
+  animation: race-pop 0.6s steps(3) infinite;
+}
+@keyframes race-pop {
+  30% {
+    transform: scale(1.18);
+  }
+}
+.race-flame {
+  display: inline-block;
+  width: 10px;
+  height: 14px;
+  margin-right: 8px;
+  vertical-align: middle;
+  background: #f0b429;
+  box-shadow:
+    0 -4px 0 #ffe08a,
+    0 4px 0 #b0281c;
+  animation: race-flick 0.4s steps(2) infinite;
+}
+@keyframes race-flick {
+  50% {
+    transform: translateY(-2px) scaleX(0.8);
+  }
+}
+.race-prog {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  background: #2b1e13;
+  border-bottom: 4px solid #000;
+}
+.race-prog span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: repeating-linear-gradient(90deg, #7fc45a 0 12px, #5e9c3a 12px 24px);
+  transition: width 0.3s linear;
+}
+.race-toast {
+  position: absolute;
+  right: 20px;
+  top: -22px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 21px;
+  background: #f0b429;
+  color: #1b1209;
+  border: 4px solid #000;
+  box-shadow: 6px 6px 0 #000;
+}
+.race-txt {
+  padding: 30px 34px 16px;
+  font-size: 42px;
+  line-height: 1.55;
+  letter-spacing: 1px;
+}
+.race-done {
+  color: #7fc45a;
+}
+.race-next {
+  color: #a8966e;
+}
+.race-err {
+  background: #b0281c;
+  color: #fff;
+}
+.race-cur {
+  background: #f0b429;
+  color: #1b1209;
+  animation: create-blink 1s steps(1) infinite;
+}
+.race-word {
+  border-bottom: 4px solid #f0b429;
+}
+@media (max-width: 1023px) {
+  .race-txt {
+    font-size: 32px;
+    padding: 22px 20px 12px;
+  }
+}
+
+/* Piste : un couloir de mine par joueur, le mineur creuse vers le diamant. */
+.mine-racer {
+  display: grid;
+  grid-template-columns: 44px 210px minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 14px;
+}
+@media (max-width: 1023px) {
+  .mine-racer {
+    grid-template-columns: 32px 140px minmax(0, 1fr) 80px;
+    gap: 10px;
+  }
+}
+.mine-rank {
+  font-size: 12px;
+  color: #a8966e;
+}
+.mine-rank1 {
+  display: inline-block;
+  color: #f0b429;
+  animation: race-pop 0.9s steps(3) infinite;
+}
+.mine-lane {
+  position: relative;
+  height: 56px;
+  overflow: hidden;
+  background: #2b1e13;
+  border: 3px solid #000;
+}
+.mine-me {
+  outline: 4px solid #f0b429;
+  outline-offset: 2px;
+}
+.mine-rock {
+  position: absolute;
+  inset: 0;
+  opacity: 0.7;
+  background-image:
+    linear-gradient(45deg, #3b2a1a 25%, transparent 25%, transparent 75%, #3b2a1a 75%),
+    linear-gradient(45deg, #3b2a1a 25%, transparent 25%, transparent 75%, #3b2a1a 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    8px 8px;
+}
+.mine-dug {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: #1b1209;
+  border-right: 3px dashed #5a4632;
+  transition: width 0.3s linear;
+}
+.mine-dug::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 8px 0;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, #5a4632 0 10px, transparent 10px 20px);
+}
+.mine-me .mine-dug {
+  background: #24331a;
+}
+.mine-dust {
+  position: absolute;
+  top: 28px;
+  width: 6px;
+  height: 6px;
+  margin-left: -50px;
+  background: #a8966e;
+  opacity: 0;
+  animation: mine-dust 0.7s steps(4) infinite;
+}
+.mine-d2 {
+  top: 34px;
+  animation-delay: 0.35s;
+}
+@keyframes mine-dust {
+  0% {
+    opacity: 0.9;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-18px, -8px);
+  }
+}
+.mine-runner {
+  position: absolute;
+  top: 4px;
+  width: 32px;
+  height: 48px;
+  margin-left: -36px;
+  filter: drop-shadow(3px 3px 0 #000);
+  transition: left 0.3s linear;
+}
+.mine-runner svg {
+  position: absolute;
+  inset: 0;
+  width: 32px;
+  height: 48px;
+}
+.mine-runner .f0 {
+  animation: home-fswap 0.3s steps(1) infinite;
+}
+.mine-runner .f1 {
+  animation: home-fswap 0.3s steps(1) infinite reverse;
+}
+.mine-still .f0,
+.mine-still .f1 {
+  animation: none;
+}
+.mine-still .f1 {
+  opacity: 0;
+}
+.mine-badge {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 3px;
+  font-size: 8px;
+  line-height: 12px;
+  background: #ffd84a;
+  color: #000;
+  border: 2px solid #000;
+}
+.mine-goal {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(0deg, #000 0 7px, #f1e6c9 7px 14px);
+  background-size: 8px 100%;
+  background-repeat: repeat-y;
+}
+.mine-goal svg {
+  width: 38px;
+  height: 38px;
+  margin-left: 12px;
+  filter: drop-shadow(3px 3px 0 #000);
+}
+.mine-glint {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  animation: mine-glint 1.8s steps(1) infinite;
+}
+@keyframes mine-glint {
+  0%,
+  70% {
+    opacity: 0;
+  }
+  75%,
+  90% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mine-runner .f0,
+  .mine-runner .f1,
+  .mine-dust,
+  .race-spark i,
+  .race-combo,
+  .race-flame,
+  .mine-rank1 {
+    animation: none;
+  }
+}

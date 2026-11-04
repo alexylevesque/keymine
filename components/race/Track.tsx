@@ -2,7 +2,8 @@
 
 import { Crown } from "@/components/leaderboard/badges";
 import { useState, useSyncExternalStore } from "react";
-import { PixelAvatar } from "@/components/ui";
+import { identicon } from "@/lib/identicon";
+import { Diamond, Miner } from "./MinePixels";
 import { participantName } from "@/lib/bot-name";
 import { useLanguage } from "@/lib/i18n";
 import type { RaceParticipantView } from "./types";
@@ -25,6 +26,8 @@ function useViewportHeight(): number {
 }
 
 const AVATAR_COLORS = ["#3d6fc4", "#b03a7a", "#a85512", "#17706f", "#7a45b0", "#3f7d24", "#b63a32"];
+// Bots : couleurs de la maquette (brun, bleu, vert…).
+const BOT_COLORS = ["#7a5a3a", "#2b5c7a", "#3f7d24", "#7a45b0", "#a85512"];
 
 export function Track({
   participants,
@@ -55,69 +58,77 @@ export function Track({
 
   return (
     <div>
-      <ol className="flex flex-col gap-2" aria-label={t("race.track_aria")}>
+      <ol className="flex flex-col gap-3" aria-label={t("race.track_aria")}>
         {rows.map((p) => {
           const index = ordered.indexOf(p);
           const isMe = p.id === meId;
-          const left = `${Math.min(100, Math.max(0, p.fraction * 100))}%`;
+          const pct = Math.min(100, Math.max(0, p.fraction * 100));
+          const left = `${pct}%`;
+          const name = participantName(t, p);
+          const color = p.isBot
+            ? BOT_COLORS[index % BOT_COLORS.length]!
+            : p.avatarUrl
+              ? AVATAR_COLORS[index % AVATAR_COLORS.length]!
+              : identicon(name).color;
+          // Plus il tape vite, plus le mineur court vite (0,6 s par pas au repos, 0,2 s à 120 MPM).
+          const speed = Math.max(0.2, 0.6 - Math.min(120, p.wpm) / 300);
+          const moving = p.status === "racing" && p.wpm > 0;
+          const tag = isMe ? t("race.you") : p.isBot ? showBotLabel : "";
           return (
-            <li
-              key={p.id}
-              data-me={isMe}
-              data-status={p.status}
-              className={`relative border-4 px-2 py-1.5 ${isMe ? "border-[#ffd84a] bg-[#3a3320]" : "border-black bg-[#2b2b2b]"}`}
-            >
-              <div className="flex items-center justify-between gap-2 leading-none">
-                <span className="flex min-w-0 items-center gap-2 text-xl text-white">
-                  <span className="font-pixel w-6 text-[11px] text-[#ffe08a]">{p.rank}</span>
-                  <span className="truncate">
-                    {participantName(t, p)}
-                    {p.champion != null && <Crown league={p.champion} className="ml-1.5" />}
-                    {isMe && (
-                      <b className="font-pixel ml-2 text-[9px] text-[#ffd84a]">{t("race.you")}</b>
-                    )}
-                    {p.isBot && (
-                      <b className="font-pixel ml-2 border-2 border-[#8b8b8b] px-1 text-[8px] text-[#cfcfcf]">
-                        {showBotLabel}
-                      </b>
-                    )}
+            <li key={p.id} data-me={isMe} data-status={p.status} className="mine-racer">
+              <span className={`font-pixel mine-rank ${p.rank === 1 ? "mine-rank1" : ""}`}>
+                {p.rank}
+              </span>
+              <span className="min-w-0 leading-none">
+                <span className="flex min-w-0 items-center gap-1.5 text-[23px] text-white">
+                  <span className="truncate">{name}</span>
+                  {p.champion != null && <Crown league={p.champion} />}
+                </span>
+                {tag && (
+                  <span
+                    className="font-pixel mt-1 block text-[7px]"
+                    style={{ color: isMe ? "#ffe08a" : "#a8966e" }}
+                  >
+                    {tag}
                   </span>
-                </span>
-                <span className="text-xl whitespace-nowrap text-white">
-                  {Math.round(p.wpm)} {t("race.wpm")}
-                  {p.status === "abandoned" && <span className="ml-2 text-[#ff8f80]">⨯</span>}
-                  {p.status === "finished" && <span className="ml-2 text-[#7fd36a]">✓</span>}
-                </span>
-              </div>
-              <div className="relative mt-2 h-8 border-2 border-black bg-[#1b1b1b]">
-                <div
-                  className="absolute inset-y-0 left-0 bg-[repeating-linear-gradient(90deg,#4aa233_0_8px,#3a8226_8px_10px)] opacity-60 transition-[width] duration-300 ease-linear"
-                  style={{ width: left }}
-                />
-                <div
-                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 transition-[left] duration-300 ease-linear"
-                  style={{ left: `clamp(14px, ${left}, calc(100% - 14px))` }}
+                )}
+              </span>
+              <span className={`mine-lane ${isMe ? "mine-me" : ""}`} aria-hidden="true">
+                <span className="mine-rock" />
+                <span className="mine-dug" style={{ width: left }} />
+                {moving && (
+                  <>
+                    <span className="mine-dust" style={{ left }} />
+                    <span className="mine-dust mine-d2" style={{ left }} />
+                  </>
+                )}
+                <span
+                  className={`mine-runner ${moving ? "" : "mine-still"}`}
+                  style={{ left: `clamp(36px, ${left}, calc(100% - 56px))` }}
                 >
-                  <PixelAvatar
-                    label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
-                    color={p.isBot ? "#555555" : AVATAR_COLORS[index % AVATAR_COLORS.length]!}
-                    src={p.isBot ? null : p.avatarUrl}
-                    seed={p.isBot ? null : participantName(t, p)}
-                    className={`h-6 w-6 text-[10px] ${isMe ? "ring-2 ring-[#ffd84a]" : ""}`}
-                  />
+                  <Miner color={color} speed={speed} />
                   {isMe && (
-                    // Le badge de rang suit le curseur doré ; `key` relance l'animation à chaque dépassement.
+                    // Le badge de rang suit le mineur ; `key` relance l'animation à chaque dépassement.
                     <span
                       key={flashes}
                       data-testid="my-rank-badge"
-                      aria-hidden="true"
-                      className={`font-pixel absolute -top-4 left-1/2 -translate-x-1/2 border-2 border-black bg-[#ffd84a] px-1 text-[9px] leading-4 text-black ${flashes > 0 ? "rank-flash" : ""}`}
+                      className={`font-pixel mine-badge ${flashes > 0 ? "rank-flash" : ""}`}
                     >
                       {p.rank}
                     </span>
                   )}
-                </div>
-              </div>
+                </span>
+                <span className="mine-goal">
+                  <Diamond />
+                  <span className="mine-glint" />
+                </span>
+              </span>
+              <span className="text-right text-2xl whitespace-nowrap text-white">
+                {Math.round(p.wpm)}{" "}
+                <span className="text-[17px] text-[#a8966e]">{t("race.wpm")}</span>
+                {p.status === "abandoned" && <span className="ml-1.5 text-[#ff8f80]">⨯</span>}
+                {p.status === "finished" && <span className="ml-1.5 text-[#7fd36a]">✓</span>}
+              </span>
             </li>
           );
         })}
@@ -127,7 +138,7 @@ export function Track({
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="pixel-track-toggle mt-2"
+          className="pixel-track-toggle mt-3"
         >
           <span aria-hidden="true" className="pixel-disclosure-chevron" data-open={open} />
           {open ? t("race.track_collapse") : t("race.track_expand", { count: hiddenCount })}

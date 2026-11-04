@@ -12,6 +12,8 @@ import {
 } from "react";
 import { Track } from "@/components/race/Track";
 import { LanguageSelect } from "@/components/LanguageSelect";
+import Image from "next/image";
+import logoRond from "@/public/logo-rond.png";
 import { useViewer } from "@/lib/viewer";
 import { levelFromXp } from "@/lib/xp";
 import type { RaceState } from "@/components/race/types";
@@ -269,20 +271,45 @@ export default function CoursePage() {
     );
   }
 
+  const timerText = state
+    ? formatClock(unlimited ? secondsElapsed : Math.max(0, secondsLeft))
+    : "--:--";
+  const [mm, ss] = timerText.split(":");
   const header = (
-    <header className="flex h-16 items-center gap-6 border-b-4 border-black bg-[#241a10] px-4 sm:px-8">
-      <div className="flex items-center gap-1.5" aria-hidden="true">
-        <span className="pixel-key">K</span>
-        <span className="pixel-key bg-[#7fc45a]">E</span>
-        <span className="pixel-key">Y</span>
-        <span className="font-pixel ml-2 text-lg text-white [text-shadow:3px_3px_0_#000]">
-          MINE
-        </span>
+    <header className="border-b-4 border-black bg-[#1b1209]">
+      <div className="mx-auto grid max-w-[1216px] grid-cols-[1fr_auto_1fr] items-center gap-5 px-4 py-3 sm:px-8">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <Image src={logoRond} alt="KeyMine" className="h-9 w-9" />
+          <span className="font-pixel truncate text-[9px] text-[#a8966e]">
+            {t("race.room_label")} <span className="text-[#ffe08a]">{code}</span>
+          </span>
+          <span className="hidden items-center gap-1.5 text-[19px] text-[#cdbf9c] lg:flex">
+            <span className="race-live" aria-hidden="true" />
+            {t("race.live")}
+          </span>
+        </div>
+        <div
+          role="timer"
+          aria-label={`${unlimited ? t("race.time_elapsed") : t("race.time_left")} ${timerText}`}
+          className="font-pixel border-4 border-black bg-[#2b1e13] px-4 py-2 text-[28px] text-white [text-shadow:3px_3px_0_#000]"
+        >
+          {mm}
+          <span className="race-colon">:</span>
+          {ss}
+        </div>
+        <div className="flex items-center justify-end gap-2.5">
+          {isParticipant && me?.status === "racing" && (
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className="race-quit font-pixel"
+            >
+              {t("race.abandon")}
+            </button>
+          )}
+          <LanguageSelect />
+        </div>
       </div>
-      <div className="font-pixel flex-grow truncate text-xs text-[#f1e6c9]">
-        {t("race.room", { code })}
-      </div>
-      <LanguageSelect />
     </header>
   );
 
@@ -339,179 +366,190 @@ export default function CoursePage() {
     : null;
   const pct = raceText.length ? Math.round((view.index / raceText.length) * 100) : 0;
 
+  // Série sans faute : caractères bien tapés depuis la dernière faute.
+  let lastError = -1;
+  for (const i of view.incorrect) if (i < view.index && i > lastError) lastError = i;
+  const streak = Math.max(0, view.index - lastError - 1);
+  const wpmNow = Math.round(me?.wpm ?? 0);
+  const penalty = me?.penaltyMs ?? 0;
+  // Mot en cours : souligné en or.
+  let wordStart = view.index;
+  while (wordStart > 0 && raceText[wordStart - 1] !== " ") wordStart--;
+  let wordEnd = view.index;
+  while (wordEnd < raceText.length && raceText[wordEnd] !== " ") wordEnd++;
+  const toast =
+    personalText ??
+    (visibleAnnouncements.length > 0
+      ? (() => {
+          const a = visibleAnnouncements[visibleAnnouncements.length - 1]!;
+          return a.bonus.kind === "minus_words"
+            ? t("race.bonus_minus", { name: nameOf(a.bonus.beneficiaryId) })
+            : a.bonus.kind === "plus_words"
+              ? t("race.bonus_plus", { name: nameOf(a.bonus.beneficiaryId) })
+              : t("race.bonus_fog", { name: nameOf(a.bonus.beneficiaryId) });
+        })()
+      : null);
+
   return (
     <div className="pixel-night min-h-screen">
-      <div className="pixel-grass h-5 border-b-4 border-[#2f5d1c]" />
       {header}
 
-      <main className="px-4 py-6 sm:px-8 sm:py-7">
-        <div className="mx-auto w-full max-w-[1400px]">
-          <h1 className="sr-only">{t("race.room", { code })}</h1>
-          {status === "reconnecting" && (
-            <div
-              role="alert"
-              className="mb-4 border-4 border-black bg-[#f39a8c] px-4 py-2 text-xl text-black"
-            >
-              {t("race.reconnecting")}
-            </div>
-          )}
-
-          {state.phase === "countdown" && (
-            <div className="mb-6 text-center" role="status" aria-live="assertive">
-              <div className="font-pixel text-6xl text-white [text-shadow:4px_4px_0_#000]">
-                {secondsToStart > 0 ? secondsToStart : t("race.go")}
-              </div>
-              <p className="mt-2 text-2xl text-[#f1e6c9]">{t("race.get_ready")}</p>
-            </div>
-          )}
-
-          <div className="mb-6 flex flex-wrap items-center gap-3.5">
-            <div className="pixel-slot flex w-48 flex-col gap-1 px-4 py-2">
-              <b className="font-pixel text-[9px] text-[#ffefb3]">
-                {unlimited ? t("race.time_elapsed") : t("race.time_left")}
-              </b>
-              <span className="font-pixel py-1 text-2xl text-white">
-                {formatClock(unlimited ? secondsElapsed : secondsLeft)}
-              </span>
-            </div>
-            <div className="pixel-slot flex w-40 flex-col gap-1 px-4 py-2">
-              <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.speed")}</b>
-              <span className="text-3xl text-white">
-                {Math.round(me?.wpm ?? 0)} {t("race.wpm")}
-              </span>
-            </div>
-            <div className="pixel-slot flex w-36 flex-col gap-1 px-4 py-2">
-              <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.accuracy")}</b>
-              <span className="text-3xl text-white">
-                {formatPercent(lang, me?.accuracy ?? 100)}
-              </span>
-            </div>
-            <div className="pixel-slot flex w-32 flex-col gap-1 px-4 py-2">
-              <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.errors")}</b>
-              <span className="text-3xl text-white">{Math.max(view.errors, me?.errors ?? 0)}</span>
-            </div>
-            {(me?.penaltyMs ?? 0) > 0 && (
-              <div className="pixel-slot flex w-40 flex-col gap-1 px-4 py-2">
-                <b className="font-pixel text-[9px] text-[#ffefb3]">{t("race.penalty")}</b>
-                <span className="text-3xl text-white">
-                  +{formatNumber(lang, (me?.penaltyMs ?? 0) / 1000)} s
-                </span>
-              </div>
-            )}
-            <div className="flex-grow" />
-            {isParticipant && me?.status === "racing" && (
-              <PixelButton
-                type="button"
-                onClick={() => setConfirming(true)}
-                variant="red"
-                className="h-16 w-full text-base sm:w-64"
-              >
-                {t("race.abandon")}
-              </PixelButton>
-            )}
+      <main className="mx-auto flex w-full max-w-[1216px] flex-col gap-6 px-4 pt-7 pb-14 sm:px-8">
+        <h1 className="sr-only">{t("race.room", { code })}</h1>
+        {status === "reconnecting" && (
+          <div
+            role="alert"
+            className="border-4 border-black bg-[#f39a8c] px-4 py-2 text-xl text-black"
+          >
+            {t("race.reconnecting")}
           </div>
+        )}
 
-          {personalText && (
-            <div
-              role="alert"
-              className="font-pixel mb-4 border-4 border-black bg-[#ffd84a] px-4 py-2.5 text-[12px] text-[#1b1b1b]"
-            >
-              {personalText}
+        {state.phase === "countdown" && (
+          <div className="text-center" role="status" aria-live="assertive">
+            <div className="font-pixel text-6xl text-white [text-shadow:4px_4px_0_#000]">
+              {secondsToStart > 0 ? secondsToStart : t("race.go")}
             </div>
-          )}
-          {now - overtakeAt < 2_200 && (
-            <div
-              role="status"
-              className="font-pixel mb-4 border-4 border-black bg-[#7fd36a] px-4 py-2.5 text-[12px] text-[#1b1b1b]"
-            >
-              {t("race.overtake")}
-            </div>
-          )}
+            <p className="mt-2 text-2xl text-[#f1e6c9]">{t("race.get_ready")}</p>
+          </div>
+        )}
 
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-            <div className="flex-grow">
-              {isParticipant ? (
-                <PixelPanel className="p-4">
-                  <div
-                    className="border-4 border-black bg-[#1b1b1b] p-6 text-3xl leading-relaxed break-words sm:text-4xl"
-                    role="group"
-                    aria-label={t("race.text_aria")}
-                  >
-                    {raceText.split("").map((c, i) => {
-                      const cls =
-                        i === view.index
-                          ? "bg-[#f0b429] text-[#1b1b1b]"
-                          : i < view.index
-                            ? view.incorrect.has(i)
-                              ? "bg-[#b0281c] text-white"
-                              : "text-[#7fd36a]"
-                            : "text-[#d8d8d8]";
-                      const blurred = fogged && i > view.index && i <= view.index + FOG_LENGTH;
-                      return (
-                        <span
-                          key={i}
-                          className={cls}
-                          style={blurred ? { filter: "blur(5px)" } : undefined}
-                        >
-                          {c}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-4">
-                    <span className="font-pixel text-[11px] text-[#2b2b2b]">
-                      {t("race.progress", { pct })}
-                    </span>
-                    <span className="text-xl text-[#3a3a3a]">
-                      {info.errorMode === "bloquer" ? t("race.hint_block") : t("race.hint_free")}
-                    </span>
-                  </div>
-                </PixelPanel>
-              ) : (
-                <p
-                  role="status"
-                  className="border-4 border-black bg-[#fff8dc] px-4 py-3 text-2xl text-black"
-                >
-                  {t("race.spectating")}
-                </p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="race-stat flex items-end justify-between">
+            <div>
+              <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.speed")}</div>
+              <div className="text-[38px] leading-none">
+                {wpmNow} <span className="text-xl">{t("race.wpm")}</span>
+              </div>
+            </div>
+            <div className="race-spark" aria-hidden="true">
+              {[0.4, 0.55, 0.5, 0.7, 0.65, 0.9].map((h, i) => (
+                <i
+                  key={i}
+                  style={{ height: `${Math.round(h * Math.min(1, 0.4 + wpmNow / 120) * 100)}%` }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="race-stat">
+            <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.accuracy")}</div>
+            <div className="text-[38px] leading-none">
+              {formatPercent(lang, me?.accuracy ?? 100)}
+            </div>
+          </div>
+          <div className="race-stat">
+            <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.errors")}</div>
+            <div className="text-[38px] leading-none">
+              {Math.max(view.errors, me?.errors ?? 0)}
+              {penalty > 0 && (
+                <span className="ml-2 text-xl text-[#f39a8c]">
+                  +{formatNumber(lang, penalty / 1000)} s
+                </span>
               )}
             </div>
-
-            <PixelPanel className="w-full flex-none p-4 lg:w-[28rem]">
-              <h2 className="font-pixel mb-2.5 text-xs text-[#2b2b2b]">{t("race.track")}</h2>
-              {visibleAnnouncements.length > 0 && (
-                <ul className="mb-2 flex flex-col gap-1" aria-live="polite">
-                  {visibleAnnouncements.map((a) => (
-                    <li
-                      key={a.id}
-                      className="border-2 border-black bg-[#ffd84a] px-2 py-1 text-lg text-black"
-                    >
-                      {a.bonus.kind === "minus_words"
-                        ? t("race.bonus_minus", { name: nameOf(a.bonus.beneficiaryId) })
-                        : a.bonus.kind === "plus_words"
-                          ? t("race.bonus_plus", { name: nameOf(a.bonus.beneficiaryId) })
-                          : t("race.bonus_fog", { name: nameOf(a.bonus.beneficiaryId) })}
-                      {/* Inventaire : l'équipement de la cible a arrêté le malus. */}
-                      {a.bonus.blocked &&
-                        ` ${t(`race.blocked_${a.bonus.blocked}` as DictKey, { name: nameOf(a.bonus.targetId) })}`}
-                      {a.bonus.thorns &&
-                        ` ${t("race.thorns", { name: nameOf(a.bonus.targetId), sender: nameOf(a.bonus.beneficiaryId) })}`}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Track
-                participants={state.participants}
-                meId={info.meId}
-                showBotLabel={t("race.bot")}
-              />
-            </PixelPanel>
+          </div>
+          <div className="race-stat">
+            <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.streak")}</div>
+            <div className="text-[38px] leading-none text-[#f0b429]">
+              <span className="race-flame" aria-hidden="true" />
+              <span className={streak > 0 ? "race-combo" : ""}>{streak}</span>
+            </div>
           </div>
         </div>
+
+        {now - overtakeAt < 2_200 && (
+          <div
+            role="status"
+            className="font-pixel border-4 border-black bg-[#7fd36a] px-4 py-2.5 text-[12px] text-[#1b1b1b]"
+          >
+            {t("race.overtake")}
+          </div>
+        )}
+
+        {isParticipant ? (
+          <section className="lobby-panel relative" aria-label={t("race.text_aria")}>
+            <div
+              className="race-prog"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={pct}
+              aria-label={t("race.progress", { pct })}
+            >
+              <span style={{ width: `${pct}%` }} />
+            </div>
+            {toast && (
+              <div role="status" aria-live="polite" className="race-toast">
+                <span className="font-pixel text-[8px]">{t("race.bonus_tag")}</span>
+                <span>{toast}</span>
+              </div>
+            )}
+            <div className="race-txt break-words" role="group" aria-label={t("race.text_aria")}>
+              {raceText.split("").map((c, i) => {
+                const cls =
+                  i === view.index
+                    ? "race-cur"
+                    : i < view.index
+                      ? view.incorrect.has(i)
+                        ? "race-err"
+                        : "race-done"
+                      : "race-next";
+                const blurred = fogged && i > view.index && i <= view.index + FOG_LENGTH;
+                const inWord = i >= wordStart && i < wordEnd;
+                return (
+                  <span
+                    key={i}
+                    className={`${cls} ${inWord ? "race-word" : ""}`}
+                    style={blurred ? { filter: "blur(5px)" } : undefined}
+                  >
+                    {c}
+                  </span>
+                );
+              })}
+            </div>
+            <p className="px-8 pb-4 text-lg text-[#a8966e]">
+              {info.errorMode === "bloquer" ? t("race.hint_block") : t("race.hint_free")}
+            </p>
+          </section>
+        ) : (
+          <p role="status" className="lobby-panel px-4 py-3 text-2xl">
+            {t("race.spectating")}
+          </p>
+        )}
+
+        <section aria-labelledby="piste" className="lobby-panel">
+          <div className="lobby-head flex items-center justify-between gap-3 !py-3.5">
+            <h2 id="piste" className="font-pixel text-xs text-white [text-shadow:3px_3px_0_#000]">
+              {t("race.mine")}
+            </h2>
+            <span className="text-xl text-white">{t("race.mine_sub")}</span>
+          </div>
+          {visibleAnnouncements.length > 0 && (
+            <ul className="sr-only" aria-live="polite">
+              {visibleAnnouncements.map((a) => (
+                <li key={a.id}>
+                  {a.bonus.kind === "minus_words"
+                    ? t("race.bonus_minus", { name: nameOf(a.bonus.beneficiaryId) })
+                    : a.bonus.kind === "plus_words"
+                      ? t("race.bonus_plus", { name: nameOf(a.bonus.beneficiaryId) })
+                      : t("race.bonus_fog", { name: nameOf(a.bonus.beneficiaryId) })}
+                  {a.bonus.blocked &&
+                    ` ${t(`race.blocked_${a.bonus.blocked}` as DictKey, { name: nameOf(a.bonus.targetId) })}`}
+                  {a.bonus.thorns &&
+                    ` ${t("race.thorns", { name: nameOf(a.bonus.targetId), sender: nameOf(a.bonus.beneficiaryId) })}`}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="px-5 pt-4.5 pb-5">
+            <Track
+              participants={state.participants}
+              meId={info.meId}
+              showBotLabel={t("race.bot")}
+            />
+          </div>
+        </section>
       </main>
-      <footer className="border-t-4 border-black bg-[#241a10] px-4 py-4 text-center text-xl text-[#f1e6c9] sm:px-8">
-        {t("footer.text")}
-      </footer>
 
       {confirming && (
         <div
