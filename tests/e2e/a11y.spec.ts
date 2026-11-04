@@ -114,7 +114,11 @@ test("parcours au clavier : lien d'évitement, focus visible, création d'une sa
 
   // Créer une salle uniquement au clavier.
   await page.goto("/jouer/creer");
-  const submit = page.getByRole("button", { name: /CREER/ });
+  const next = page.getByRole("button", { name: "CONTINUER" });
+  await next.focus();
+  await expect(next).toBeFocused();
+  await page.keyboard.press("Enter");
+  const submit = page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" });
   await submit.focus();
   await expect(submit).toBeFocused();
   await page.keyboard.press("Enter");

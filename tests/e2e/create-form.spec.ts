@@ -15,6 +15,8 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
   await page.getByRole("button", { name: /^\+3 MOTS/ }).click();
 
   await page.getByRole("button", { name: /ALEATOIRE/ }).click();
+  // Réglages avancés du texte : repliés par défaut, rangés en onglets (refonte du 4 nov.).
+  await page.getByText("PERSONNALISER").click();
   await page.getByRole("button", { name: "Ponctuation" }).click();
   await page.getByRole("button", { name: "Accents", exact: true }).click(); // décochés par défaut
 
@@ -28,22 +30,25 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
   await expect(letters.getByRole("button", { name: "K : neutre" })).toBeVisible();
 
   // Symboles : @ souvent, l'apostrophe jamais.
+  await page.getByRole("tab", { name: "SYMBOLES" }).click();
   const symbols = page.getByRole("group", { name: "SYMBOLES" });
   await symbols.getByRole("button", { name: /^@ : / }).click();
   await symbols.getByRole("button", { name: /^' : / }).click({ clickCount: 2 });
 
   // Accents : cédille souvent, tréma jamais.
+  await page.getByRole("tab", { name: "TYPES D'ACCENTS" }).click();
   const accents = page.getByRole("group", { name: "TYPES D'ACCENTS" });
   await accents.getByRole("button", { name: /^CEDILLE : / }).click();
   await accents.getByRole("button", { name: /^TREMA : / }).click({ clickCount: 2 });
 
-  // L'aperçu respecte les choix : jamais de « e », jamais de tréma.
+  // CONTINUER montre l'aperçu, qui respecte les choix : jamais de « e », jamais de tréma.
+  await page.getByRole("button", { name: "CONTINUER" }).click();
   const preview = page.getByTestId("text-preview");
   await expect(preview).not.toHaveText("…");
   // L'aperçu attend que les réglages se calment (anti-saccade) : on laisse l'assertion réessayer.
   await expect(preview).not.toHaveText(/[eEëï]/, { timeout: 10_000 });
 
-  await page.getByRole("button", { name: "CREER LA SALLE" }).click();
+  await page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" }).click();
   await page.waitForURL(/\/jouer\/[A-Z0-9]{6}/);
   const code = page.url().split("/").pop()!;
 
@@ -83,6 +88,7 @@ test("en texte cohérent, tout est grisé : le passage est tapé tel qu'écrit (
 }) => {
   await registerViaApi(page.request, "coher");
   await page.goto("/jouer/creer");
+  await page.getByText("PERSONNALISER").click();
   // Par défaut : texte cohérent, aucune option cochée.
   for (const name of ["Ponctuation", "Accents", "Nombres", "Majuscules"]) {
     const chip = page.getByRole("button", { name, exact: true });
@@ -139,7 +145,7 @@ test("déjà dans une salle : pas de formulaire, on retourne dans la salle ou on
   );
 
   await page.getByRole("button", { name: "QUITTER LA SALLE" }).click();
-  await expect(page.getByRole("button", { name: "CREER LA SALLE" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "CONTINUER" })).toBeVisible();
 });
 
 // Nom de salle : proposé d'avance, obligatoire, contrôlé par le serveur.
@@ -151,8 +157,9 @@ test("le nom de la salle est proposé, obligatoire et filtré", async ({ page })
 
   await name.fill("ab");
   await expect(page.getByRole("alert").filter({ hasText: "au moins 3 caractères" })).toBeVisible();
-  await page.getByRole("button", { name: "CREER LA SALLE" }).click();
+  await page.getByRole("button", { name: "CONTINUER" }).click();
   await expect(page).toHaveURL(/\/jouer\/creer/); // refusé, on reste sur le formulaire
+  await expect(page.getByRole("heading", { name: "APERCU DU TEXTE" })).toHaveCount(0);
 
   await name.fill("<b>salle</b>");
   await expect(page.getByRole("alert").filter({ hasText: "Lettres, chiffres" })).toBeVisible();
@@ -162,7 +169,8 @@ test("le nom de la salle est proposé, obligatoire et filtré", async ({ page })
   ).toBeVisible();
 
   await name.fill("Les  Champions");
-  await page.getByRole("button", { name: "CREER LA SALLE" }).click();
+  await page.getByRole("button", { name: "CONTINUER" }).click();
+  await page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" }).click();
   await page.waitForURL(/\/jouer\/[A-Z0-9]{6}/);
   const code = page.url().split("/").pop()!;
   const lobby = await (await page.request.get(`/api/lobbies/${code}`)).json();

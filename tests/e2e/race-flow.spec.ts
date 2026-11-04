@@ -104,7 +104,8 @@ test("créer une salle en spectateur, ajouter puis retirer un bot (SALLE-01, CON
   const { username } = await registerViaApi(page.request, "specta");
   await page.goto("/jouer/creer");
   await page.getByRole("button", { name: /SPECTATEUR/ }).click();
-  await page.getByRole("button", { name: "CREER LA SALLE" }).click();
+  await page.getByRole("button", { name: "CONTINUER" }).click();
+  await page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" }).click();
   await expect(page).toHaveURL(/\/jouer\/[A-Z0-9]+$/, { timeout: 15_000 });
 
   await expect(page.getByText("1 spectateurs")).toBeVisible();
@@ -203,8 +204,9 @@ test("course sans temps maximal : le chronomètre compte le temps écoulé (CONF
 test("le formulaire propose « Sans limite » puis de 30 s à 10 min (CONF-01)", async ({ page }) => {
   await registerViaApi(page.request, "duree");
   await page.goto("/jouer/creer");
-  const select = page.getByRole("combobox", { name: /durée/i });
-  const options = await select.locator("option").allTextContents();
+  // Création : la durée se choisit avec des boutons (refonte du 4 nov.).
+  const group = page.getByRole("group", { name: "Durée maximale" });
+  const options = await group.getByRole("button").allTextContents();
   expect(options[0]).toBe("Sans limite");
   expect(options.at(-1)).toMatch(/^10\sminutes$/);
   expect(options).not.toContain("15 secondes");

@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { PixelLabel, PixelPanel, PixelSlot } from "@/components/ui";
 import { formatDuration } from "@/lib/format";
 import { useLanguage } from "@/lib/i18n";
-import { BUNDLED_CORPUS } from "@/lib/text/corpus";
-import { generateRaceText } from "@/lib/text/generate";
-import type { Difficulty, Language, TextType } from "@/db/types";
-import type { AccentType } from "@/lib/text/accents";
+import type { Difficulty } from "@/db/types";
 import { BONUS_KINDS } from "@/lib/race/bonus";
 import { DURATION_CHOICES } from "@/lib/race/duration";
 import { checkRoomName, normalizeRoomName, ROOM_NAME_MAX } from "@/lib/room-name";
 import { DIGIT_ROWS, LETTER_ROWS, SYMBOL_ROWS } from "./key-maps";
 import {
   setBonusEnabled,
-  settingsToPayload,
   toggleBonusKind,
   toggled,
   type Access,
@@ -23,6 +19,7 @@ import {
   type TextOption,
 } from "./settings";
 import { AccentKeyMap, CharKeyMap, Legend } from "./TriStateKeys";
+import { useTextPreview } from "./useTextPreview";
 
 // CONF-01 : aucun temps maximal, ou de 30 secondes à 10 minutes.
 export const DURATIONS = DURATION_CHOICES;
@@ -36,8 +33,6 @@ const COMPLEXITY_KEYS = {
 // Ponctuation et Accents ouvrent chacun une carte de touches ; Nombres et Majuscules sont dans « Lettres ».
 const TEXT_OPTIONS: TextOption[] = ["Ponctuation", "Accents"];
 
-// Délai avant de tirer un nouvel aperçu : le texte ne change pas à chaque cran d'un curseur.
-const PREVIEW_DELAY_MS = 450;
 
 export function Chip({
   on,
@@ -109,6 +104,7 @@ export function SettingsForm({
   layout = "split",
   leftExtra,
   requireName = false,
+  compact = false,
 }: {
   value: SettingsState;
   onChange: (patch: Partial<SettingsState>) => void;
@@ -117,6 +113,11 @@ export function SettingsForm({
   leftExtra?: ReactNode;
   /** Création : le nom de la salle est obligatoire (la modification garde l'ancien s'il est vide). */
   requireName?: boolean;
+  /**
+   * Création (refonte du 4 nov.) : durée en boutons, réglages avancés du texte repliés et rangés
+   * en onglets, pas d'aperçu dans le formulaire (il vient à l'étape « continuer »).
+   */
+  compact?: boolean;
 }) {
   const { t, lang } = useLanguage();
   const v = value;
@@ -124,87 +125,8 @@ export function SettingsForm({
   const accents = random && v.options.includes("Accents") && v.language === "fr"; // CONF-06 : accents « pour le français »
   const punctuation = random && v.options.includes("Ponctuation");
 
-  // L'aperçu est tiré au hasard : on ne le calcule qu'après l'hydratation, sinon le texte
-  // du serveur et celui du navigateur diffèrent (erreur d'hydratation React).
-  const hydrated = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
-  // Ce que le serveur recevra vraiment : l'aperçu montre donc le même texte que la course.
-  const payload = settingsToPayload(v);
-
-  // Seuls les réglages qui changent le texte comptent : bouger la taille du lobby, la durée ou la
-  // longueur ne tire pas un nouvel aperçu. Le tirage attend ensuite un court instant (anti-rebond).
-  const textKey = JSON.stringify([
-    v.textType,
-    v.language,
-    v.complexity,
-    payload.uppercase,
-    payload.punctuation,
-    payload.digits,
-    payload.accents,
-    payload.includeChars,
-    payload.excludeChars,
-    payload.accentWanted,
-    payload.accentForbidden,
-  ]);
-  const [settledKey, setSettledKey] = useState(textKey);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettledKey(textKey), PREVIEW_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [textKey]);
-
-  const preview = useMemo(() => {
-    if (!hydrated) return "";
-    const [
-      type,
-      language,
-      complexity,
-      uppercase,
-      punctuationOn,
-      digits,
-      accentsOn,
-      include,
-      exclude,
-      wanted,
-      forbidden,
-    ] = JSON.parse(settledKey) as [
-      TextType,
-      Language,
-      Difficulty,
-      boolean,
-      boolean,
-      boolean,
-      boolean,
-      string[],
-      string[],
-      AccentType[],
-      AccentType[],
-    ];
-    try {
-      return generateRaceText(
-        {
-          type,
-          language,
-          length: 12,
-          complexity,
-          uppercase,
-          punctuation: punctuationOn,
-          digits,
-          accents: accentsOn,
-          includeChars: include,
-          excludeChars: exclude,
-          accentWanted: wanted,
-          accentForbidden: forbidden,
-        },
-        BUNDLED_CORPUS,
-      );
-    } catch {
-      return "";
-    }
-  }, [hydrated, settledKey]);
+  const preview = useTextPreview(v);
+  const [advTab, setAdvTab] = useState<"letters" | "accents" | "symbols">("letters");
 
   const nameProblem = checkRoomName(normalizeRoomName(v.name));
 
@@ -254,7 +176,7 @@ export function SettingsForm({
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className={compact ? "flex flex-col gap-4" : "flex gap-6"}>
         <div>
           <PixelLabel>{t("set.language")}</PixelLabel>
           <div className="flex gap-2">
@@ -271,18 +193,32 @@ export function SettingsForm({
         </div>
         <div className="flex-grow">
           <PixelLabel>{t("set.duration")}</PixelLabel>
-          <select
-            aria-label={t("set.duration_aria")}
-            className="pixel-slot h-10 w-full px-2.5 text-2xl text-white"
-            value={v.duration}
-            onChange={(e) => onChange({ duration: Number(e.target.value) })}
-          >
-            {DURATIONS.map((seconds) => (
-              <option key={seconds} value={seconds}>
-                {formatDuration(lang, seconds)}
-              </option>
-            ))}
-          </select>
+          {compact ? (
+            <div role="group" aria-label={t("set.duration_aria")} className="flex flex-wrap gap-2">
+              {DURATIONS.map((seconds) => (
+                <Chip
+                  key={seconds}
+                  on={v.duration === seconds}
+                  onClick={() => onChange({ duration: seconds })}
+                >
+                  {formatDuration(lang, seconds)}
+                </Chip>
+              ))}
+            </div>
+          ) : (
+            <select
+              aria-label={t("set.duration_aria")}
+              className="pixel-slot h-10 w-full px-2.5 text-2xl text-white"
+              value={v.duration}
+              onChange={(e) => onChange({ duration: Number(e.target.value) })}
+            >
+              {DURATIONS.map((seconds) => (
+                <option key={seconds} value={seconds}>
+                  {formatDuration(lang, seconds)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -319,15 +255,6 @@ export function SettingsForm({
             />
           ))}
         </div>
-        <label className="mt-2 flex items-center gap-2.5 text-xl">
-          <input
-            type="checkbox"
-            checked={v.penalty}
-            onChange={(e) => onChange({ penalty: e.target.checked })}
-            className="h-5 w-5 accent-[#3f7d24]"
-          />
-          {t("set.penalty")}
-        </label>
       </div>
 
       <fieldset className="min-w-0">
@@ -359,6 +286,139 @@ export function SettingsForm({
     </div>
   );
 
+  const letterMap = (
+    <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
+      <CharKeyMap
+        rows={LETTER_ROWS}
+        label={t("set.letters")}
+        wanted={v.includeChars}
+        forbidden={v.excludeChars}
+        disabled={!random}
+        onChange={(next) => onChange({ includeChars: next.wanted, excludeChars: next.forbidden })}
+      />
+      {random && v.options.includes("Nombres") && (
+        <div data-testid="digit-map" className="pixel-reveal">
+          <div className="mb-2 flex h-7 items-center text-lg text-[#3a3a3a]">{t("set.digits")}</div>
+          <CharKeyMap
+            rows={DIGIT_ROWS}
+            label={t("set.digits")}
+            wanted={v.includeChars}
+            forbidden={v.excludeChars}
+            disabled={!random}
+            onChange={(next) =>
+              onChange({ includeChars: next.wanted, excludeChars: next.forbidden })
+            }
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const accentMap = accents ? (
+    <div>
+      <AccentKeyMap
+        label={t("set.accent_types")}
+        wanted={v.accentWanted}
+        forbidden={v.accentForbidden}
+        onChange={(next) => onChange({ accentWanted: next.wanted, accentForbidden: next.forbidden })}
+      />
+      <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.accent_note")}</p>
+    </div>
+  ) : null;
+
+  const symbolMap = punctuation ? (
+    <div aria-disabled={!random} data-testid="symbol-map">
+      <CharKeyMap
+        rows={SYMBOL_ROWS}
+        label={t("set.symbols")}
+        wanted={v.includeChars}
+        forbidden={v.excludeChars}
+        disabled={!random}
+        onChange={(next) => onChange({ includeChars: next.wanted, excludeChars: next.forbidden })}
+      />
+    </div>
+  ) : null;
+
+  const optionChip = (o: TextOption) => {
+    // Vrais passages : tapés tels qu'écrits. Anglais : pas d'accents (CONF-06).
+    const englishAccents = o === "Accents" && v.language === "en";
+    return (
+      <Chip
+        key={o}
+        on={v.options.includes(o)}
+        disabled={!random || englishAccents}
+        title={englishAccents ? t("set.accents_fr_only") : undefined}
+        onClick={() => onChange({ options: toggled(v.options, o) })}
+      >
+        {t(`set.opt_${o}` as const)}
+      </Chip>
+    );
+  };
+
+  const optionsNote = !random
+    ? t("set.options_coherent")
+    : v.language === "en"
+      ? `${t("set.options_note")} ${t("set.accents_fr_only")}`
+      : t("set.options_note");
+
+  // Création : tout le détail du texte tient dans une section repliée, rangée en trois onglets.
+  const advanced = (
+    <details className="settings-adv" data-testid="advanced-text">
+      <summary className="settings-adv-sum">
+        <span className="settings-adv-chev font-pixel" aria-hidden="true">
+          &gt;
+        </span>
+        <span className="font-pixel flex-grow text-[11px]">{t("set.advanced")}</span>
+        <span className="settings-adv-btn font-pixel">
+          <span className="settings-adv-open">{t("set.advanced_open")}</span>
+          <span className="settings-adv-close">{t("set.advanced_close")}</span>
+        </span>
+      </summary>
+      <div className="mt-4 flex flex-col gap-4">
+        <div className="flex flex-wrap gap-2">
+          {[...TEXT_OPTIONS, "Nombres" as const, "Majuscules" as const].map(optionChip)}
+        </div>
+        <p className="text-lg text-[#3a3a3a]">{optionsNote}</p>
+        <Legend />
+        <div role="tablist" aria-label={t("set.advanced")} className="settings-tabs">
+          {(
+            [
+              ["letters", t("set.letters")],
+              ["accents", t("set.accent_types")],
+              ["symbols", t("set.symbols")],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={advTab === key}
+              data-on={advTab === key}
+              onClick={() => setAdvTab(key)}
+              className="settings-tab font-pixel"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" data-testid="letter-map">
+          {advTab === "letters" && (
+            <>
+              {letterMap}
+              <p className="mt-1.5 text-lg text-[#3a3a3a]">
+                {random ? t("set.letters_note") : t("set.chars_disabled")}
+              </p>
+            </>
+          )}
+          {advTab === "accents" &&
+            (accentMap ?? <p className="text-lg text-[#3a3a3a]">{t("set.tab_accents_off")}</p>)}
+          {advTab === "symbols" &&
+            (symbolMap ?? <p className="text-lg text-[#3a3a3a]">{t("set.tab_symbols_off")}</p>)}
+        </div>
+      </div>
+    </details>
+  );
+
   const text = (
     <div className="flex flex-col gap-4">
       <div>
@@ -381,7 +441,8 @@ export function SettingsForm({
 
       <div>
         <PixelLabel>{t("set.complexity")}</PixelLabel>
-        <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-3">
+        {/* Colonnes d'au moins 9,5 rem : « DIFFICILE » en police pixel ne déborde jamais du bouton. */}
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(9.5rem,1fr))] gap-2">
           {(Object.keys(COMPLEXITY_KEYS) as Difficulty[]).map((level) => (
             <Choice
               key={level}
@@ -407,125 +468,55 @@ export function SettingsForm({
         />
       </div>
 
-      <fieldset className="min-w-0 border-2 border-[#6b6b6b] p-3">
-        <legend className="font-pixel px-1 text-[11px] text-[#3a3a3a]">{t("set.options")}</legend>
-        <div className="flex flex-wrap gap-2">
-          {TEXT_OPTIONS.map((o) => {
-            // Vrais passages : tapés tels qu'écrits. Anglais : pas d'accents (CONF-06).
-            const englishAccents = o === "Accents" && v.language === "en";
-            return (
-              <Chip
-                key={o}
-                on={v.options.includes(o)}
-                disabled={!random || englishAccents}
-                title={englishAccents ? t("set.accents_fr_only") : undefined}
-                onClick={() => onChange({ options: toggled(v.options, o) })}
-              >
-                {t(`set.opt_${o}` as const)}
-              </Chip>
-            );
-          })}
-        </div>
-        <p className="mt-1.5 text-lg text-[#3a3a3a]">
-          {!random
-            ? t("set.options_coherent")
-            : v.language === "en"
-              ? `${t("set.options_note")} ${t("set.accents_fr_only")}`
-              : t("set.options_note")}
-        </p>
-        <div className="mt-3">
-          <Legend />
-        </div>
-
-        {accents && (
-          <div className="mt-4">
-            <PixelLabel>{t("set.accent_types")}</PixelLabel>
-            <AccentKeyMap
-              label={t("set.accent_types")}
-              wanted={v.accentWanted}
-              forbidden={v.accentForbidden}
-              onChange={(next) =>
-                onChange({ accentWanted: next.wanted, accentForbidden: next.forbidden })
-              }
-            />
-            <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.accent_note")}</p>
-          </div>
-        )}
-
-        {punctuation && (
-          <div className="mt-4" aria-disabled={!random} data-testid="symbol-map">
-            <PixelLabel>{t("set.symbols")}</PixelLabel>
-            <CharKeyMap
-              rows={SYMBOL_ROWS}
-              label={t("set.symbols")}
-              wanted={v.includeChars}
-              forbidden={v.excludeChars}
-              disabled={!random}
-              onChange={(next) =>
-                onChange({ includeChars: next.wanted, excludeChars: next.forbidden })
-              }
-            />
-            {!random && <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.chars_disabled")}</p>}
-          </div>
-        )}
-      </fieldset>
-
-      <div data-testid="letter-map">
-        <PixelLabel>{t("set.letters")}</PixelLabel>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {(["Nombres", "Majuscules"] as const).map((o) => (
-            <Chip
-              key={o}
-              on={v.options.includes(o)}
-              disabled={!random}
-              onClick={() => onChange({ options: toggled(v.options, o) })}
-            >
-              {t(`set.opt_${o}` as const)}
-            </Chip>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-start gap-x-8 gap-y-4">
-          <CharKeyMap
-            rows={LETTER_ROWS}
-            label={t("set.letters")}
-            wanted={v.includeChars}
-            forbidden={v.excludeChars}
-            disabled={!random}
-            onChange={(next) =>
-              onChange({ includeChars: next.wanted, excludeChars: next.forbidden })
-            }
-          />
-          {random && v.options.includes("Nombres") && (
-            <div data-testid="digit-map" className="pixel-reveal">
-              <div className="mb-2 flex h-7 items-center text-lg text-[#3a3a3a]">
-                {t("set.digits")}
-              </div>
-              <CharKeyMap
-                rows={DIGIT_ROWS}
-                label={t("set.digits")}
-                wanted={v.includeChars}
-                forbidden={v.excludeChars}
-                disabled={!random}
-                onChange={(next) =>
-                  onChange({ includeChars: next.wanted, excludeChars: next.forbidden })
-                }
-              />
+      {compact ? (
+        advanced
+      ) : (
+        <>
+          <fieldset className="min-w-0 border-2 border-[#6b6b6b] p-3">
+            <legend className="font-pixel px-1 text-[11px] text-[#3a3a3a]">{t("set.options")}</legend>
+            <div className="flex flex-wrap gap-2">{TEXT_OPTIONS.map(optionChip)}</div>
+            <p className="mt-1.5 text-lg text-[#3a3a3a]">{optionsNote}</p>
+            <div className="mt-3">
+              <Legend />
             </div>
-          )}
-        </div>
-        <p className="mt-1.5 text-lg text-[#3a3a3a]">
-          {random ? t("set.letters_note") : t("set.chars_disabled")}
-        </p>
-      </div>
+            {accentMap && (
+              <div className="mt-4">
+                <PixelLabel>{t("set.accent_types")}</PixelLabel>
+                {accentMap}
+              </div>
+            )}
+            {symbolMap && (
+              <div className="mt-4">
+                <PixelLabel>{t("set.symbols")}</PixelLabel>
+                {symbolMap}
+                {!random && (
+                  <p className="mt-1.5 text-lg text-[#3a3a3a]">{t("set.chars_disabled")}</p>
+                )}
+              </div>
+            )}
+          </fieldset>
 
-      <div>
-        <PixelLabel>{t("set.preview")}</PixelLabel>
-        <div data-testid="text-preview">
-          <PixelSlot className="px-3.5 py-3 text-3xl leading-snug text-white">
-            {preview || "…"}
-          </PixelSlot>
-        </div>
-      </div>
+          <div data-testid="letter-map">
+            <PixelLabel>{t("set.letters")}</PixelLabel>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {(["Nombres", "Majuscules"] as const).map(optionChip)}
+            </div>
+            {letterMap}
+            <p className="mt-1.5 text-lg text-[#3a3a3a]">
+              {random ? t("set.letters_note") : t("set.chars_disabled")}
+            </p>
+          </div>
+
+          <div>
+            <PixelLabel>{t("set.preview")}</PixelLabel>
+            <div data-testid="text-preview">
+              <PixelSlot className="px-3.5 py-3 text-3xl leading-snug text-white">
+                {preview || "…"}
+              </PixelSlot>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 
