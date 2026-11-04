@@ -952,13 +952,11 @@ body {
 }
 
 /* --- Curseur pixel (refonte du 4 nov.) -------------------------------------
-   Dessins originaux (public/cursors) : flèche partout, main sur ce qui se clique.
-   Le curseur système reste en secours si l'image ne charge pas. */
-html {
-  cursor: url("/cursors/fleche.png") 0 0, auto;
-}
+   Dessin original (public/cursors/fleche.png) : la même flèche partout, même sur ce qui se
+   clique (demande de l'étudiant : pas de main). Le curseur système reste en secours. */
+html,
 :is(a, button, label, summary, select, [role="button"], [role="tab"], input[type="checkbox"], input[type="radio"], input[type="range"]):not(:disabled) {
-  cursor: url("/cursors/main.png") 10 0, pointer;
+  cursor: url("/cursors/fleche.png") 0 0, default;
 }
 
 /* --- Style sombre de la refonte (maquettes du 4 nov.) ----------------------
