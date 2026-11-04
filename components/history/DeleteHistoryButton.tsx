@@ -9,7 +9,14 @@ import { HistoryIcon } from "./icons";
 // Supprime une course de son historique, après confirmation (<dialog> natif : le focus est piégé
 // dans la boîte et Échap la ferme).
 
-export function DeleteHistoryButton({ raceId }: { raceId: string }) {
+export function DeleteHistoryButton({
+  raceId,
+  compactLabel,
+}: {
+  raceId: string;
+  /** Tableau de l'historique : petit bouton « X » ; ce texte est son nom pour les lecteurs d'écran. */
+  compactLabel?: string;
+}) {
   const { t } = useLanguage();
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -36,10 +43,18 @@ export function DeleteHistoryButton({ raceId }: { raceId: string }) {
         type="button"
         onClick={() => dialog.current?.showModal()}
         data-variant="red"
-        className="pixel-btn h-10 gap-2 px-3 text-[9px]"
+        aria-label={compactLabel}
+        title={compactLabel ? t("hist.delete") : undefined}
+        className={compactLabel ? "hist-del font-pixel" : "pixel-btn h-10 gap-2 px-3 text-[9px]"}
       >
-        <HistoryIcon name="trash" />
-        {t("hist.delete")}
+        {compactLabel ? (
+          "X"
+        ) : (
+          <>
+            <HistoryIcon name="trash" />
+            {t("hist.delete")}
+          </>
+        )}
       </button>
       <dialog
         ref={dialog}

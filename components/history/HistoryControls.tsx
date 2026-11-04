@@ -37,14 +37,14 @@ export function HistoryControls({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label htmlFor="history-sort" className="text-xl">
+      <label htmlFor="history-sort" className="text-xl text-[#a8966e]">
         {t("hist.sort_by")}
       </label>
       <select
         id="history-sort"
         value={sort}
         onChange={(e) => go({ sort: e.target.value as HistorySort })}
-        className="pixel-slot h-11 px-2 text-xl text-white"
+        className="hist-sel"
       >
         {sorts.map((s) => (
           <option key={s} value={s}>
@@ -57,10 +57,9 @@ export function HistoryControls({
         onClick={() => go({ dir: ascending ? "desc" : "asc" })}
         aria-label={directionLabel}
         title={directionLabel}
-        className="pixel-btn h-11 w-11"
-        data-variant="slate"
+        className="hist-dirb"
       >
-        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 18 18" fill="currentColor">
           {/* flèche vers le haut = croissant, vers le bas = décroissant */}
           {ascending ? <path d="M9 3l6 8H3z" /> : <path d="M9 15l6-8H3z" />}
         </svg>

@@ -8,7 +8,7 @@ import { HistoryIcon } from "./icons";
 
 // REJOUER : ouvre une nouvelle salle avec les mêmes réglages que cette course, puis y emmène l'hôte.
 
-export function ReplayButton({ raceId }: { raceId: string }) {
+export function ReplayButton({ raceId, compact = false }: { raceId: string; compact?: boolean }) {
   const { t } = useLanguage();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -38,13 +38,13 @@ export function ReplayButton({ raceId }: { raceId: string }) {
         onClick={() => void replay()}
         disabled={busy}
         data-variant="green"
-        className="pixel-btn h-10 gap-2 px-3 text-[9px]"
+        className={compact ? "hist-rb hist-rep font-pixel" : "pixel-btn h-10 gap-2 px-3 text-[9px]"}
       >
-        <HistoryIcon name="replay" />
+        {compact ? <i className="hist-tri" aria-hidden="true" /> : <HistoryIcon name="replay" />}
         {t("hist.replay")}
       </button>
       {problem && (
-        <span role="alert" className="text-lg text-[#9b3a2e]">
+        <span role="alert" className="text-lg text-[#f39a8c]">
           {problem.text}{" "}
           {problem.currentCode && (
             <Link href={`/jouer/${problem.currentCode}`} className="underline">

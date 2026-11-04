@@ -2871,3 +2871,261 @@ a.lobby-row:hover .lobby-go {
   font-size: 16px;
   border-width: 2px;
 }
+
+/* --- Historique de la refonte (maquette « 5b · Historique », 4 nov.) --- */
+.hist-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  color: #f1e6c9;
+  background: #3b2a1a;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+  transition: transform 0.08s steps(2);
+}
+.hist-tile:hover {
+  transform: translate(-3px, -3px);
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632,
+    6px 6px 0 #000;
+}
+.hist-num {
+  font-size: 36px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.hist-num small {
+  font-size: 19px;
+}
+.hist-more {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 7px;
+  color: #a8966e;
+}
+.hist-tile:hover .hist-more {
+  color: #ffe08a;
+}
+.hist-cups {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0;
+}
+.hist-cups i {
+  width: 18px;
+  height: 18px;
+  background: #2b1e13;
+  border: 2px solid #000;
+}
+.hist-cups i[data-on="true"] {
+  background: #f0b429;
+  box-shadow: inset 3px 3px 0 #fff29a;
+}
+.hist-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 8px;
+  background: #2b1e13;
+  color: #cdbf9c;
+  border: 3px solid #3b2a1a;
+  transition: transform 0.08s steps(2);
+}
+.hist-chip:hover {
+  border-color: #f0b429;
+  color: #fff;
+  transform: translateY(-2px);
+}
+.hist-chip[data-on="true"] {
+  background: #f0b429;
+  color: #1b1209;
+  border-color: #000;
+}
+.hist-chip b {
+  padding: 0 6px;
+  font-family: var(--font-body), monospace;
+  font-size: 20px;
+  font-weight: normal;
+  background: rgba(0, 0, 0, 0.25);
+}
+.hist-cols {
+  display: grid;
+  grid-template-columns: 140px 110px 60px 100px minmax(0, 1fr) 120px 270px;
+  gap: 12px;
+  align-items: center;
+}
+.hist-thead {
+  padding: 12px 20px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #f1e6c9;
+  background: #2b1e13;
+  border-top: 2px solid #3b2a1a;
+}
+.hist-row {
+  padding: 12px 20px 12px 14px;
+  border-top: 2px solid #2b1e13;
+  border-left: 6px solid transparent;
+  transition: background 0.08s steps(2);
+  animation: shop-in 0.35s steps(3) both;
+}
+.hist-row:hover {
+  background: #2b1e13;
+  border-left-color: #f0b429;
+}
+.hist-medal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  font-size: 10px;
+  border: 3px solid #000;
+}
+.hist-st {
+  padding: 5px 7px;
+  font-size: 7px;
+  white-space: nowrap;
+  border: 2px solid #000;
+}
+.hist-rb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 8px;
+  white-space: nowrap;
+  border: 3px solid #000;
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s steps(2);
+}
+.hist-rb:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+    inset -3px -3px 0 rgba(0, 0, 0, 0.35),
+    4px 4px 0 #000;
+}
+.hist-det {
+  background: #3b2a1a;
+  color: #f1e6c9;
+}
+.hist-det:hover {
+  color: #ffe08a;
+}
+.hist-rep {
+  background: #3f7d24;
+  color: #fff;
+}
+.hist-rep:hover {
+  background: #5e9c3a;
+}
+.hist-tri {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid #fff;
+}
+.hist-eye {
+  position: relative;
+  width: 10px;
+  height: 6px;
+  border: 2px solid currentColor;
+}
+.hist-eye::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  background: currentColor;
+}
+.hist-del {
+  height: 36px;
+  padding: 0 10px;
+  font-size: 8px;
+  color: #f39a8c;
+  background: #2b1e13;
+  border: 3px solid #3b2a1a;
+  opacity: 0.4;
+}
+.hist-row:hover .hist-del,
+.hist-del:focus-visible {
+  opacity: 1;
+}
+.hist-del:hover {
+  background: #b0281c;
+  color: #fff;
+  border-color: #000;
+}
+.hist-ghost {
+  padding: 9px 12px;
+  font-size: 8px;
+  white-space: nowrap;
+  color: #cdbf9c;
+  border: 3px solid #5a4632;
+}
+.hist-ghost:hover {
+  border-color: #f0b429;
+  color: #ffe08a;
+}
+.hist-pnum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  font-size: 9px;
+  color: #cdbf9c;
+  background: #2b1e13;
+  border: 3px solid #3b2a1a;
+}
+.hist-pnum[data-on="true"] {
+  background: #f0b429;
+  color: #1b1209;
+  border-color: #000;
+}
+/* Moins de 1100 px : une ligne passe sur deux rangées (infos, puis actions). */
+@media (max-width: 1099px) {
+  .hist-cols {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .hist-thead {
+    display: none;
+  }
+  .hist-cols > :last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+.hist-sel {
+  height: 38px;
+  padding: 0 10px;
+  font-size: 21px;
+  color: #fff;
+  background: #2b1e13;
+  border: 3px solid #3b2a1a;
+}
+.hist-dirb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: #ffe08a;
+  background: #2b1e13;
+  border: 3px solid #3b2a1a;
+}
+.hist-dirb:hover {
+  border-color: #f0b429;
+}
