@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { PixelPanel, PixelSlot } from "@/components/ui";
 import { formatClock } from "@/lib/format";
 import { useLanguage } from "@/lib/i18n";
 import type { PublicLobby } from "@/lib/public-lobbies";
@@ -69,110 +68,171 @@ export function PublicLobbies({ initial }: { initial: PublicLobby[] }) {
   const complexityText = (c: PublicLobby["complexity"]) =>
     c === "easy" ? t("lobbies.easy") : c === "medium" ? t("lobbies.medium") : t("lobbies.hard");
 
+  const filterButton = (on: boolean, label: string, onClick: () => void, key: string) => (
+    <button
+      key={key}
+      type="button"
+      data-on={on}
+      aria-pressed={on}
+      onClick={onClick}
+      className="lobby-filter font-pixel uppercase"
+    >
+      {label}
+    </button>
+  );
+
+  const levelBars = (c: PublicLobby["complexity"]) => {
+    const lit = c === "easy" ? 1 : c === "medium" ? 2 : 3;
+    return [8, 15, 22].map((h, i) => (
+      <span key={h} style={{ height: h, background: i < lit ? "#f0b429" : "#3b2a1a" }} />
+    ));
+  };
+
   return (
-    <PixelPanel className="w-full flex-grow self-start p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-pixel text-sm text-[#2b2b2b]">{t("home.public_lobbies")}</h2>
-        <span aria-live="polite" className="text-2xl text-[#3a3a3a]">
-          {t("lobbies.count", { count: lobbies.length })}
+    <section aria-labelledby="salles-title" className="lobby-panel flex w-full flex-col">
+      <div className="lobby-head flex flex-wrap items-center justify-between gap-3">
+        <h2
+          id="salles-title"
+          className="font-pixel text-[13px] text-white [text-shadow:3px_3px_0_#000]"
+        >
+          {t("home.public_lobbies")}
+        </h2>
+        <span aria-live="polite" className="flex items-center gap-2 text-xl text-white">
+          <span className="lobby-live" aria-hidden="true" />
+          {t("lobbies.live", { count: lobbies.length })}
         </span>
       </div>
 
       <div
-        className="mb-3 flex flex-wrap gap-x-5 gap-y-2"
+        className="lobby-filters flex flex-wrap gap-1.5"
         role="group"
         aria-label={t("lobbies.filters")}
       >
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xl text-[#3a3a3a]">{t("lobbies.language")}</span>
-          {(
-            [
-              ["", t("lobbies.all")],
-              ["fr", "FR"],
-              ["en", "EN"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value || "all"}
-              type="button"
-              data-on={language === value}
-              aria-pressed={language === value}
-              onClick={() => setLanguage(value)}
-              className="pixel-chip text-lg"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xl text-[#3a3a3a]">{t("lobbies.complexity")}</span>
-          {(
-            [
-              ["", t("lobbies.all")],
-              ["easy", t("lobbies.easy")],
-              ["medium", t("lobbies.medium")],
-              ["hard", t("lobbies.hard")],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value || "all"}
-              type="button"
-              data-on={complexity === value}
-              aria-pressed={complexity === value}
-              onClick={() => setComplexity(value)}
-              className="pixel-chip text-lg"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {filterButton(
+          !language && !complexity,
+          t("lobbies.all"),
+          () => {
+            setLanguage("");
+            setComplexity("");
+          },
+          "all",
+        )}
+        {(
+          [
+            ["fr", "FR"],
+            ["en", "EN"],
+          ] as const
+        ).map(([value, label]) =>
+          filterButton(
+            language === value,
+            label,
+            () => setLanguage(language === value ? "" : value),
+            `l-${value}`,
+          ),
+        )}
+        <span className="lobby-sep" aria-hidden="true" />
+        {(
+          [
+            ["easy", t("lobbies.easy")],
+            ["medium", t("lobbies.medium")],
+            ["hard", t("lobbies.hard")],
+          ] as const
+        ).map(([value, label]) =>
+          filterButton(
+            complexity === value,
+            label,
+            () => setComplexity(complexity === value ? "" : value),
+            `c-${value}`,
+          ),
+        )}
       </div>
 
       {offline && (
-        <p role="status" className="mb-2 text-xl text-[#9b3a2e]">
+        <p role="status" className="px-5 pt-3 text-xl text-[#f39a8c]">
           {t("lobbies.offline")}
         </p>
       )}
 
-      <ul className="flex flex-col gap-2.5">
-        {lobbies.length === 0 && <li className="text-2xl text-[#3a3a3a]">{t("lobbies.empty")}</li>}
-        {lobbies.map((l) => (
-          <li key={l.code}>
-            <PixelSlot className="flex flex-wrap items-center gap-3.5 px-3.5 py-2.5">
-              <div className="min-w-0 flex-grow">
-                <div className="truncate text-2xl leading-none text-white">{l.name}</div>
-                <div className="text-xl text-white">
-                  {l.language.toUpperCase()} · {complexityText(l.complexity)} · {stateText(l)}
-                  {l.hostName ? ` · ${t("lobbies.host", { name: l.hostName })}` : ""}
-                </div>
-              </div>
-              <div
-                className="font-pixel text-xs text-white"
+      <div role="table" aria-label={t("home.public_lobbies")} className="flex flex-col">
+        <div role="row" className="lobby-cols lobby-colhead font-pixel">
+          <span role="columnheader">{t("lobbies.col_room")}</span>
+          <span role="columnheader">{t("lobbies.col_lang")}</span>
+          <span role="columnheader">{t("lobbies.col_level")}</span>
+          <span role="columnheader">{t("lobbies.col_players")}</span>
+          <span role="columnheader" className="text-right">
+            {t("lobbies.col_state")}
+          </span>
+        </div>
+        {lobbies.length === 0 && (
+          <p className="lobby-empty text-xl text-[#cdbf9c]">{t("lobbies.empty")}</p>
+        )}
+        {lobbies.map((l) => {
+          const cells = (
+            <>
+              <span role="cell" className="min-w-0">
+                <span className="block truncate text-[25px] leading-tight text-white">
+                  {l.name}
+                </span>
+                <span className="block text-lg text-[#a8966e]">
+                  {l.hostName ? t("lobbies.host", { name: l.hostName }) : stateText(l)}
+                </span>
+              </span>
+              <span role="cell" className="font-pixel text-[10px]">
+                {l.language.toUpperCase()}
+              </span>
+              <span
+                role="cell"
+                className="lobby-bars"
+                aria-label={t("lobbies.level_aria", { level: complexityText(l.complexity) })}
+              >
+                {levelBars(l.complexity)}
+              </span>
+              <span
+                role="cell"
+                className="flex flex-col gap-1"
                 aria-label={t("lobbies.players", { n: l.players, max: l.capacity })}
               >
-                {l.players}/{l.capacity}
-              </div>
-              {l.joinable ? (
-                <Link
-                  href={`/jouer/${l.code}`}
-                  className="pixel-btn h-11 w-36 text-[11px]"
-                  data-variant="green"
-                >
-                  {t("lobbies.join")}
-                </Link>
-              ) : (
-                <span
-                  className="pixel-btn h-11 w-36 text-[11px] opacity-70"
-                  data-variant="slate"
-                  aria-disabled="true"
-                >
-                  {l.status === "lobby" ? t("lobbies.full") : t("lobbies.in_progress")}
+                <span className="font-pixel text-[10px]" aria-hidden="true">
+                  {l.players}/{l.capacity}
                 </span>
-              )}
-            </PixelSlot>
-          </li>
-        ))}
-      </ul>
-    </PixelPanel>
+                <span className="lobby-fill" aria-hidden="true">
+                  <span
+                    style={{ width: `${Math.round((l.players / Math.max(1, l.capacity)) * 100)}%` }}
+                  />
+                </span>
+              </span>
+              <span role="cell" className="flex justify-end">
+                {l.joinable ? (
+                  <span className="lobby-go font-pixel">{t("lobbies.join")}</span>
+                ) : l.status === "lobby" ? (
+                  <span className="font-pixel py-2 text-[8px] text-[#a8966e]">
+                    {t("lobbies.full")}
+                  </span>
+                ) : (
+                  <span className="font-pixel py-2 text-right text-[8px] text-[#f0b429]">
+                    {t("lobbies.in_progress")}
+                    {l.secondsLeft !== null ? ` ${formatClock(secondsLeft(l))}` : ""}
+                  </span>
+                )}
+              </span>
+            </>
+          );
+          return l.joinable ? (
+            <Link
+              key={l.code}
+              role="row"
+              href={`/jouer/${l.code}`}
+              className="lobby-cols lobby-row"
+            >
+              {cells}
+            </Link>
+          ) : (
+            <div key={l.code} role="row" className="lobby-cols lobby-row" title={stateText(l)}>
+              {cells}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

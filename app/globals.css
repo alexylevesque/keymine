@@ -1454,3 +1454,457 @@ select.shell-btn option {
   background-image: none;
   background-color: #2b1e13;
 }
+
+/* --- Accueil de la refonte (maquette « 1 · Accueil », 4 nov.) --------------- */
+.home-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 0.9em;
+  margin-left: 0.15em;
+  background: #f0b429;
+  vertical-align: -0.05em;
+  animation: home-blink 1s steps(1) infinite;
+}
+@keyframes home-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.home-link {
+  color: #ffe08a;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.home-link:hover {
+  color: #fff;
+}
+.home-code {
+  border: 0;
+  background: #3b2a1a;
+  color: #f1e6c9;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+}
+.home-code::placeholder {
+  color: #a8966e;
+}
+
+/* Bouton JOUER : grand bouton vert, le bonhomme court dessus. */
+.home-play {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 104px;
+  overflow: visible;
+  background: #3f7d24;
+  color: #fff;
+  font-size: 30px;
+  text-shadow: 3px 3px 0 #000;
+  border: 4px solid #000;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s steps(2);
+}
+.home-play:hover {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35),
+    6px 6px 0 #000;
+}
+.home-play:active {
+  transform: translate(2px, 2px);
+  box-shadow: inset 4px 4px 0 rgba(0, 0, 0, 0.35);
+}
+.home-play .track {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.home-play .mini {
+  position: absolute;
+  left: -10px;
+  top: 54px;
+  width: 28px;
+  height: 42px;
+  z-index: 2;
+  animation: home-route 7s linear infinite;
+}
+.home-play .body {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  animation: home-pose 7s steps(1) infinite;
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.55));
+}
+.home-play .mini svg {
+  position: absolute;
+  inset: 0;
+  width: 28px;
+  height: 42px;
+}
+.home-play .mini .f0 {
+  animation:
+    home-fswap 0.28s steps(1) infinite,
+    home-hideslide 7s steps(1) infinite;
+}
+.home-play .mini .f1 {
+  animation:
+    home-fswap 0.28s steps(1) infinite reverse,
+    home-hideslide 7s steps(1) infinite;
+}
+.home-play .mini .f2 {
+  visibility: hidden;
+  animation: home-showslide 7s steps(1) infinite;
+}
+.home-play .slidefx {
+  position: absolute;
+  left: -10px;
+  bottom: -2px;
+  width: 10px;
+  height: 4px;
+  background: #ffe08a;
+  opacity: 0;
+  animation: home-spark 7s steps(1) infinite;
+}
+.home-play .mini .t0,
+.home-play .mini .t1,
+.home-play .laptop,
+.home-play .pop {
+  display: none;
+}
+.home-play .laptop {
+  position: absolute;
+  left: 26px;
+  top: 13px;
+  width: 20px;
+  height: 16px;
+}
+.home-play .laptop svg {
+  position: static;
+  display: block;
+  width: 20px;
+  height: 16px;
+}
+.home-play .cur {
+  animation: home-blink 0.5s steps(1) infinite;
+}
+.home-play .pop {
+  position: absolute;
+  left: 32px;
+  top: 0;
+  font-size: 7px;
+  color: #ffe08a;
+  text-shadow: 1px 1px 0 #000;
+  opacity: 0;
+}
+/* Au survol : il s'arrête et tape sur l'ordinateur, des lettres s'envolent. */
+.home-play:hover .mini,
+.home-play:hover .slidefx {
+  animation-play-state: paused;
+}
+.home-play:hover .body {
+  animation: none;
+}
+.home-play:hover .mini .f0,
+.home-play:hover .mini .f1,
+.home-play:hover .mini .f2,
+.home-play:hover .slidefx {
+  display: none;
+}
+.home-play:hover .mini .t0,
+.home-play:hover .mini .t1,
+.home-play:hover .laptop {
+  display: block;
+}
+.home-play:hover .mini .t0 {
+  animation: home-fswap 0.2s steps(1) infinite;
+}
+.home-play:hover .mini .t1 {
+  animation: home-fswap 0.2s steps(1) infinite reverse;
+}
+.home-play:hover .pop {
+  display: block;
+  animation: home-popup 1.2s steps(6) infinite;
+}
+.home-play:hover .p2 {
+  animation-delay: 0.4s;
+  left: 38px;
+}
+.home-play:hover .p3 {
+  animation-delay: 0.8s;
+  left: 28px;
+}
+@keyframes home-hideslide {
+  0% {
+    visibility: visible;
+  }
+  40% {
+    visibility: hidden;
+  }
+  66% {
+    visibility: visible;
+  }
+}
+@keyframes home-showslide {
+  0% {
+    visibility: hidden;
+  }
+  40% {
+    visibility: visible;
+  }
+  66% {
+    visibility: hidden;
+  }
+}
+@keyframes home-fswap {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes home-route {
+  0% {
+    left: -10px;
+    top: 54px;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  30% {
+    left: calc(50% - 150px);
+    top: 54px;
+  }
+  36% {
+    left: calc(50% - 110px);
+    top: -16px;
+  }
+  40% {
+    left: calc(50% - 86px);
+    top: -8px;
+  }
+  66% {
+    left: calc(50% + 50px);
+    top: -8px;
+  }
+  71% {
+    left: calc(50% + 90px);
+    top: -14px;
+  }
+  76% {
+    left: calc(50% + 120px);
+    top: 54px;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 20px);
+    top: 54px;
+    opacity: 0;
+  }
+}
+@keyframes home-pose {
+  0% {
+    transform: none;
+  }
+  40% {
+    transform: rotate(-10deg);
+  }
+  66% {
+    transform: none;
+  }
+}
+@keyframes home-spark {
+  0%,
+  39% {
+    opacity: 0;
+  }
+  40%,
+  65% {
+    opacity: 1;
+  }
+  66%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes home-popup {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-play .track {
+    display: none;
+  }
+}
+
+/* Tuiles du joueur sous le formulaire. */
+.home-tile {
+  display: block;
+  padding: 14px;
+  background: #3b2a1a;
+  color: #f1e6c9;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+  transition: transform 0.08s steps(2);
+}
+.home-tile .more {
+  color: #a8966e;
+}
+.home-tile:hover {
+  transform: translate(-3px, -3px);
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632,
+    6px 6px 0 #000;
+}
+.home-tile:hover .more {
+  color: #ffe08a;
+}
+.home-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  margin-top: 6px;
+}
+.home-bars span {
+  display: block;
+  width: 8px;
+  background: #5e9c3a;
+}
+.home-tile:hover .home-bars span:not(:last-child) {
+  background: #7fc45a;
+}
+
+/* Salles publiques : panneau sombre, bandeau vert, tableau. */
+.lobby-panel {
+  background: #1b1209;
+  border: 4px solid #000;
+  box-shadow: 8px 8px 0 #000;
+  color: #f1e6c9;
+}
+.lobby-head {
+  padding: 18px 20px;
+  border-bottom: 4px solid #000;
+  background: #3f7d24;
+}
+.lobby-live {
+  width: 10px;
+  height: 10px;
+  background: #ffe08a;
+  border: 2px solid #000;
+  animation: home-blink 1.2s steps(1) infinite;
+}
+.lobby-filters {
+  padding: 14px 20px;
+  border-bottom: 2px solid #3b2a1a;
+}
+.lobby-filter {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 9px;
+  background: #2b1e13;
+  color: #cdbf9c;
+  border: 3px solid #3b2a1a;
+}
+.lobby-filter:hover {
+  border-color: #f0b429;
+  color: #fff;
+}
+.lobby-filter[data-on="true"] {
+  background: #f0b429;
+  color: #1b1209;
+  border-color: #000;
+}
+.lobby-sep {
+  width: 2px;
+  margin: 0 6px;
+  background: #3b2a1a;
+}
+.lobby-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 70px 90px 120px;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 20px;
+}
+.lobby-colhead {
+  font-size: 8px;
+  color: #a8966e;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.lobby-empty {
+  padding: 12px 20px 18px;
+  border-top: 2px solid #2b1e13;
+}
+.lobby-row {
+  color: #f1e6c9;
+  border-top: 2px solid #2b1e13;
+  border-left: 6px solid transparent;
+  padding-left: 14px;
+  transition: background 0.08s steps(2);
+}
+a.lobby-row:hover {
+  background: #2b1e13;
+  border-left-color: #f0b429;
+}
+.lobby-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+}
+.lobby-bars span {
+  width: 7px;
+}
+.lobby-fill {
+  position: relative;
+  width: 64px;
+  height: 6px;
+  background: #3b2a1a;
+}
+.lobby-fill span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #7fc45a;
+}
+.lobby-go {
+  font-size: 9px;
+  padding: 10px 12px;
+  background: #3f7d24;
+  color: #fff;
+  border: 3px solid #000;
+}
+a.lobby-row:hover .lobby-go {
+  background: #f0b429;
+  color: #1b1209;
+}
+/* Téléphone : la ligne passe sur deux rangées (nom en haut, le reste dessous). */
+@media (max-width: 639px) {
+  .lobby-cols {
+    grid-template-columns: repeat(3, auto) minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .lobby-cols > :first-child {
+    grid-column: 1 / -1;
+  }
+  .lobby-colhead {
+    display: none;
+  }
+}
