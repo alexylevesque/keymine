@@ -69,7 +69,6 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
     loadProfileStats(identity.userId),
   ]);
   const winPct = stats.races > 0 ? Math.round((stats.wins / stats.races) * 100) : 0;
-  const spectated = history.section === "spectated";
 
   return (
     <PixelShell active="stats">
