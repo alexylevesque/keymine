@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+// Imports statiques : Next leur donne un nom avec empreinte et les sert en cache pour un an (immutable).
+import logoRond from "@/public/logo-rond.png";
+import logoTexte from "@/public/logo-texte.png";
 import { useEffect, useState, type ReactNode } from "react";
 import { PixelAvatar } from "./ui";
 import { LanguageSelect } from "./LanguageSelect";
@@ -184,18 +187,10 @@ export function PixelShell({
             className="shell-logo flex shrink-0 items-center gap-2 lg:gap-3"
             aria-label="KeyMine"
           >
+            <Image src={logoRond} alt="" className="h-8 w-8 lg:h-10 lg:w-10" />
             <Image
-              src="/logo-rond.png"
+              src={logoTexte}
               alt=""
-              width={40}
-              height={40}
-              className="h-8 w-8 lg:h-10 lg:w-10"
-            />
-            <Image
-              src="/logo-texte.png"
-              alt=""
-              width={410}
-              height={70}
               unoptimized
               className="h-4 w-auto [image-rendering:pixelated] lg:h-[22px]"
             />
