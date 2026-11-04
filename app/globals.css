@@ -270,8 +270,6 @@ body {
   .pixel-tri-key[data-state="forbidden"] {
     background: var(--color-red);
     color: #ffffff;
-    text-decoration: line-through;
-    text-decoration-thickness: 2px;
     border-color: var(--color-red-light) var(--color-red-dark) var(--color-red-dark)
       var(--color-red-light);
   }
