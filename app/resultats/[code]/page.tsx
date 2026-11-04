@@ -2,7 +2,7 @@ import { Crown } from "@/components/leaderboard/badges";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { PixelShell } from "@/components/PixelShell";
 import { participantName } from "@/lib/bot-name";
-import { PixelAvatar, PixelDisclosure, PixelKeyboard, PixelPanel } from "@/components/ui";
+import { PixelAvatar, PixelKeyboard } from "@/components/ui";
 import { ResultsActions } from "@/components/results/ResultsActions";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
 import { WpmChart } from "@/components/results/WpmChart";
@@ -15,7 +15,11 @@ import { groupBonuses } from "@/lib/bonus-summary";
 import { translate, type DictKey, type SiteLang } from "@/lib/i18n-dictionary";
 import { and, avg, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { raceParticipants } from "@/db/schema";
+import { raceParticipants, users } from "@/db/schema";
+import { identicon } from "@/lib/identicon";
+import { levelFromXp } from "@/lib/xp";
+import { PodiumCrown, Trophy } from "@/components/results/ResultPixels";
+import { ResultTabs } from "@/components/results/ResultTabs";
 import { getLobbyByCode, isHost } from "@/lib/lobby";
 import {
   isPersonalRecord,
@@ -27,31 +31,31 @@ import {
 export const dynamic = "force-dynamic";
 export const generateMetadata = pageMetadata("title.results");
 
-const PODIUM_STYLE = [
-  {
-    height: "h-44",
-    bg: "bg-[#f0b429]",
-    text: "text-[#1b1e13]",
-    size: "text-4xl",
-    avatar: "h-14 w-14 text-2xl",
-    label: "1",
-  },
-  {
-    height: "h-32",
-    bg: "bg-[#a8a8a8]",
-    text: "text-[#1b1b1b]",
-    size: "text-3xl",
-    avatar: "h-13 w-13 text-xl",
-    label: "2",
-  },
-  {
-    height: "h-24",
-    bg: "bg-[#9a6b3c]",
-    text: "text-white",
-    size: "text-2xl",
-    avatar: "h-13 w-13 text-xl",
-    label: "3",
-  },
+const AVATAR_COLORS = ["#3d6fc4", "#b03a7a", "#a85512", "#17706f", "#7a45b0", "#3f7d24", "#b63a32"];
+
+/** Marches du podium (1er, 2e, 3e) : hauteur, couleurs, délai de l'animation. */
+const PODIUM_STEP = [
+  { h: 160, bg: "#f0b429", fg: "#1b1209", delay: 0.4 },
+  { h: 110, bg: "#a8a8a8", fg: "#1b1209", delay: 0.2 },
+  { h: 76, bg: "#9a6b3a", fg: "#fff", delay: 0 },
+];
+
+/** Confettis de la bannière : position (%), couleur, délai et durée (s). */
+const CONFETTI: [number, string, number, number][] = [
+  [32, "#45cfc8", 0.3, 3.7],
+  [63, "#7fc45a", 0.2, 2.7],
+  [4, "#f39a8c", 1.7, 3.4],
+  [9, "#7fc45a", 1.6, 3.6],
+  [37, "#7fc45a", 2.6, 2.8],
+  [84, "#45cfc8", 2.5, 3.3],
+  [26, "#7fc45a", 0.9, 3.4],
+  [82, "#b0281c", 3, 3.6],
+  [13, "#ffe08a", 1, 3.7],
+  [66, "#7fc45a", 0.5, 3.2],
+  [2, "#45cfc8", 1.8, 3.4],
+  [78, "#45cfc8", 1.3, 3.9],
+  [22, "#7fc45a", 0.9, 3.3],
+  [7, "#f0b429", 0.1, 3.9],
 ];
 
 const STATUS_KEY: Record<string, DictKey> = {
@@ -65,15 +69,6 @@ const BONUS_KEY = {
   plus_words: "res.bonus_plus_words",
   fog: "res.bonus_fog",
 } as const satisfies Record<string, DictKey>;
-
-/** Bonus reçus, un type par ligne, regroupés : « Brouillard (2) » (RES-02). */
-function bonusLines(lang: SiteLang, row: ResultRow): string[] {
-  const groups = groupBonuses(row.bonuses);
-  if (groups.length === 0) return [translate(lang, "res.bonus_none")];
-  return groups.map(({ kind, count }) =>
-    count > 1 ? `${translate(lang, BONUS_KEY[kind])} (${count})` : translate(lang, BONUS_KEY[kind]),
-  );
-}
 
 function Message({ lang, text }: { lang: SiteLang; text: DictKey }) {
   return (
@@ -150,237 +145,359 @@ export default async function ResultatsPage({
   const host = identity ? isHost(identity, lobby) : false;
   const delta = me && avgWpm != null ? Math.round(me.wpm - avgWpm) : null;
 
+  // Barre d'XP : niveau actuel du compte, la part gagnée dans cette course en vert clair.
+  let xpBar: { level: number; into: number; needed: number; gain: number } | null = null;
+  if (me?.userId) {
+    const [u] = await db.select({ xp: users.xp_total }).from(users).where(eq(users.id, me.userId));
+    if (u) {
+      const lv = levelFromXp(u.xp);
+      xpBar = {
+        level: lv.level,
+        into: lv.intoLevel,
+        needed: lv.needed,
+        gain: Math.max(0, me.xp ?? 0),
+      };
+    }
+  }
+  const colorOf = (p: ResultRow, i: number) =>
+    p.isBot
+      ? "#5a4632"
+      : p.avatarUrl
+        ? AVATAR_COLORS[i % AVATAR_COLORS.length]!
+        : identicon(p.name).color;
+  const title = !me
+    ? t("res.title")
+    : me.status === "abandoned"
+      ? t("res.place_out")
+      : me.rank === 1
+        ? t("res.place_first", { count: rows.length })
+        : t("res.place", { rank: me.rank, count: rows.length });
+  const [placeWord, ...restWords] = title.split(" ");
+
   return (
     <PixelShell active="lobbys">
       <RefreshOnMount />
-      <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="font-pixel text-xl text-white [text-shadow:4px_4px_0_#000]">
-          {t("res.title")}
-        </h1>
-        <span className="text-2xl text-[#f1e6c9]">
-          {t("res.room_meta", { code, count: rows.length })}
-        </span>
-      </div>
+      <div className="flex flex-col gap-7">
+        <section className="res-hero" aria-labelledby="res-title">
+          <span aria-hidden="true">
+            {CONFETTI.map(([left, color, delay, dur], i) => (
+              <span
+                key={i}
+                className="res-conf"
+                style={{
+                  left: `${left}%`,
+                  background: color,
+                  animationDelay: `${delay}s`,
+                  animationDuration: `${dur}s`,
+                }}
+              />
+            ))}
+          </span>
+          <div className="res-trophy" aria-hidden="true">
+            <Trophy />
+            <span className="res-spark" style={{ left: 14, top: 4 }} />
+            <span className="res-spark" style={{ right: 2, top: 60, animationDelay: ".7s" }} />
+            <span className="res-shadow" />
+          </div>
+          <div className="relative flex min-w-0 flex-[1_1_380px] flex-col gap-3">
+            <div className="font-pixel text-[9px] text-[#a8966e]">
+              {t("res.meta_line", { code, count: rows.length })}
+            </div>
+            <h1 id="res-title" className="font-pixel res-title">
+              {me && me.status !== "abandoned" ? (
+                <>
+                  <span className="res-shine">{placeWord}</span> {restWords.join(" ")}
+                </>
+              ) : (
+                title
+              )}
+            </h1>
+            <div className="flex flex-wrap gap-2">
+              {record && (
+                <span className="res-badge font-pixel bg-[#f0b429] text-[#1b1209]">
+                  {t("res.record").replace(/\s*!$/, "")}
+                </span>
+              )}
+              {delta != null && (
+                <span
+                  className={`res-badge font-pixel text-white ${delta >= 0 ? "bg-[#3f7d24]" : "bg-[#9b3a2e]"}`}
+                >
+                  {t("res.vs_average", { delta: `${delta >= 0 ? "+" : ""}${delta}` })}
+                </span>
+              )}
+              {me?.xp != null && (
+                <span
+                  className="res-badge font-pixel bg-[#2b1e13] text-[#7fc45a]"
+                  data-testid="xp-cell"
+                >
+                  {t("res.xp_badge", {
+                    sign: me.xp > 0 ? "+" : me.xp < 0 ? "−" : "",
+                    xp: formatNumber(lang, Math.abs(me.xp)),
+                  })}
+                </span>
+              )}
+              {me?.coal != null && me.coal > 0 && (
+                <span className="res-badge font-pixel flex items-center gap-1.5 bg-[#2b1e13] text-white">
+                  <ItemIcon item="coal" className="h-4 w-4" />
+                  {me.coal === 1 ? t("res.coal_won_one") : t("res.coal_won_many", { n: me.coal })}
+                </span>
+              )}
+            </div>
+            {xpBar && (
+              <div className="flex max-w-[520px] items-center gap-3">
+                <span className="font-pixel text-[9px] text-[#7fc45a]">
+                  {t("res.level_short", { level: xpBar.level })}
+                </span>
+                <div
+                  className="res-xpbar flex-auto"
+                  role="img"
+                  aria-label={t("res.xp_aria", {
+                    into: xpBar.into,
+                    needed: xpBar.needed,
+                    gain: xpBar.gain,
+                  })}
+                >
+                  <span
+                    className="res-xp-old"
+                    style={{
+                      width: `${(Math.max(0, xpBar.into - xpBar.gain) / xpBar.needed) * 100}%`,
+                    }}
+                  />
+                  <span
+                    className="res-xp-gain"
+                    style={{
+                      left: `${(Math.max(0, xpBar.into - xpBar.gain) / xpBar.needed) * 100}%`,
+                      width: `${(Math.min(xpBar.into, xpBar.gain) / xpBar.needed) * 100}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[19px] text-[#cdbf9c]">
+                  {t("res.xp_progress", { into: xpBar.into, needed: xpBar.needed })}
+                </span>
+              </div>
+            )}
+          </div>
+          {me && (
+            <div className="relative grid flex-[1_1_400px] grid-cols-3 gap-3">
+              <div className="race-stat whitespace-nowrap">
+                <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.speed")}</div>
+                <div className="text-[40px] leading-none">
+                  {formatNumber(lang, me.wpm)} <span className="text-xl">{t("race.wpm")}</span>
+                </div>
+              </div>
+              <div className="race-stat whitespace-nowrap">
+                <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.accuracy")}</div>
+                <div className="text-[40px] leading-none">{formatPercent(lang, me.accuracy)}</div>
+              </div>
+              <div className="race-stat whitespace-nowrap">
+                <div className="font-pixel text-[8px] text-[#ffe08a]">{t("race.errors")}</div>
+                <div className="text-[40px] leading-none">{me.errors}</div>
+              </div>
+            </div>
+          )}
+        </section>
 
-      {/* Côte à côte seulement en grand écran : en dessous, le tableau des résultats prend toute la
-          largeur pour que toutes ses colonnes (bonus compris) restent visibles (RES-02). */}
-      <div className="flex flex-col gap-7 xl:flex-row xl:items-start">
-        <div className="flex w-full flex-col gap-6 xl:w-[24rem] xl:flex-none">
-          <PixelPanel className="p-5">
-            <h2 className="font-pixel mb-3.5 text-sm text-[#2b2b2b]">{t("res.podium")}</h2>
-            <ol className="flex h-72 items-end justify-center gap-2.5">
-              {[podium[1], podium[0], podium[2]].map((p, i) => {
-                const place = [1, 0, 2][i]!;
-                const style = PODIUM_STYLE[place]!;
-                if (!p) return <li key={i} aria-hidden="true" className="w-36" />;
+        <div className="flex flex-wrap items-stretch gap-7">
+          <section className="lobby-panel flex-[1_1_340px]" aria-labelledby="podium">
+            <div className="border-b-2 border-[#3b2a1a] px-5 py-3.5">
+              <h2 id="podium" className="font-pixel text-[11px] text-white">
+                {t("res.podium")}
+              </h2>
+            </div>
+            <ol className="res-pod">
+              {[1, 0, 2].map((place) => {
+                const p = podium[place];
+                if (!p) return <li key={place} aria-hidden="true" />;
+                const step = PODIUM_STEP[place]!;
                 return (
-                  <li key={p.id} className="flex w-36 flex-col items-center gap-1">
+                  <li key={p.id} className={place === 0 ? "res-win" : ""}>
+                    {place === 0 && <PodiumCrown />}
                     <PixelAvatar
                       label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
-                      color={p.isBot ? "#555555" : "#3d6fc4"}
+                      color={colorOf(p, place)}
                       src={p.avatarUrl}
                       seed={p.isBot ? null : p.name}
-                      className={style.avatar}
+                      className="res-av h-11 w-11 text-sm"
                     />
-                    <div className="max-w-full truncate text-2xl leading-none">{p.name}</div>
-                    <div className="text-xl leading-none text-[#3a3a3a]">
-                      {formatNumber(lang, p.wpm)} {t("race.wpm")}
-                    </div>
-                    <div
-                      className={`font-pixel flex w-full items-center justify-center border-4 border-black ${style.height} ${style.bg} ${style.text} ${style.size}`}
+                    <span
+                      className="max-w-full truncate leading-none"
+                      style={{
+                        fontSize: place === 0 ? 22 : 19,
+                        color: place === 0 ? "#ffe08a" : undefined,
+                      }}
+                    >
+                      {participantName(t, p)}
+                    </span>
+                    <span
+                      className="res-step font-pixel"
+                      style={{
+                        height: step.h,
+                        background: step.bg,
+                        color: step.fg,
+                        fontSize: place === 0 ? 22 : 12,
+                        animationDelay: `${step.delay}s`,
+                      }}
                     >
                       <span className="sr-only">{t("res.col_rank")} </span>
-                      {style.label}
-                    </div>
+                      {place + 1}
+                    </span>
                   </li>
                 );
               })}
             </ol>
-          </PixelPanel>
+          </section>
 
-          {me && (
-            <PixelPanel className="p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-pixel text-sm text-[#2b2b2b]">{t("res.your_result")}</h2>
-                {delta != null && (
-                  <span
-                    className={`font-pixel border-4 border-black px-2 py-1.5 text-[9px] text-white ${
-                      delta >= 0 ? "bg-[#3f7d24]" : "bg-[#9b3a2e]"
-                    }`}
-                  >
-                    {t("res.vs_average", { delta: `${delta >= 0 ? "+" : ""}${delta}` })}
-                  </span>
-                )}
-              </div>
-              {record && (
-                <p className="font-pixel mt-3 border-4 border-black bg-[#f0b429] px-2 py-2 text-[10px] text-[#1b1e13]">
-                  ★ {t("res.record")}
-                </p>
-              )}
-              {me.coal !== null && me.coal > 0 && (
-                <p className="mt-3 flex items-center gap-2 border-4 border-black bg-[#2b2b2b] px-2 py-1 text-2xl text-white">
-                  <ItemIcon item="coal" className="h-8 w-8 shrink-0" />
-                  {me.coal === 1 ? t("res.coal_won_one") : t("res.coal_won_many", { n: me.coal })}
-                </p>
-              )}
-              <div className="mt-3 grid grid-cols-3 gap-2.5">
-                <div className="pixel-slot px-3 py-2 leading-none">
-                  <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.speed")}</div>
-                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
-                    {formatNumber(lang, me.wpm)} <span className="text-xl">{t("race.wpm")}</span>
-                  </div>
-                </div>
-                <div className="pixel-slot px-3 py-2 leading-none">
-                  <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.accuracy")}</div>
-                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
-                    {formatPercent(lang, me.accuracy)}
-                  </div>
-                </div>
-                <div className="pixel-slot px-3 py-2 leading-none">
-                  <div className="font-pixel text-[9px] text-[#ffefb3]">{t("race.errors")}</div>
-                  <div className="mt-1 text-4xl whitespace-nowrap text-white xl:text-3xl">
-                    {me.errors}
-                  </div>
-                </div>
-              </div>
-            </PixelPanel>
-          )}
-        </div>
-
-        <div className="flex w-full min-w-0 flex-grow flex-col gap-6">
-          <PixelPanel className="p-5">
-            <PixelDisclosure title={t("res.ranking")} defaultOpen>
-              {/* Sur écran étroit le tableau défile : la zone doit être atteignable au clavier (A11Y-04). */}
-              <div
-                className="overflow-x-auto"
-                role="region"
-                aria-label={t("res.ranking")}
-                tabIndex={0}
+          <section className="lobby-panel min-w-0 flex-[999_1_640px]" aria-labelledby="classement">
+            <div className="lobby-head flex flex-wrap items-center justify-between gap-3 !py-3.5">
+              <h2
+                id="classement"
+                className="font-pixel text-[11px] text-white [text-shadow:3px_3px_0_#000]"
               >
-                <table className="w-full min-w-[40rem] border-collapse text-left text-lg leading-tight">
-                  <caption className="sr-only">{t("res.ranking")}</caption>
-                  <thead>
-                    <tr>
-                      {(
-                        [
-                          "res.col_rank",
-                          "res.col_player",
-                          "res.col_wpm",
-                          "res.col_raw",
-                          "res.col_accuracy",
-                          "res.col_errors",
-                          "res.col_time",
-                          "res.col_status",
-                          "xp.column",
-                          "res.col_bonus",
-                        ] as const
-                      ).map((key) => (
-                        <th
-                          key={key}
-                          scope="col"
-                          className="font-pixel pr-2.5 pb-2 text-[8px] font-normal text-[#3a3a3a]"
-                        >
-                          {t(key)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((p) => (
-                      <tr key={p.id} className="border-t-2 border-dotted border-[#8b8b8b]">
-                        <th scope="row" className="font-pixel py-1 pr-2.5 text-[11px] font-normal">
-                          {p.rank}
-                        </th>
-                        <td
-                          className={`max-w-40 truncate pr-2.5 ${p.ownerKey && p.ownerKey === myKey ? "font-bold" : ""}`}
-                        >
-                          {participantName(t, p)}
-                          {p.champion !== null && <Crown league={p.champion} className="ml-1.5" />}
-                        </td>
-                        <td className="pr-2.5">{formatNumber(lang, p.wpm)}</td>
-                        <td className="pr-2.5">{formatNumber(lang, p.rawWpm)}</td>
-                        <td className="pr-2.5">{formatPercent(lang, p.accuracy)}</td>
-                        <td className="pr-2.5">{p.errors}</td>
-                        <td className="pr-2.5 whitespace-nowrap">
-                          {p.status === "finished" ? formatRaceTime(lang, p.timeMs) : "—"}
-                          {p.status === "finished" && p.penaltyMs > 0 && (
-                            <span className="block text-base text-[#3a3a3a]">
-                              {t("res.penalty_note", {
-                                seconds: formatNumber(lang, p.penaltyMs / 1000, 1),
-                              })}
-                            </span>
-                          )}
-                        </td>
-                        <td className="pr-2.5 whitespace-nowrap">
-                          {t(STATUS_KEY[p.status] ?? "res.status_other")}
-                        </td>
-                        <td className="pr-2.5 whitespace-nowrap" data-testid="xp-cell">
-                          {p.xp === null ? (
-                            "—"
-                          ) : (
-                            <span className="font-bold">
-                              {p.xp > 0 ? "+" : p.xp < 0 ? "−" : ""}
-                              {formatNumber(lang, Math.abs(p.xp))}
-                            </span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap">
-                          {bonusLines(lang, p).map((line) => (
-                            <span key={line} className="block">
-                              {line}
-                            </span>
-                          ))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </PixelDisclosure>
-          </PixelPanel>
-
-          <PixelPanel className="p-5">
-            <PixelDisclosure title={t("res.chart")}>
-              <WpmChart
-                title={t("res.chart")}
-                description={t("res.chart_desc")}
-                note={t("res.chart_note", { seconds: HIDDEN_FIRST_SECONDS })}
-                showAllLabel={t("res.chart_show_all")}
-                xLabel={t("res.chart_x")}
-                yLabel={t("res.chart_y")}
-                series={rows.map((r) => ({
-                  id: r.id,
-                  name: `${participantName(t, r)} · ${formatNumber(lang, r.wpm)} ${t("race.wpm")}`,
-                  shortName: participantName(t, r),
-                  isBot: r.isBot,
-                  isMe: r.ownerKey != null && r.ownerKey === myKey,
-                  points: r.series,
-                }))}
-              />
-            </PixelDisclosure>
-          </PixelPanel>
-
-          {heatmapRows && (
-            <PixelPanel className="p-5">
-              <PixelDisclosure title={t("res.heatmap")} aside={t("res.heatmap_legend")}>
-                <PixelKeyboard rows={heatmapRows} label={t("res.heatmap")} />
-                {worstKeys.length > 0 && (
-                  <p className="mt-2.5 text-xl">
-                    {t("res.worst_keys")}{" "}
-                    {worstKeys.map(([letter, pct]) => (
-                      <b
-                        key={letter}
-                        className="mr-1.5 border-2 border-black bg-[#ff7b6b] px-1.5 font-normal"
+                {t("res.ranking")}
+              </h2>
+              <span className="text-xl text-white">
+                {t("res.text_words", { count: lobby.text_length })}
+              </span>
+            </div>
+            <div
+              className="overflow-x-auto"
+              role="region"
+              aria-label={t("res.ranking")}
+              tabIndex={0}
+            >
+              <div role="table" aria-label={t("res.ranking")} className="min-w-[640px]">
+                <div
+                  role="row"
+                  className="res-cols font-pixel px-5 py-2.5 text-[7px] text-[#a8966e]"
+                >
+                  <span role="columnheader">{t("res.col_rank")}</span>
+                  <span role="columnheader">{t("res.col_player")}</span>
+                  <span role="columnheader">{t("res.col_wpm")}</span>
+                  <span role="columnheader">{t("res.col_acc_short")}</span>
+                  <span role="columnheader">{t("res.col_time")}</span>
+                  <span role="columnheader">{t("res.col_errors")}</span>
+                  <span role="columnheader">{t("res.col_bonus_taken")}</span>
+                </div>
+                {rows.map((p, i) => {
+                  const mine = p.ownerKey != null && p.ownerKey === myKey;
+                  const groups = groupBonuses(p.bonuses);
+                  return (
+                    <div
+                      key={p.id}
+                      role="row"
+                      className={`res-cols res-row ${mine ? "res-me" : ""}`}
+                    >
+                      <span
+                        role="cell"
+                        className="font-pixel text-[11px]"
+                        style={{ color: p.rank === 1 ? "#f0b429" : "#a8966e" }}
                       >
-                        {letter} ({formatPercent(lang, pct)})
-                      </b>
-                    ))}
-                  </p>
-                )}
-              </PixelDisclosure>
-            </PixelPanel>
-          )}
+                        {p.rank}
+                      </span>
+                      <span role="cell" className="flex min-w-0 items-center gap-2.5">
+                        <PixelAvatar
+                          label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
+                          color={colorOf(p, i)}
+                          src={p.avatarUrl}
+                          seed={p.isBot ? null : p.name}
+                          className="h-[30px] w-[30px] flex-none text-[10px]"
+                        />
+                        <span className="truncate text-[23px] text-white">
+                          {participantName(t, p)}
+                        </span>
+                        {p.champion !== null && <Crown league={p.champion} />}
+                      </span>
+                      <span role="cell" className="text-[26px] text-white">
+                        {formatNumber(lang, p.wpm)}
+                      </span>
+                      <span role="cell">{formatPercent(lang, p.accuracy)}</span>
+                      <span role="cell" className="whitespace-nowrap">
+                        {p.status === "finished"
+                          ? formatRaceTime(lang, p.timeMs)
+                          : t(STATUS_KEY[p.status] ?? "res.status_other")}
+                        {p.status === "finished" && p.penaltyMs > 0 && (
+                          <span className="block text-base text-[#a8966e]">
+                            {t("res.penalty_note", {
+                              seconds: formatNumber(lang, p.penaltyMs / 1000, 1),
+                            })}
+                          </span>
+                        )}
+                      </span>
+                      <span role="cell">{p.errors}</span>
+                      <span role="cell" className="flex flex-wrap gap-1">
+                        {groups.length === 0 ? (
+                          <span className="text-[#5a4632]">{t("res.bonus_none")}</span>
+                        ) : (
+                          groups.map(({ kind, count }) => (
+                            <span key={kind} className="res-chip font-pixel">
+                              {t(BONUS_KEY[kind]).toUpperCase()}
+                              {count > 1 ? ` X${count}` : ""}
+                            </span>
+                          ))
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         </div>
+
+        <ResultTabs
+          tabs={[
+            {
+              id: "replay",
+              label: t("res.tab_replay"),
+              legend: t("res.tab_replay_legend"),
+              content: (
+                <WpmChart
+                  title={t("res.chart")}
+                  description={t("res.chart_desc")}
+                  note={t("res.chart_note", { seconds: HIDDEN_FIRST_SECONDS })}
+                  showAllLabel={t("res.chart_show_all")}
+                  xLabel={t("res.chart_x")}
+                  yLabel={t("res.chart_y")}
+                  series={rows.map((r) => ({
+                    id: r.id,
+                    name: `${participantName(t, r)} · ${formatNumber(lang, r.wpm)} ${t("race.wpm")}`,
+                    shortName: participantName(t, r),
+                    isBot: r.isBot,
+                    isMe: r.ownerKey != null && r.ownerKey === myKey,
+                    points: r.series,
+                  }))}
+                />
+              ),
+            },
+            ...(heatmapRows
+              ? [
+                  {
+                    id: "keyboard",
+                    label: t("res.tab_keyboard"),
+                    legend: t("res.tab_keyboard_legend"),
+                    content: (
+                      <>
+                        <PixelKeyboard rows={heatmapRows} label={t("res.heatmap")} />
+                        {worstKeys.length > 0 && (
+                          <p className="mt-2.5 text-xl">
+                            {t("res.worst_keys")}{" "}
+                            {worstKeys.map(([letter, pct]) => (
+                              <b
+                                key={letter}
+                                className="mr-1.5 border-2 border-black bg-[#b0281c] px-1.5 font-normal text-white"
+                              >
+                                {letter} ({formatPercent(lang, pct)})
+                              </b>
+                            ))}
+                          </p>
+                        )}
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
       <ResultsActions
