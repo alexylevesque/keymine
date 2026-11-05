@@ -35,7 +35,11 @@ export function QuickPlayButton({
         className={`home-play font-pixel ${className ?? ""}`}
       >
         {pending ? "..." : t("home.play")}
-        <PlayRunner color={color} worn={worn} />
+        <PlayRunner
+          color={color}
+          worn={worn}
+          photoUrl={viewer?.kind === "user" ? viewer.avatarUrl : null}
+        />
       </button>
       {panel}
     </>

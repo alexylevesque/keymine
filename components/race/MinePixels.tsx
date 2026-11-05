@@ -1,8 +1,11 @@
+"use client";
+
 // Pixels de la course « LA MINE » (maquette du 4 nov.) : le mineur en 2 poses de course et le
 // diamant de l'arrivée. Dessins originaux ; les couleurs du corps viennent de variables CSS
 // (--m, --l, --d) pour prendre la couleur de chaque joueur.
 import type { CSSProperties } from "react";
 import { armorVars, type WornArmor } from "@/lib/armor-look";
+import { photoSkin, usePhotoPixels } from "@/lib/photo-skin";
 
 const RUN_A =
   '<path fill="var(--h1)" d="M4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM7 0h1v1h-1zM8 0h1v1h-1zM3 1h1v1h-1zM9 1h1v1h-1zM6 5h1v1h-1z"/><path fill="var(--c1)" d="M5 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM4 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM3 8h1v1h-1z"/><path fill="var(--g1)" d="M5 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM4 13h1v1h-1zM9 13h1v1h-1zM3 14h1v1h-1zM10 14h1v1h-1zM2 15h1v1h-1zM11 15h1v1h-1z"/><path fill="var(--b1)" d="M2 16h1v1h-1zM3 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM1 17h1v1h-1z"/><path fill="var(--h2)" d="M4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1z"/><path fill="var(--c2)" d="M5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1zM7 11h1v1h-1z"/><path fill="var(--g2)" d="M8 13h1v1h-1zM9 14h1v1h-1zM10 15h1v1h-1z"/><path fill="var(--l)" d="M6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM10 9h1v1h-1zM11 10h1v1h-1z"/><path fill="var(--m)" d="M6 3h1v1h-1zM7 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM7 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM11 9h1v1h-1z"/><path fill="#1B1209" d="M8 3h1v1h-1z"/><path fill="var(--c3)" d="M4 8h1v1h-1zM10 8h1v1h-1zM8 9h1v1h-1zM8 10h1v1h-1zM8 11h1v1h-1z"/><path fill="var(--g3)" d="M5 13h1v1h-1zM4 14h1v1h-1zM3 15h1v1h-1z"/><path fill="var(--b3)" d="M2 17h1v1h-1zM11 17h1v1h-1z"/><path fill="var(--d)" d="M2 9h1v1h-1zM3 9h1v1h-1zM2 10h1v1h-1z"/>';
@@ -16,13 +19,27 @@ export function Miner({
   color,
   speed,
   worn = {},
+  photoUrl = null,
 }: {
   color: string;
   speed: number;
+  /** Photo de profil : le mineur est « peint » avec elle. */
+  photoUrl?: string | null;
   /** Armure portée par ce joueur (rien pour un invité ou un bot sans équipement). */
   worn?: WornArmor;
 }) {
-  const style = { ...(armorVars(color, worn) as CSSProperties), animationDuration: `${speed}s` };
+  const photo = usePhotoPixels(photoUrl, 12, 18);
+  const style = {
+    ...(armorVars(photo?.avg ?? color, worn) as CSSProperties),
+    animationDuration: `${speed}s`,
+  };
+  const skin = (paths: string) =>
+    photo
+      ? photoSkin(`<svg viewBox="0 0 12 18">${paths}</svg>`, photo).replace(
+          /^<svg[^>]*>|<\/svg>$/g,
+          "",
+        )
+      : paths;
   return (
     <>
       <svg
@@ -30,14 +47,14 @@ export function Miner({
         viewBox="0 0 12 18"
         shapeRendering="crispEdges"
         style={style}
-        dangerouslySetInnerHTML={{ __html: RUN_A }}
+        dangerouslySetInnerHTML={{ __html: skin(RUN_A) }}
       />
       <svg
         className="f1"
         viewBox="0 0 12 18"
         shapeRendering="crispEdges"
         style={style}
-        dangerouslySetInnerHTML={{ __html: RUN_B }}
+        dangerouslySetInnerHTML={{ __html: skin(RUN_B) }}
       />
     </>
   );

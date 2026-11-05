@@ -1,4 +1,7 @@
+"use client";
+
 import type { CSSProperties } from "react";
+import { photoSkin, usePhotoPixels } from "@/lib/photo-skin";
 
 // Personnage de l'inventaire (maquette « 7 · Inventaire ») : un mineur pixel de la couleur de
 // l'avatar, avec le logo KeyMine dessiné sur le torse, et les pièces d'armure portées par-dessus.
@@ -105,7 +108,10 @@ export function MinerFigure({
   label,
   name,
   enchanted = {},
+  photoUrl = null,
 }: {
+  /** Photo de profil : le personnage est « peint » avec elle. */
+  photoUrl?: string | null;
   /** Pièces enchantées : un reflet violet passe dessus, comme sur leur case. */
   enchanted?: Partial<Record<FigurePart, boolean>>;
   /** Pseudo du joueur : sa première lettre est dessinée sur le torse. */
@@ -116,10 +122,12 @@ export function MinerFigure({
   worn: Partial<Record<FigurePart, string>>;
   label: string;
 }) {
+  const photo = usePhotoPixels(photoUrl, 16, 32);
+  const base = photo?.avg ?? color;
   const vars = {
-    "--m": color,
-    "--l": shade(color, 0.2),
-    "--d": shade(color, -0.35),
+    "--m": base,
+    "--l": shade(base, 0.2),
+    "--d": shade(base, -0.35),
   } as CSSProperties;
   return (
     <div className="inv-figwrap" role="img" aria-label={label}>
@@ -129,7 +137,17 @@ export function MinerFigure({
         shapeRendering="crispEdges"
         style={vars}
         aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: BODY + LOGO_BG + chestLetter(name) }}
+        dangerouslySetInnerHTML={{
+          __html:
+            (photo
+              ? photoSkin(`<svg viewBox="0 0 16 32">${BODY}</svg>`, photo).replace(
+                  /^<svg[^>]*>|<\/svg>$/g,
+                  "",
+                )
+              : BODY) +
+            LOGO_BG +
+            chestLetter(name),
+        }}
       />
       {(Object.keys(PARTS) as FigurePart[]).map((part) =>
         worn[part] ? (

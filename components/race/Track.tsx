@@ -110,7 +110,12 @@ export function Track({
                   className={`mine-runner ${moving ? "" : "mine-still"}`}
                   style={{ left: `clamp(36px, ${left}, calc(100% - 56px))` }}
                 >
-                  <Miner color={color} speed={speed} worn={armor[p.id]} />
+                  <Miner
+                    color={color}
+                    speed={speed}
+                    worn={armor[p.id]}
+                    photoUrl={p.isBot ? null : p.avatarUrl}
+                  />
                   {isMe && (
                     // Le badge de rang suit le mineur ; `key` relance l'animation à chaque dépassement.
                     <span

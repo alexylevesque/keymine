@@ -393,6 +393,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               enchanted={enchantedParts}
               label={t("inv.figure")}
               name={viewer?.name ?? "K"}
+              photoUrl={viewer?.kind === "user" ? viewer.avatarUrl : null}
             />
           </div>
           <dl className="flex gap-4.5 px-5 pb-4.5">
