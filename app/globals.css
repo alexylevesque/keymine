@@ -4705,3 +4705,227 @@ a.lobby-row:hover .lobby-go {
   padding: 0 4px;
   border: 2px solid #000;
 }
+
+/* --- Clavier « KEYMINE » (maquettes Résultats et Profil, MON CLAVIER) --- */
+.kb-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+.kb-box {
+  flex: 1 1 840px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 10px 14px 14px 8px;
+}
+.kb-board {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px 18px;
+  background: var(--km-tile);
+  border: 4px solid #000;
+  box-shadow:
+    inset 4px 4px 0 var(--km-line-2),
+    inset -4px -4px 0 var(--km-deep),
+    8px 8px 0 #000;
+}
+.kb-brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.kb-brand .font-pixel {
+  font-size: 8px;
+  color: var(--km-ink-3);
+  letter-spacing: 2px;
+}
+.kb-leds {
+  display: flex;
+  gap: 6px;
+}
+.kb-leds i {
+  width: 10px;
+  height: 6px;
+  background: var(--km-deep);
+  border: 2px solid #000;
+}
+.kb-leds i.on {
+  background: #7fc45a;
+  animation: kb-blink 1.6s steps(1) infinite;
+}
+@keyframes kb-blink {
+  50% {
+    background: var(--km-deep);
+  }
+}
+.kb-row {
+  display: flex;
+  gap: 6px;
+}
+.kb-k {
+  --t: var(--km-slot);
+  --s: var(--km-panel);
+  --f: var(--km-ink-4);
+  position: relative;
+  height: 48px;
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--t);
+  color: var(--f);
+  border: 3px solid #000;
+  box-shadow:
+    inset 0 -7px 0 var(--s),
+    inset 3px 3px 0 rgba(255, 255, 255, 0.18);
+  padding-bottom: 6px;
+  cursor: default;
+  transition:
+    transform 0.06s steps(2),
+    box-shadow 0.06s steps(2);
+}
+.kb-k b {
+  font-size: 11px;
+  font-weight: normal;
+}
+.kb-k small {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.kb-mod {
+  --t: var(--km-deep);
+  --s: var(--km-panel);
+}
+.kb-mod b {
+  font-size: 7px;
+}
+.kb-top {
+  --t: #3f7d24;
+  --s: #23501a;
+  --f: #fff;
+  background: #3f7d24;
+}
+.kb-ok {
+  --t: #f0b429;
+  --s: #9a6b0a;
+  --f: #1b1209;
+  background: #f0b429;
+}
+.kb-mid {
+  --t: #c97a2a;
+  --s: #7a4518;
+  --f: #fff;
+  background: #c97a2a;
+}
+.kb-bad {
+  --t: #b0281c;
+  --s: #6b140c;
+  --f: #fff;
+  background: #b0281c;
+}
+.kb-k:hover {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 -3px 0 var(--s),
+    inset 3px 3px 0 rgba(255, 255, 255, 0.18);
+  z-index: 2;
+}
+.kb-k[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-body), monospace;
+  font-size: 19px;
+  padding: 4px 8px;
+  background: #000;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+.kb-k[data-tip]:hover::after {
+  opacity: 1;
+}
+.kb-weak::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 3px solid #ffe08a;
+  animation: kb-warn 1.2s steps(1) infinite;
+  pointer-events: none;
+}
+.kb-mid.kb-weak::before {
+  border-color: #f7b977;
+  animation-delay: 0.3s;
+}
+@keyframes kb-warn {
+  50% {
+    opacity: 0;
+  }
+}
+.kb-side {
+  flex: 1 1 260px;
+  min-width: 260px;
+  padding-top: 10px;
+}
+.kb-acc {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--km-tile);
+  color: var(--km-ink);
+  box-shadow:
+    inset 3px 3px 0 var(--km-panel),
+    inset -3px -3px 0 var(--km-line-2);
+}
+.kb-wk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+.kb-mini {
+  width: 40px;
+  height: 44px;
+}
+.kb-mini b {
+  font-size: 12px;
+}
+.kb-pbar {
+  display: block;
+  height: 10px;
+  margin-top: 4px;
+  background: var(--km-slot);
+  border: 2px solid #000;
+  position: relative;
+}
+.kb-pbar span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+.kb-scale {
+  display: flex;
+  height: 12px;
+  border: 3px solid #000;
+  margin-bottom: 4px;
+}
+.kb-scale span {
+  flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-weak::before,
+  .kb-leds i.on {
+    animation: none;
+  }
+}

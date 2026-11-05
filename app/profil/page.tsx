@@ -1,6 +1,7 @@
 import { PixelShell } from "@/components/PixelShell";
 import Link from "next/link";
-import { PixelAvatar, PixelKeyboard } from "@/components/ui";
+import { PixelAvatar } from "@/components/ui";
+import { MineKeyboard } from "@/components/MineKeyboard";
 import { identicon } from "@/lib/identicon";
 import { levelFromXp } from "@/lib/xp";
 import { weakestKeys } from "@/lib/weak-keys";
@@ -20,7 +21,6 @@ import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { keyStats, raceParticipants, users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
-import { heatmapRowsFromCounts } from "@/lib/heatmap";
 
 // Nombre de courses récentes affichées dans Stats ; la page Historique les montre toutes.
 const RECENT_RACES = 5;
@@ -75,7 +75,6 @@ export default async function ProfilPage() {
     correct[k.char] = k.correct_count;
     errors[k.char] = k.error_count;
   }
-  const heatmapRows = heatmapRowsFromCounts(correct, errors);
 
   // Progression : toute course réellement courue (terminée ou arrêtée par le temps) a un MPM ;
   // seuls les abandons n'en ont pas de significatif.
@@ -323,9 +322,8 @@ export default async function ProfilPage() {
               <span className="prof-close">{t("profile.hide")}</span>
             </span>
           </summary>
-          <div className="overflow-x-auto p-5">
-            <PixelKeyboard rows={heatmapRows} label={t("res.heatmap")} />
-            <p className="mt-2 text-lg text-[#a8966e]">{t("res.heatmap_legend")}</p>
+          <div className="p-5">
+            <MineKeyboard correct={correct} errors={errors} mode="all" races={stats.races} />
           </div>
         </details>
 

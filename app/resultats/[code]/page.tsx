@@ -2,13 +2,13 @@ import { Crown } from "@/components/leaderboard/badges";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { PixelShell } from "@/components/PixelShell";
 import { participantName } from "@/lib/bot-name";
-import { PixelAvatar, PixelKeyboard } from "@/components/ui";
+import { PixelAvatar } from "@/components/ui";
+import { MineKeyboard } from "@/components/MineKeyboard";
 import { ResultsActions } from "@/components/results/ResultsActions";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
 import { ReplayChart } from "@/components/results/ReplayChart";
 import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
-import { heatmapRowsFromCounts } from "@/lib/heatmap";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
 import { groupBonuses } from "@/lib/bonus-summary";
 import { translate, type DictKey, type SiteLang } from "@/lib/i18n-dictionary";
@@ -123,15 +123,6 @@ export default async function ResultatsPage({
     record =
       me.status === "finished" && (await isPersonalRecord(me.userId, results.race.id, me.wpm));
   }
-
-  const heatmapRows = me ? heatmapRowsFromCounts(me.keyCorrect, me.keyErrors) : null;
-  const worstKeys = heatmapRows
-    ? heatmapRows
-        .flatMap((r) => r.keys)
-        .filter(([, pct]) => pct < 100)
-        .sort((a, b) => a[1] - b[1])
-        .slice(0, 3)
-    : [];
 
   const roomOpen = lobby.status !== "closed";
   const isCurrentRace = !requested || requested === (await latestFinishedRaceId(lobby.id));
@@ -481,29 +472,14 @@ export default async function ResultatsPage({
                 />
               ),
             },
-            ...(heatmapRows
+            ...(me
               ? [
                   {
                     id: "keyboard",
                     label: t("res.tab_keyboard"),
                     legend: t("res.tab_keyboard_legend"),
                     content: (
-                      <>
-                        <PixelKeyboard rows={heatmapRows} label={t("res.heatmap")} />
-                        {worstKeys.length > 0 && (
-                          <p className="mt-2.5 text-xl">
-                            {t("res.worst_keys")}{" "}
-                            {worstKeys.map(([letter, pct]) => (
-                              <b
-                                key={letter}
-                                className="mr-1.5 border-2 border-black bg-[#b0281c] px-1.5 font-normal text-white"
-                              >
-                                {letter} ({formatPercent(lang, pct)})
-                              </b>
-                            ))}
-                          </p>
-                        )}
-                      </>
+                      <MineKeyboard correct={me!.keyCorrect} errors={me!.keyErrors} mode="race" />
                     ),
                   },
                 ]

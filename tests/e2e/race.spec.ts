@@ -153,7 +153,7 @@ test("marteler le clavier est pénalisé : la pénalité s'ajoute au temps d'arr
     "aria-selected",
     "true",
   );
-  const heatmap = page.getByRole("group", { name: /HEATMAP DU CLAVIER/ });
+  const heatmap = page.getByRole("group", { name: /^Précision par touche/ });
   await expect(heatmap).toBeHidden();
   await page.getByRole("tab", { name: "MON CLAVIER" }).click();
   await expect(heatmap).toBeVisible();

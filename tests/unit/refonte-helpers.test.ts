@@ -174,3 +174,24 @@ describe("photoSkin (bonhomme peint avec la photo)", () => {
     expect(photoSkin(armor, photo)).toBe(armor);
   });
 });
+
+describe("clavier KEYMINE (résultats et profil)", () => {
+  it("couleur des touches selon la légende de la maquette", async () => {
+    const { keyTier } = await import("@/components/MineKeyboard");
+    expect(keyTier(0, 0)).toBe("off");
+    expect(keyTier(95, 5)).toBe("top");
+    expect(keyTier(85, 15)).toBe("ok");
+    expect(keyTier(75, 25)).toBe("mid");
+    expect(keyTier(74, 26)).toBe("bad");
+  });
+
+  it("additionne majuscules et minuscules, puis classe les touches faibles", async () => {
+    const { keyCounts, weakKeys } = await import("@/components/MineKeyboard");
+    const counts = keyCounts({ a: 3, A: 1, b: 9, x: 1, " ": 1 }, { a: 2, b: 1, x: 2, " ": 5 });
+    expect(counts.get("a")).toEqual({ ok: 4, bad: 2 });
+    expect(counts.has("A")).toBe(false);
+    // L'espace n'est pas une « touche à travailler » ; le minimum de frappes filtre x (3 frappes).
+    expect(weakKeys(counts, 1).map((w) => w.key)).toEqual(["x", "a", "b"]);
+    expect(weakKeys(counts, 5).map((w) => w.key)).toEqual(["a", "b"]);
+  });
+});
