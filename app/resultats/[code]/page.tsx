@@ -57,11 +57,6 @@ const CONFETTI: [number, string, number, number][] = [
   [7, "#f0b429", 0.1, 3.9],
 ];
 
-const STATUS_KEY: Record<string, DictKey> = {
-  finished: "res.status_finished",
-  timeout: "res.status_timeout",
-  abandoned: "res.status_abandoned",
-};
 
 const BONUS_KEY = {
   minus_words: "res.bonus_minus_words",
@@ -411,9 +406,21 @@ export default async function ResultatsPage({
                       </span>
                       <span role="cell">{formatPercent(lang, p.accuracy)}</span>
                       <span role="cell" className="whitespace-nowrap">
-                        {p.status === "finished"
-                          ? formatRaceTime(lang, p.timeMs)
-                          : t(STATUS_KEY[p.status] ?? "res.status_other")}
+                        {p.status === "abandoned" ? (
+                          <span
+                            className="hist-st font-pixel"
+                            style={{ background: "#b0281c", color: "#fff" }}
+                          >
+                            {t("hist.st_abandoned")}
+                          </span>
+                        ) : (
+                          formatRaceTime(lang, p.timeMs)
+                        )}
+                        {p.status === "timeout" && (
+                          <span className="block text-base text-[#a8966e]">
+                            {t("res.status_timeout")}
+                          </span>
+                        )}
                         {p.status === "finished" && p.penaltyMs > 0 && (
                           <span className="block text-base text-[#a8966e]">
                             {t("res.penalty_note", {

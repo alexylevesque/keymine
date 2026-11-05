@@ -4290,3 +4290,28 @@ a.lobby-row:hover .lobby-go {
     animation: none;
   }
 }
+.res-replay {
+  height: 64px;
+  padding: 0 28px;
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 3px 3px 0 #000;
+  background: #3f7d24;
+  border: 4px solid #000;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35);
+  animation: room-ready 1.6s steps(2) infinite;
+  transition: transform 0.08s steps(2);
+}
+.res-replay:hover {
+  animation: none;
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35),
+    6px 6px 0 #000;
+}
+.res-cols {
+  grid-template-columns: 36px minmax(0, 1fr) 52px 72px 120px 74px 200px;
+}

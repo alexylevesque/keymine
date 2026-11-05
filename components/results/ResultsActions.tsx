@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PixelButton } from "@/components/ui";
 import { useLobbyLive } from "@/components/useLobbyLive";
 import { useLanguage } from "@/lib/i18n";
 
@@ -50,7 +50,7 @@ export function ResultsActions({
   const busyClass = busy ? "pointer-events-none opacity-50" : "";
 
   return (
-    <div className="pixel-dark mt-8 border-t-4 border-black bg-[#241a10] px-4 py-5">
+    <div className="mt-7">
       {error && (
         <p role="alert" className="mb-3 text-right text-xl text-[#ff9a8a]">
           {t("res.action_error")}
@@ -59,34 +59,34 @@ export function ResultsActions({
       {roomOpen && !isHost && (
         <p className="mb-3 text-right text-xl text-[#f1e6c9]">{t("res.replay_wait")}</p>
       )}
-      <div className="flex flex-wrap justify-end gap-3.5">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         {hasHistory && (
-          <PixelButton href="/historique" variant="gold" className="h-13 px-5 text-xs">
+          <Link href="/historique" className="hist-ghost font-pixel">
             {t("res.history")}
-          </PixelButton>
+          </Link>
         )}
-        <PixelButton href="/profil" variant="gold" className="h-13 px-5 text-xs">
+        <Link href="/profil" className="hist-ghost font-pixel">
           {t("res.my_stats")}
-        </PixelButton>
-        <PixelButton href="/" variant="slate" className="h-13 px-5 text-xs">
+        </Link>
+        <Link href="/" className="hist-ghost font-pixel">
           {t("res.home")}
-        </PixelButton>
+        </Link>
         {roomOpen && isHost && (
           <>
-            <PixelButton
-              variant="red"
-              className={`h-13 px-5 text-xs ${busyClass}`}
+            <button
+              type="button"
+              className={`room-danger font-pixel ${busyClass}`}
               onClick={() => call(`/api/lobbies/${code}`, "DELETE", "/")}
             >
               {t("res.close_room")}
-            </PixelButton>
-            <PixelButton
-              variant="green"
-              className={`h-13 px-7 text-sm ${busyClass}`}
+            </button>
+            <button
+              type="button"
+              className={`res-replay font-pixel ${busyClass}`}
               onClick={() => call(`/api/lobbies/${code}/rematch`, "POST", `/jouer/${code}`)}
             >
               {t("res.replay")}
-            </PixelButton>
+            </button>
           </>
         )}
       </div>
