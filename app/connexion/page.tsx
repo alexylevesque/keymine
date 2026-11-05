@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { ItemIcon } from "@/components/items/ItemIcon";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { PixelShell } from "@/components/PixelShell";
-import { PixelButton, PixelPanel } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
 import { OAUTH_PROVIDER_NAMES, oauthErrorQuery } from "@/lib/api-input";
 
@@ -38,7 +39,8 @@ function ConnexionForm() {
       provider: searchParams.get("provider"),
     });
     if (!oauth.success) return;
-    const key = oauth.data.error === "oauth_failed" ? "auth.oauth_failed" : "auth.oauth_not_configured";
+    const key =
+      oauth.data.error === "oauth_failed" ? "auth.oauth_failed" : "auth.oauth_not_configured";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- lu depuis l'URL de retour OAuth, pas dispo au premier rendu serveur
     setError(t(key, { provider: OAUTH_PROVIDER_NAMES[oauth.data.provider] }));
   }, [searchParams, t]);
@@ -70,43 +72,51 @@ function ConnexionForm() {
   return (
     <PixelShell
       rightSlot={
-        <PixelButton href="/" variant="slate" className="h-10 shrink-0 px-2 text-[10px] sm:px-4 sm:text-[11px]">
+        <Link
+          href="/"
+          className="shell-btn font-pixel flex h-9 shrink-0 items-center px-3 text-[9px]"
+        >
           {t("auth.guest")}
-        </PixelButton>
+        </Link>
       }
     >
-      <div className="flex flex-col items-center gap-7 pt-6">
-        <h1 className="font-pixel text-2xl text-white [text-shadow:4px_4px_0_#000]">
-          {t("auth.title")}
-        </h1>
+      <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="font-pixel text-xl text-white [text-shadow:4px_4px_0_#000] sm:text-[26px]">
+            {t("auth.title")}
+            <span className="home-caret" aria-hidden="true" />
+          </h1>
+          <span className="text-xl text-[#cdbf9c]">{t("auth.subtitle")}</span>
+        </div>
 
-        <PixelPanel className="w-full max-w-xl p-7">
-          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-            <div className="flex gap-2.5">
-              <PixelButton
-                type="button"
-                variant={mode === "login" ? "green" : "slate"}
-                className="flex-grow text-[13px]"
-                onClick={() => setMode("login")}
-              >
-                {t("auth.tab_login")}
-              </PixelButton>
-              <PixelButton
-                type="button"
-                variant={mode === "register" ? "green" : "slate"}
-                className="flex-grow text-[13px]"
-                onClick={() => setMode("register")}
-              >
-                {t("auth.tab_register")}
-              </PixelButton>
+        <section className="lobby-panel w-full max-w-xl">
+          <div className="lobby-head !py-3.5">
+            <div role="tablist" aria-label={t("auth.title")} className="flex gap-1.5">
+              {(
+                [
+                  ["login", t("auth.tab_login")],
+                  ["register", t("auth.tab_register")],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === key}
+                  data-on={mode === key}
+                  onClick={() => setMode(key)}
+                  className="lb-tab font-pixel flex-1"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-
+          </div>
+          <form className="flex flex-col gap-4.5 p-6" onSubmit={onSubmit}>
             <label className="block">
-              <span className="font-pixel mb-2 block text-[11px] text-[#3a3a3a]">
-                {t("auth.username")}
-              </span>
+              <span className="create-lbl font-pixel">{t("auth.username")}</span>
               <input
-                className="pixel-slot h-13 w-full px-3.5 text-3xl text-white"
+                className="home-code h-[52px] w-full px-3.5 text-[26px]"
                 placeholder={t("auth.username_placeholder")}
                 name="username"
                 autoComplete="username"
@@ -119,10 +129,10 @@ function ConnexionForm() {
             </label>
 
             <label className="block">
-              <span className="font-pixel mb-2 block text-[11px] text-[#3a3a3a]">{t("auth.password")}</span>
+              <span className="create-lbl font-pixel">{t("auth.password")}</span>
               <input
                 type="password"
-                className="pixel-slot h-13 w-full px-3.5 text-3xl text-white"
+                className="home-code h-[52px] w-full px-3.5 text-[26px]"
                 name="password"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
                 value={password}
@@ -133,61 +143,57 @@ function ConnexionForm() {
               />
             </label>
 
-            <label className="flex items-center gap-3 text-2xl">
+            <label className="auth-remember text-xl">
               <input
                 type="checkbox"
-                className="h-5 w-5 accent-[#3f7d24]"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
+              <span className="create-sw font-pixel" data-on={rememberMe} aria-hidden="true" />
               {t("auth.remember")}
             </label>
 
             {error && (
-              <div className="border-4 border-black bg-[#f39a8c] p-3 text-xl leading-tight text-black">
+              <div role="alert" className="inv-toast inv-toast-err">
                 {error}
               </div>
             )}
 
-            <PixelButton type="submit" variant="green" className="h-16 text-lg">
-              {pending ? "..." : mode === "login" ? t("auth.submit_login") : t("auth.submit_register")}
-            </PixelButton>
+            <button type="submit" className="room-start font-pixel !h-16 !text-lg">
+              {pending
+                ? "..."
+                : mode === "login"
+                  ? t("auth.submit_login")
+                  : t("auth.submit_register")}
+            </button>
 
-            <div className="flex items-center gap-3.5 text-[#3a3a3a]">
-              <div className="h-1 flex-grow bg-[#8b8b8b]" />
-              <span className="font-pixel text-[11px]">{t("auth.or")}</span>
-              <div className="h-1 flex-grow bg-[#8b8b8b]" />
+            <div className="flex items-center gap-3.5 text-[#a8966e]">
+              <div className="h-0.5 flex-grow bg-[#3b2a1a]" />
+              <span className="font-pixel text-[9px]">{t("auth.or")}</span>
+              <div className="h-0.5 flex-grow bg-[#3b2a1a]" />
             </div>
 
             <div className="flex gap-3">
-              <a
-                href="/api/auth/discord/start"
-                className="pixel-btn flex-grow border-[#a5adf5] border-b-[#2a3180] border-r-[#2a3180] bg-[#4752c4] text-[13px] text-white"
-                style={{ height: "3.4rem" }}
-              >
+              <a href="/api/auth/discord/start" className="auth-oauth font-pixel bg-[#4752c4]">
                 DISCORD
               </a>
-              <a
-                href="/api/auth/github/start"
-                className="pixel-btn flex-grow border-[#8a9199] border-b-[#0d1013] border-r-[#0d1013] bg-[#24292e] text-[13px] text-white"
-                style={{ height: "3.4rem" }}
-              >
+              <a href="/api/auth/github/start" className="auth-oauth font-pixel bg-[#24292e]">
                 GITHUB
               </a>
             </div>
 
-            <p className="text-2xl leading-tight text-[#3a3a3a]">
-              {t("auth.photo_note")}
-            </p>
+            <p className="text-lg leading-tight text-[#a8966e]">{t("auth.photo_note")}</p>
           </form>
-        </PixelPanel>
+        </section>
 
         <div className="flex w-full max-w-xl flex-col gap-3.5 sm:flex-row">
-          <div className="flex-1 border-4 border-black bg-[#fff8dc] p-3.5 text-2xl leading-tight text-black">
-            {t("auth.no_email")}
+          <div className="auth-tip flex-1" style={{ borderLeftColor: "#f0b429" }}>
+            <ItemIcon item="totem" className="h-8 w-8 shrink-0" />
+            <span>{t("auth.no_email")}</span>
           </div>
-          <div className="flex-1 border-4 border-black bg-[#e6f3d8] p-3.5 text-2xl leading-tight text-black">
-            {t("auth.guest_merge")}
+          <div className="auth-tip flex-1" style={{ borderLeftColor: "#7fc45a" }}>
+            <ItemIcon item="xp_bottle" className="h-8 w-8 shrink-0" />
+            <span>{t("auth.guest_merge")}</span>
           </div>
         </div>
       </div>
