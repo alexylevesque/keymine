@@ -75,7 +75,7 @@ describe("CreateRoomForm", () => {
   it("pas de case « pénalité » : le +1 s est écrit dans le choix « on continue »", () => {
     renderForm();
     expect(screen.queryByRole("checkbox", { name: /Pénalité/ })).toBeNull();
-    expect(screen.getByText(/\+1 s par erreur non corrigée/)).toBeInTheDocument();
+    expect(screen.getByText(/\+1 s par faute/)).toBeInTheDocument();
   });
 
   it("les réglages avancés du texte sont repliés et rangés en trois onglets", async () => {
@@ -87,7 +87,7 @@ describe("CreateRoomForm", () => {
     await user.click(within(advanced).getByText("PERSONNALISER"));
     expect(advanced).toHaveAttribute("open");
     const tabs = within(advanced).getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["LETTRES", "TYPES D'ACCENTS", "SYMBOLES"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["LETTRES ET CHIFFRES", "ACCENTS", "SYMBOLES"]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(within(advanced).getByRole("group", { name: "LETTRES" })).toBeInTheDocument();
 
@@ -101,7 +101,7 @@ describe("CreateRoomForm", () => {
   it("la durée se choisit avec des boutons", async () => {
     const user = userEvent.setup();
     renderForm();
-    const durations = screen.getByRole("group", { name: "Durée maximale" });
+    const durations = screen.getByRole("group", { name: "TEMPS MAXIMAL" });
     const buttons = within(durations).getAllByRole("button");
     expect(buttons.length).toBeGreaterThan(3);
     await user.click(buttons[0]);

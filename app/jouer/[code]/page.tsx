@@ -54,6 +54,8 @@ export default function LobbyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
+        // Le serveur ne répond pas : on affiche une erreur au lieu de rester figé.
+        signal: AbortSignal.timeout(12_000),
       }),
     );
   }, [code, run]);
