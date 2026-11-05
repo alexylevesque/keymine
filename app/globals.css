@@ -4006,3 +4006,61 @@ a.lobby-row:hover .lobby-go {
   height: 26px;
   margin-top: 6px;
 }
+
+/* --- Stats en mode invité (même style que le profil) --- */
+.guest-cta {
+  display: inline-flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 18px;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+  background: #3f7d24;
+  animation: room-ready 1.6s steps(2) infinite;
+}
+.guest-cta:hover {
+  animation: none;
+}
+.guest-perk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #2b1e13;
+  border: 3px solid #000;
+  transition: transform 0.08s steps(2);
+  animation: shop-in 0.4s steps(3) both;
+}
+.guest-perk:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000;
+}
+.guest-perk-ico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  background: #1b1209;
+  border: 3px solid #000;
+  filter: grayscale(0.6) brightness(0.85);
+  transition: filter 0.1s steps(2);
+}
+.guest-perk:hover .guest-perk-ico {
+  filter: none;
+  animation: shop-bob 0.8s steps(2) infinite;
+}
+.guest-lock {
+  padding: 4px 6px;
+  font-size: 7px;
+  color: #a8966e;
+  border: 2px solid #3b2a1a;
+}
+.guest-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 120px 100px;
+  gap: 12px;
+  align-items: center;
+}

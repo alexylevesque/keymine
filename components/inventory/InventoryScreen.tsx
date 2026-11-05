@@ -384,7 +384,12 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
                 </li>
               ))}
             </ul>
-            <MinerFigure color={figureColor} worn={worn} label={t("inv.figure")} />
+            <MinerFigure
+              color={figureColor}
+              worn={worn}
+              label={t("inv.figure")}
+              name={viewer?.name ?? "K"}
+            />
           </div>
           <dl className="flex gap-4.5 px-5 pb-4.5">
             <div className="flex-1">
