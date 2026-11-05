@@ -19,7 +19,7 @@ import { useViewer } from "@/lib/viewer";
 import { levelFromXp } from "@/lib/xp";
 import type { RaceState } from "@/components/race/types";
 import { useRaceConnection } from "@/components/race/useRaceConnection";
-import { PixelButton, PixelPanel } from "@/components/ui";
+import { PixelButton } from "@/components/ui";
 import { useLanguage, type DictKey } from "@/lib/i18n";
 import { formatClock, formatNumber, formatPercent } from "@/lib/format";
 import { createThrottle, type Throttle } from "@/lib/race/throttle";
@@ -562,38 +562,35 @@ export default function CoursePage() {
           aria-modal="true"
           aria-labelledby="abandon-title"
         >
-          <PixelPanel className="flex w-full max-w-md flex-col gap-4 p-6">
-            <h2 id="abandon-title" className="font-pixel text-sm text-[#2b2b2b]">
-              {t("race.abandon_title")}
-            </h2>
-            <p className="text-2xl text-[#2b2b2b]">{t("race.abandon_text")}</p>
-            {viewerLevel > 0 && (
-              <p
-                className="border-2 border-black bg-[#ffd84a] px-3 py-2 text-2xl text-[#1b1b1b]"
-                data-testid="abandon-xp"
-              >
-                {t("race.abandon_xp", { from: viewerLevel, to: viewerLevel - 1 })}
-              </p>
-            )}
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <PixelButton
-                type="button"
-                onClick={abandon}
-                variant="red"
-                className="h-14 flex-1 text-[12px]"
-              >
-                {t("race.abandon_confirm")}
-              </PixelButton>
-              <PixelButton
-                type="button"
-                onClick={() => setConfirming(false)}
-                variant="green"
-                className="h-14 flex-1 text-[12px]"
-              >
-                {t("race.abandon_cancel")}
-              </PixelButton>
+          <div className="lobby-panel km-pop w-full max-w-md">
+            <div className="abandon-head flex items-center gap-3 px-5 py-4">
+              <span className="abandon-flag" aria-hidden="true" />
+              <h2 id="abandon-title" className="font-pixel text-[13px] text-white">
+                {t("race.abandon_title")}
+              </h2>
             </div>
-          </PixelPanel>
+            <div className="flex flex-col gap-4 p-5">
+              <p className="text-2xl leading-tight text-[#f1e6c9]">{t("race.abandon_text")}</p>
+              {viewerLevel > 0 && (
+                <p className="abandon-xp text-2xl leading-tight" data-testid="abandon-xp">
+                  {t("race.abandon_xp", { from: viewerLevel, to: viewerLevel - 1 })}
+                </p>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={abandon} className="abandon-yes font-pixel flex-1">
+                  {t("race.abandon_confirm")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="res-replay font-pixel abandon-stay flex-1"
+                  autoFocus
+                >
+                  {t("race.abandon_cancel")}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -4485,3 +4485,50 @@ a.lobby-row:hover .lobby-go {
 .room-close:disabled {
   opacity: 0.5;
 }
+
+/* Fenêtre ABANDONNER LA COURSE : panneau sombre, en-tête rouge, avertissement d'XP lisible. */
+.abandon-head {
+  background: #b0281c;
+  border-bottom: 4px solid #000;
+}
+.abandon-flag {
+  width: 14px;
+  height: 14px;
+  background: #ffe08a;
+  border: 3px solid #000;
+  animation: home-blink 1s steps(1) infinite;
+}
+.abandon-xp {
+  padding: 10px 14px;
+  color: #ffe08a;
+  background: #3a2810;
+  border: 3px solid #f0b429;
+  box-shadow: inset 0 0 0 2px #000;
+}
+.abandon-yes,
+.abandon-stay {
+  min-height: 56px;
+  height: auto;
+  padding: 8px 12px;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.abandon-yes {
+  color: #f39a8c;
+  background: #2b1e13;
+  border: 4px solid #5a4632;
+  transition: transform 0.08s steps(2);
+}
+.abandon-yes:hover,
+.abandon-yes:focus-visible {
+  color: #fff;
+  background: #b0281c;
+  border-color: #000;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000;
+}
+@media (prefers-reduced-motion: reduce) {
+  .abandon-flag {
+    animation: none;
+  }
+}
