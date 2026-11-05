@@ -15,7 +15,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ItemIcon } from "@/components/items/ItemIcon";
 import { InfoButton, ItemInfoDialog } from "@/components/items/ItemInfoDialog";
-import { PixelButton, PixelDisclosure, PixelPanel } from "@/components/ui";
+import { PixelButton, PixelDisclosure } from "@/components/ui";
+import { MinerFigure, type FigurePart } from "./MinerFigure";
+import { identicon } from "@/lib/identicon";
+import { useViewer } from "@/lib/viewer";
 import { formatPercent } from "@/lib/format";
 import { useLanguage, type DictKey } from "@/lib/i18n";
 import {
@@ -82,6 +85,8 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   const follower = useRef<HTMLDivElement>(null);
 
   const inv = view.inventory;
+  const [workshop, setWorkshop] = useState<"craft" | "furnace" | "enchant">("craft");
+  const viewer = useViewer();
   const stackAt = useCallback((ref: SlotRef): Slot => inv[ref.area][ref.slot] ?? null, [inv]);
   // Si la pile d'origine a changé (four, autre onglet), on ne tient jamais plus que ce qu'elle contient.
   const heldStack = heldRaw ? stackAt(heldRaw.from) : null;
@@ -314,214 +319,317 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
     );
   };
 
+  const worn: Partial<Record<FigurePart, string>> = {};
+  ARMOR_PARTS.forEach((part, i) => {
+    const piece = inv.armor[i];
+    if (piece) worn[part] = piece.item.split("_")[0]!;
+  });
+  const bagUsed = inv.bag.filter(Boolean).length;
+  const figureColor = viewer ? identicon(viewer.name).color : "#b0281c";
+
   return (
-    <div className="flex flex-col gap-6" onContextMenu={(e) => held && e.preventDefault()}>
-      <p className="text-xl text-[#f1e6c9]">{t("inv.hint")}</p>
+    <div
+      className="ui-dark inv-dark flex flex-col gap-6"
+      onContextMenu={(e) => held && e.preventDefault()}
+    >
+      <div className="-mt-2 flex flex-wrap gap-3.5 text-[19px] text-[#cdbf9c]">
+        {(
+          [
+            ["inv.k_click", "inv.k_click_txt"],
+            ["inv.k_right", "inv.k_right_txt"],
+            ["inv.k_shift", "inv.k_shift_txt"],
+          ] as const
+        ).map(([k, txt]) => (
+          <span key={k}>
+            <span className="inv-kbd font-pixel">{t(k)}</span>
+            {t(txt)}
+          </span>
+        ))}
+        <span className="sr-only">{t("inv.hint")}</span>
+      </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.armor")}</h2>
-          <div className="flex flex-wrap items-start gap-4">
-            <div className="grid w-16 gap-1">
-              {ARMOR_PARTS.map((part, i) =>
-                slot(
-                  { area: "armor", slot: i },
-                  {
-                    label: t(`inv.slot_${part}` as DictKey),
-                    placeholder: (
-                      <ItemIcon
-                        item={`iron_${part}`}
-                        className="h-3/4 w-3/4 opacity-25 grayscale"
-                      />
-                    ),
-                  },
-                ),
-              )}
-            </div>
-            <div className="min-w-0 flex-1 text-2xl text-[#2b2b2b]">
-              <p>
-                {t("inv.stats", {
-                  dodge: formatPercent(lang, loadout.dodge * 100),
-                  xp: formatPercent(lang, loadout.xpBonus * 100),
-                })}
-              </p>
-              <h3 className="font-pixel mt-4 mb-2 text-xs text-[#2b2b2b]">
-                {t("inv.active_title")}
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="relative aspect-square w-14 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => void onActiveSlot()}
-                    aria-label={
-                      view.activeItem
-                        ? `${t("inv.active_title")} : ${itemName(t, view.activeItem)} (${t("inv.unuse")})`
-                        : t("inv.active_title")
-                    }
-                    data-target={!!held}
-                    className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
-                  >
-                    {view.activeItem ? (
-                      <ItemIcon item={view.activeItem} className="h-3/4 w-3/4" />
-                    ) : (
-                      <ItemIcon
-                        item="enchanted_golden_apple"
-                        className="h-3/4 w-3/4 opacity-25 grayscale"
-                      />
-                    )}
-                  </button>
-                  {view.activeItem && (
-                    <InfoButton
-                      item={view.activeItem}
-                      onOpen={() => setInfo({ item: view.activeItem!, count: 1, durability: null })}
-                    />
-                  )}
-                </div>
-                <p className="text-xl leading-tight text-[#3a3a3a]">
-                  {view.activeItem
-                    ? t("inv.active_item", { item: itemName(t, view.activeItem) })
-                    : t("inv.active_none")}
-                </p>
-              </div>
-            </div>
+      <div className="flex flex-wrap items-stretch gap-7">
+        <section
+          className="lobby-panel flex min-w-0 flex-[1_1_380px] flex-col"
+          aria-labelledby="perso"
+        >
+          <div className="lobby-head flex items-center justify-between gap-3 !py-3.5">
+            <h2 id="perso" className="font-pixel text-[11px] text-white">
+              {t("inv.armor")}
+            </h2>
           </div>
-        </PixelPanel>
-
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.craft")}</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="grid w-44 grid-cols-3 gap-1 sm:w-48">
-              {Array.from({ length: 9 }, (_, i) => slot({ area: "craft", slot: i }))}
+          <div className="flex flex-auto items-center justify-center gap-5 p-5">
+            <ul className="flex flex-col gap-2">
+              {ARMOR_PARTS.map((part, i) => (
+                <li key={part} className="flex items-center gap-3">
+                  <span className="font-pixel w-14 text-right text-[7px] text-[#a8966e] uppercase">
+                    {t(`inv.slot_${part}` as DictKey)
+                      .normalize("NFD")
+                      .replace(/[\u0300-\u036f]/g, "")}
+                  </span>
+                  <span className="w-[60px]">
+                    {slot(
+                      { area: "armor", slot: i },
+                      {
+                        label: t(`inv.slot_${part}` as DictKey),
+                        placeholder: (
+                          <ItemIcon
+                            item={`iron_${part}`}
+                            className="h-3/4 w-3/4 opacity-25 grayscale"
+                          />
+                        ),
+                      },
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <MinerFigure color={figureColor} worn={worn} label={t("inv.figure")} />
+          </div>
+          <dl className="flex gap-4.5 px-5 pb-4.5">
+            <div className="flex-1">
+              <dt className="font-pixel text-[7px] text-[#ffe08a]">{t("inv.dodge")}</dt>
+              <dd className="text-[30px] leading-none">
+                {formatPercent(lang, loadout.dodge * 100)}
+              </dd>
+              <span className="inv-statb">
+                <span
+                  style={{ width: `${Math.min(100, loadout.dodge * 200)}%`, background: "#45cfc8" }}
+                />
+              </span>
             </div>
-            <span aria-hidden="true" className="pixel-arrow" />
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex-1">
+              <dt className="font-pixel text-[7px] text-[#ffe08a]">{t("inv.xp_bonus")}</dt>
+              <dd className="text-[30px] leading-none">
+                +{formatPercent(lang, loadout.xpBonus * 100)}
+              </dd>
+              <span className="inv-statb">
+                <span
+                  style={{
+                    width: `${Math.min(100, loadout.xpBonus * 333)}%`,
+                    background: "#7fc45a",
+                  }}
+                />
+              </span>
+            </div>
+          </dl>
+          <div className="flex items-center gap-3.5 border-t-2 border-[#3b2a1a] px-5 py-4">
+            <div className="relative aspect-square w-14 shrink-0">
               <button
                 type="button"
-                disabled={!recipe || busy}
-                onClick={() => void craftOnce()}
+                onClick={() => void onActiveSlot()}
                 aria-label={
-                  recipe
-                    ? `${t("inv.craft_button")} : ${itemName(t, recipe.result)}`
-                    : t("inv.craft_result")
+                  view.activeItem
+                    ? `${t("inv.active_title")} : ${itemName(t, view.activeItem)} (${t("inv.unuse")})`
+                    : t("inv.active_title")
                 }
-                className="pixel-slot inv-slot flex h-16 w-16 items-center justify-center disabled:cursor-not-allowed"
+                data-target={!!held}
+                className={`pixel-slot inv-slot flex h-full w-full items-center justify-center ${view.activeItem ? "inv-next" : ""}`}
               >
-                {recipe && <ItemIcon item={recipe.result} className="h-3/4 w-3/4" />}
+                {view.activeItem ? (
+                  <ItemIcon item={view.activeItem} className="h-3/4 w-3/4" />
+                ) : (
+                  <ItemIcon
+                    item="enchanted_golden_apple"
+                    className="h-3/4 w-3/4 opacity-25 grayscale"
+                  />
+                )}
               </button>
-              <PixelButton
-                disabled={!recipe || busy}
-                onClick={() => void craftOnce()}
-                className="h-10 px-3 text-[9px]"
-              >
-                {t("inv.craft_button")}
-              </PixelButton>
-            </div>
-          </div>
-          {!recipe && <p className="mt-3 text-xl text-[#3a3a3a]">{t("inv.craft_none")}</p>}
-        </PixelPanel>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.furnace")}</h2>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="grid gap-1">
-              <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
-              <span
-                aria-hidden="true"
-                className="pixel-flame mx-auto"
-                data-on={view.furnaceActive}
-              />
-              <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
-            </div>
-            <span
-              role="progressbar"
-              aria-label={t("inv.furnace")}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(furnaceProgress * 100)}
-              className="pixel-arrow"
-              style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
-            />
-            <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
-            <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
-              {view.furnaceActive
-                ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
-                : t("inv.furnace_off")}
-            </p>
-          </div>
-        </PixelPanel>
-
-        <PixelPanel className="p-4">
-          <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.enchant")}</h2>
-          <div className="flex flex-wrap items-start gap-4">
-            <div className="w-16">
-              {slot(
-                { area: "enchant", slot: 0 },
-                {
-                  label: t("inv.enchant_slot"),
-                  placeholder: (
-                    <ItemIcon
-                      item="diamond_chestplate"
-                      className="h-3/4 w-3/4 opacity-25 grayscale"
-                    />
-                  ),
-                },
+              {view.activeItem && (
+                <InfoButton
+                  item={view.activeItem}
+                  onOpen={() => setInfo({ item: view.activeItem!, count: 1, durability: null })}
+                />
               )}
             </div>
-            {view.enchantOptions.length === 0 ? (
-              <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
-                {inv.enchant[0]?.enchants?.length ? t("inv.enchant_done") : t("inv.enchant_none")}
-              </p>
-            ) : (
-              <ol className="flex min-w-56 flex-1 list-none flex-col gap-2">
-                {view.enchantOptions.map((option, i) => {
-                  const locked = level < option.minLevel || level < option.cost;
-                  return (
-                    <li key={i}>
-                      <button
-                        type="button"
-                        disabled={locked || busy}
-                        onClick={() => void enchant(i)}
-                        className="inv-enchant-option w-full text-left"
-                      >
-                        <span className="block text-2xl leading-tight">
-                          {t("inv.enchant_option", { hint: enchantList(t, [option.hint]) })}
-                        </span>
-                        <span className="block text-lg leading-tight">
-                          {t("inv.enchant_cost", { n: option.cost, min: option.minLevel })}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
+            <div className="min-w-0 flex-auto leading-tight">
+              <span className="font-pixel text-[8px] text-[#c77dff]">{t("inv.active_title")}</span>
+              <br />
+              <span className="text-xl">
+                {view.activeItem
+                  ? t("inv.active_item", { item: itemName(t, view.activeItem) })
+                  : t("inv.active_none")}
+              </span>
+            </div>
           </div>
-        </PixelPanel>
+        </section>
+
+        <section className="lobby-panel relative min-w-0 flex-[999_1_600px]" aria-labelledby="sac">
+          <div className="lobby-head flex items-center justify-between gap-3 !py-3.5">
+            <h2 id="sac" className="font-pixel text-[11px] text-white">
+              {t("inv.bag")}
+            </h2>
+            <span className="flex items-center gap-2.5 text-xl text-[#e8dcb8]">
+              <span className="inv-cap" aria-hidden="true">
+                <span style={{ width: `${(bagUsed / 27) * 100}%` }} />
+              </span>
+              {t("inv.bag_count", { n: bagUsed })}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-end gap-4 p-5">
+            <div className="inv-bag grid w-full max-w-[40rem] grid-cols-9 gap-1.5">
+              {Array.from({ length: 27 }, (_, i) => slot({ area: "bag", slot: i }))}
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                disabled={!held}
+                onClick={() => discardDialog.current?.showModal()}
+                aria-label={t("inv.trash")}
+                data-target={!!held}
+                className="pixel-slot inv-slot inv-trash flex h-14 w-14 items-center justify-center disabled:cursor-default"
+              >
+                <TrashIcon />
+              </button>
+              <span className="font-pixel text-[9px] text-[#a8966e]">{t("inv.trash")}</span>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <PixelPanel className="p-4">
-        <h2 className="font-pixel mb-3 text-sm text-[#2b2b2b]">{t("inv.bag")}</h2>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="grid w-full max-w-[33rem] grid-cols-9 gap-1">
-            {Array.from({ length: 27 }, (_, i) => slot({ area: "bag", slot: i }))}
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              disabled={!held}
-              onClick={() => discardDialog.current?.showModal()}
-              aria-label={t("inv.trash")}
-              data-target={!!held}
-              className="pixel-slot inv-slot inv-trash flex h-14 w-14 items-center justify-center disabled:cursor-default"
-            >
-              <TrashIcon />
-            </button>
-            <span className="font-pixel text-[9px] text-[#2b2b2b]">{t("inv.trash")}</span>
+      <section className="lobby-panel" aria-label={t("inv.workshops")}>
+        <div className="lobby-head !py-3.5">
+          <div role="tablist" aria-label={t("inv.workshops")} className="flex flex-wrap gap-1.5">
+            {(
+              [
+                ["craft", t("inv.craft")],
+                ["furnace", t("inv.furnace")],
+                ["enchant", t("inv.enchant_tab")],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={workshop === id}
+                data-on={workshop === id}
+                onClick={() => setWorkshop(id)}
+                className="lb-tab font-pixel"
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
-      </PixelPanel>
+        <div role="tabpanel" className="px-5 py-6">
+          {workshop === "craft" && (
+            <>
+              <h2 className="sr-only">{t("inv.craft")}</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="grid w-44 grid-cols-3 gap-1 sm:w-48">
+                  {Array.from({ length: 9 }, (_, i) => slot({ area: "craft", slot: i }))}
+                </div>
+                <span aria-hidden="true" className="pixel-arrow" />
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!recipe || busy}
+                    onClick={() => void craftOnce()}
+                    aria-label={
+                      recipe
+                        ? `${t("inv.craft_button")} : ${itemName(t, recipe.result)}`
+                        : t("inv.craft_result")
+                    }
+                    className="pixel-slot inv-slot flex h-16 w-16 items-center justify-center disabled:cursor-not-allowed"
+                  >
+                    {recipe && <ItemIcon item={recipe.result} className="h-3/4 w-3/4" />}
+                  </button>
+                  <PixelButton
+                    disabled={!recipe || busy}
+                    onClick={() => void craftOnce()}
+                    className="h-10 px-3 text-[9px]"
+                  >
+                    {t("inv.craft_button")}
+                  </PixelButton>
+                </div>
+              </div>
+              {!recipe && <p className="mt-3 text-xl text-[#3a3a3a]">{t("inv.craft_none")}</p>}
+            </>
+          )}
+          {workshop === "furnace" && (
+            <>
+              <h2 className="sr-only">{t("inv.furnace")}</h2>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="grid gap-1">
+                  <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
+                  <span
+                    aria-hidden="true"
+                    className="pixel-flame mx-auto"
+                    data-on={view.furnaceActive}
+                  />
+                  <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
+                </div>
+                <span
+                  role="progressbar"
+                  aria-label={t("inv.furnace")}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(furnaceProgress * 100)}
+                  className="pixel-arrow"
+                  style={{ ["--fill" as string]: `${furnaceProgress * 100}%` }}
+                />
+                <div className="w-16">{slot({ area: "furnace_out", slot: 0 })}</div>
+                <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
+                  {view.furnaceActive
+                    ? t("inv.furnace_on", { left: inv.furnace.burnLeft || 8 })
+                    : t("inv.furnace_off")}
+                </p>
+              </div>
+            </>
+          )}
+          {workshop === "enchant" && (
+            <>
+              <h2 className="sr-only">{t("inv.enchant")}</h2>
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="w-16">
+                  {slot(
+                    { area: "enchant", slot: 0 },
+                    {
+                      label: t("inv.enchant_slot"),
+                      placeholder: (
+                        <ItemIcon
+                          item="diamond_chestplate"
+                          className="h-3/4 w-3/4 opacity-25 grayscale"
+                        />
+                      ),
+                    },
+                  )}
+                </div>
+                {view.enchantOptions.length === 0 ? (
+                  <p className="min-w-48 flex-1 text-xl text-[#2b2b2b]">
+                    {inv.enchant[0]?.enchants?.length
+                      ? t("inv.enchant_done")
+                      : t("inv.enchant_none")}
+                  </p>
+                ) : (
+                  <ol className="flex min-w-56 flex-1 list-none flex-col gap-2">
+                    {view.enchantOptions.map((option, i) => {
+                      const locked = level < option.minLevel || level < option.cost;
+                      return (
+                        <li key={i}>
+                          <button
+                            type="button"
+                            disabled={locked || busy}
+                            onClick={() => void enchant(i)}
+                            className="inv-enchant-option w-full text-left"
+                          >
+                            <span className="block text-2xl leading-tight">
+                              {t("inv.enchant_option", { hint: enchantList(t, [option.hint]) })}
+                            </span>
+                            <span className="block text-lg leading-tight">
+                              {t("inv.enchant_cost", { n: option.cost, min: option.minLevel })}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       <PixelDisclosure title={t("inv.recipes")}>
         <div className="flex flex-col gap-4 text-2xl text-[#2b2b2b]">

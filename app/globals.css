@@ -3760,3 +3760,90 @@ a.lobby-row:hover .lobby-go {
   background: #2b1e13;
   border: 3px solid #000;
 }
+
+/* --- Inventaire de la refonte (maquette « 7 · Inventaire », 4 nov.) --- */
+.inv-kbd {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 4px 6px;
+  font-size: 7px;
+  color: #ffe08a;
+  background: #3b2a1a;
+  border: 2px solid #000;
+  box-shadow: inset 0 -3px 0 #1b1209;
+}
+.inv-dark .inv-slot {
+  background: #2b1e13;
+  border: 3px solid #000;
+  box-shadow:
+    inset 3px 3px 0 #120c06,
+    inset -3px -3px 0 #4a3828;
+}
+.inv-dark .inv-slot:hover {
+  background: #3b2a1a;
+  outline: 3px solid #f0b429;
+  outline-offset: -1px;
+}
+.inv-figwrap {
+  position: relative;
+  flex: none;
+  width: 128px;
+  height: 272px;
+}
+.inv-fig {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 256px;
+}
+.inv-fig:first-child {
+  filter: drop-shadow(4px 4px 0 #000);
+}
+.inv-shadow {
+  position: absolute;
+  left: 24px;
+  bottom: 0;
+  width: 80px;
+  height: 8px;
+  background: #000;
+  opacity: 0.45;
+}
+.inv-statb {
+  position: relative;
+  display: block;
+  height: 12px;
+  margin-top: 4px;
+  background: #2b1e13;
+  border: 2px solid #000;
+}
+.inv-statb span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+.inv-cap {
+  position: relative;
+  width: 160px;
+  height: 12px;
+  background: #2b1e13;
+  border: 2px solid #000;
+}
+.inv-cap span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #f0b429;
+}
+.inv-next {
+  animation: inv-aura 1.4s steps(2) infinite;
+}
+@keyframes inv-aura {
+  50% {
+    box-shadow: 0 0 0 3px #c77dff;
+  }
+}
+.inv-dark .text-\[\#2b2b2b\],
+.inv-dark .text-\[\#3a3a3a\] {
+  color: #cdbf9c;
+}
