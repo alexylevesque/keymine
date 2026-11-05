@@ -4121,3 +4121,172 @@ a.lobby-row:hover .lobby-go {
   border-left: 10px solid;
   box-shadow: 6px 6px 0 #000;
 }
+
+/* --- Animations des tuiles (maquettes Profil, Historique, Résultats, Accueil) --- */
+@keyframes km-in {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes km-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes km-grow {
+  to {
+    transform: scaleY(0.8);
+  }
+}
+@keyframes km-jump {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.hist-tile,
+.home-tile {
+  animation: km-in 0.4s steps(3) both;
+}
+.hist-tile:nth-child(2),
+.home-tile:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.hist-tile:nth-child(3),
+.home-tile:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.hist-tile:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.hist-tile:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.hist-tile:nth-child(6) {
+  animation-delay: 0.3s;
+}
+.hist-tile .prof-bars span {
+  transform-origin: bottom;
+}
+.hist-tile:hover .prof-bars span {
+  background: #7fc45a;
+}
+.hist-tile:hover .prof-bars span:last-child {
+  animation: km-grow 0.5s steps(3) infinite alternate;
+}
+.hist-tile:hover .prof-seg span[data-on="true"] {
+  background: #9be070;
+}
+.hist-tile:hover .hist-cups i[data-on="true"] {
+  animation: km-jump 0.5s steps(2) infinite;
+}
+.hist-tile:hover .hist-cups i[data-on="true"]:nth-child(2n) {
+  animation-delay: 0.25s;
+}
+.hist-tile:hover .hist-dots span {
+  animation: km-jump 0.6s steps(2) infinite;
+}
+.hist-tile:hover .hist-dots span:nth-child(2n) {
+  animation-delay: 0.3s;
+}
+.hist-tile:hover .hist-num {
+  color: #fff;
+}
+/* Résultats : les grosses tuiles apparaissent l'une après l'autre. */
+.res-hero .race-stat {
+  animation: km-pop 0.4s steps(3) both;
+}
+.res-hero .race-stat:nth-child(1) {
+  animation-delay: 0.2s;
+}
+.res-hero .race-stat:nth-child(2) {
+  animation-delay: 0.35s;
+}
+.res-hero .race-stat:nth-child(3) {
+  animation-delay: 0.5s;
+}
+.res-hero .race-stat:hover,
+.race-stat:hover {
+  transform: translate(-3px, -3px);
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632,
+    6px 6px 0 #000;
+}
+.race-stat {
+  transition: transform 0.08s steps(2);
+}
+.res-badge {
+  animation: km-pop 0.4s steps(3) both;
+}
+.res-badge:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.res-badge:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.res-row,
+.lobby-row,
+.lb-row,
+.room-pcard,
+.lb-prize,
+.prof-hero ol li {
+  animation: km-in 0.35s steps(3) both;
+}
+.res-row:nth-child(3),
+.lobby-row:nth-child(3),
+.lb-row:nth-child(3) {
+  animation-delay: 0.05s;
+}
+.res-row:nth-child(4),
+.lobby-row:nth-child(4),
+.lb-row:nth-child(4) {
+  animation-delay: 0.1s;
+}
+.res-row:nth-child(5),
+.lobby-row:nth-child(5),
+.lb-row:nth-child(5) {
+  animation-delay: 0.15s;
+}
+.res-row:nth-child(n + 6),
+.lobby-row:nth-child(n + 6),
+.lb-row:nth-child(n + 6) {
+  animation-delay: 0.2s;
+}
+.prof-avatar {
+  transition: transform 0.08s steps(2);
+}
+.prof-avatar:hover {
+  transform: translate(-3px, -3px) rotate(-3deg);
+}
+.prof-xp span {
+  animation: race-slide 0.8s steps(4) infinite;
+}
+@keyframes race-slide {
+  to {
+    background-position: 20px 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hist-tile,
+  .home-tile,
+  .res-hero .race-stat,
+  .res-badge,
+  .res-row,
+  .lobby-row,
+  .lb-row,
+  .room-pcard,
+  .lb-prize,
+  .prof-xp span {
+    animation: none;
+  }
+}
