@@ -12,7 +12,7 @@
 
 ## Trois situations où l'IA s'est trompée
 
-Dix-huit erreurs ont été détectées et corrigées pendant le projet. Les trois ci-dessous sont les plus instructives ; toutes sont détaillées dans le [journal complet](IA-JOURNAL.md).
+Vingt et une erreurs ont été détectées et corrigées pendant le projet. Les trois ci-dessous sont les plus instructives ; toutes sont détaillées dans le [journal complet](IA-JOURNAL.md).
 
 ### 1. Un « ORM » qui n'en était pas un (TECH-04)
 
@@ -32,7 +32,7 @@ Dix-huit erreurs ont été détectées et corrigées pendant le projet. Les troi
 **Détection.** En lançant toute la suite e2e en local à la demande de l'étudiant : 3 à 4 tests échouaient sur une machine plus lente. L'enregistrement des messages WebSocket a montré la frappe partie sans qu'aucun avancement soit envoyé.
 **Correction.** La frappe est acceptée dès l'annonce du serveur (ou dès l'heure de départ si l'annonce tarde), et l'écoute du clavier est posée avant l'affichage. Les 63 tests e2e passent. **Leçon :** un test qui échoue « seulement sur une machine lente » révèle un vrai problème que les joueurs rencontreront aussi.
 
-### Les quinze autres, en une ligne
+### Les dix-huit autres, en une ligne
 
 | N° | Erreur | Comment elle a été vue |
 | --- | --- | --- |
@@ -51,6 +51,9 @@ Dix-huit erreurs ont été détectées et corrigées pendant le projet. Les troi
 | 14 | Photo absente de la salle ; lien refusé sans issue | l'étudiant, sur le site en ligne |
 | 15 | Fusion invité → compte qui pouvait planter la connexion | nouveau test en base |
 | 16 | Chaque déploiement aurait annulé l'XP dépensée | relecture de tout le code qui écrit l'XP |
+| 19 | Refonte : aperçu refusé remis en place, armure en netherite pour tous | l'étudiant, page par page |
+| 20 | Fenêtre d'abandon illisible (jaune pâle sur jaune) | l'étudiant, capture d'écran |
+| 21 | 30 tests e2e cassés après la refonte (dont de vrais contrastes) | suite complète lancée à la fin |
 
 ## Réflexion sur notre façon de travailler avec les agents
 
@@ -58,5 +61,5 @@ _À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qu
 
 ## Limites connues liées à l'IA
 
-- Les passages du corpus (`db/seed-data/corpus.ts`) ont été vérifiés contre Project Gutenberg, mais pas contre Wikisource (inaccessible depuis l'environnement de travail).
+- Les passages du corpus (`db/seed-data/corpus.ts`) ont été vérifiés contre Project Gutenberg, mais pas contre Wikisource : le site est resté inaccessible depuis l'environnement de travail (nouvel essai le 5 nov. 2026, sans succès).
 - Le premier gros commit (1er octobre 2026, 62 fichiers) contient la base générée par l'agent en une séance ; le travail a ensuite été découpé en petits commits.

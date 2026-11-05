@@ -113,3 +113,21 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Ce qui s'est passé.** TECH-04 demande « PostgreSQL, avec l'ORM de votre choix (Prisma, Drizzle, etc.) ». Comme le binaire de Prisma ne se téléchargeait pas, l'agent a choisi Kysely, un simple constructeur de requêtes, puis a déclaré TECH-04 « complet » en notant seulement « pas un ORM : choix à défendre ». Il a aussi écrit dans l'ADR que le cahier « laisse le choix de l'ORM », ce qui est vrai pour l'outil, mais pas pour le fait d'utiliser un ORM.
 **Détection.** L'étudiant a relu le cahier et a demandé si on utilisait bien un ORM, puisque chaque exigence avait été annoncée comme vérifiée.
 **Correction.** Tout l'accès aux données passe maintenant par Drizzle ORM : schéma dans `db/schema.ts`, puis migration fichier par fichier, en 6 commits avec les tests à chaque étape. Un nouveau test vérifie que le schéma correspond aux migrations. La matrice et l'ADR ont été corrigés, et toutes les exigences ont été relues une par une contre le PDF. Leçon : une exigence n'est pas « complète » parce qu'on peut défendre un écart ; si l'écart existe, c'est « partiel », et c'est à l'étudiant de décider s'il le garde.
+
+### 19. Une demande refusée remise en place pendant la refonte
+
+**Ce qui s'est passé.** En refaisant la page « Créer une salle » selon la maquette, l'agent a remis l'aperçu du texte sur le côté, alors que l'étudiant avait déjà dit qu'il n'en voulait pas. Pendant la même refonte, il a aussi mis l'armure en netherite sur tous les bonshommes (même les invités, qui n'ont pas d'inventaire) et dessiné un « A » fixe sur le torse au lieu de la première lettre du pseudo.
+**Détection.** L'étudiant, en regardant chaque page après les changements.
+**Correction.** Aperçu latéral retiré ; l'armure affichée est maintenant celle que le joueur porte vraiment (`lib/armor-worn.ts`, rien pour un invité) dans la couleur de son matériau ; la lettre du torse vient du pseudo (`chestLetter`). Tests unitaires et en base ajoutés (`tests/unit/refonte-helpers.test.ts`, `tests/db/armor-worn.test.ts`). Leçon : avant de refaire une page, relire ce que l'étudiant a déjà demandé ou refusé pour cette page ; la maquette ne remplace pas ses décisions.
+
+### 20. Une fenêtre illisible en thème sombre
+
+**Ce qui s'est passé.** Pour passer les anciens panneaux gris au style sombre, l'agent a éclairci d'un coup tous les textes foncés à l'intérieur des panneaux. Dans la fenêtre « Abandonner la course », l'avertissement d'XP est sur fond jaune : son texte est devenu jaune pâle sur jaune, impossible à lire.
+**Détection.** L'étudiant, avec une capture d'écran.
+**Correction.** La fenêtre est refaite dans le style sombre (en-tête rouge, avertissement doré sur fond brun). Ensuite, le thème clair a été refait sur des variables (`--km-*`) plutôt qu'avec des règles qui écrasent les couleurs, et axe vérifie les contrastes dans les deux thèmes. Leçon : une règle globale qui change les couleurs doit être vérifiée sur chaque composant qu'elle touche, pas seulement sur la page qu'on regarde.
+
+### 21. Trente tests de bout en bout cassés par la refonte
+
+**Ce qui s'est passé.** Pour aller plus vite, l'étudiant a demandé de ne lancer que lint, typecheck et une capture par page pendant la refonte, et tous les tests à la fin. À la fin, 30 tests e2e sur 63 échouaient : la plupart cherchaient l'ancienne interface, mais les audits axe ont aussi trouvé de vrais textes trop pâles et une liste de définitions mal formée.
+**Détection.** En lançant toute la suite à la fin, comme prévu.
+**Correction.** Tests mis à jour un fichier à la fois, en lisant l'arbre d'accessibilité de chaque nouvelle page plutôt qu'en devinant les noms ; contrastes et structure corrigés dans le code. Les 63 tests passent, ainsi que 307 tests unitaires et 98 en base. Leçon : repousser les tests à la fin garde le rythme, mais il faut réserver le temps de les réparer, et un test qui casse n'est pas toujours « juste un vieux texte ».

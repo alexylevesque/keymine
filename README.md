@@ -14,23 +14,23 @@ classement est calculé par le serveur. Projet de session du cours Web V.
 
 ## Captures d'écran
 
-Prises le 19 octobre 2026 sur une base fraîchement remplie par `bun run db:seed`, avec le compte de démonstration `alice` (thème sombre, 1280 × 800).
+Prises le 5 novembre 2026, après la refonte des pages selon les maquettes, sur une base fraîchement remplie par `bun run db:seed`, avec le compte de démonstration `alice` (thème sombre, 1280 × 800). Le thème clair se choisit avec le bouton de l'en-tête.
 
 | Accueil | Salle d'attente |
 | --- | --- |
-| ![Accueil : bouton JOUER, code de salle et liste des salles publiques](docs/captures/accueil.png) | ![Salle d'attente : code de la salle, joueurs et bots, réglages de l'hôte](docs/captures/salle-attente.png) |
+| ![Accueil : bouton JOUER, code de salle, tuiles de stats et salles publiques en direct](docs/captures/accueil.png) | ![Salle d'attente : code de la salle, joueurs et bots, réglages de l'hôte](docs/captures/salle-attente.png) |
 
-| Course en cours | Résultats |
+| Course « La mine » | Résultats |
 | --- | --- |
-| ![Course : zone de frappe, MPM et précision en direct, piste avec les bots et annonces de bonus](docs/captures/course.png) | ![Résultats : podium, tableau complet, courbes de MPM et carte de chaleur du clavier](docs/captures/resultats.png) |
+| ![Course : texte à taper, vitesse et précision en direct, bonus annoncé, mineurs qui courent vers le diamant](docs/captures/course.png) | ![Résultats : place, XP gagnée, podium et classement complet de la course](docs/captures/resultats.png) |
 
-| Profil et historique | Classement |
+| Profil | Classement |
 | --- | --- |
-| ![Profil : statistiques, progression du MPM, touches à travailler et historique](docs/captures/profil.png) | ![Classement général et classes de la semaine](docs/captures/classement.png) |
+| ![Profil : tuiles de stats, progression du MPM et touches à travailler](docs/captures/profil.png) | ![Classement : les cinq classes, la classe de la semaine et ses prix](docs/captures/classement.png) |
 
 | Inventaire (fonctionnalité ajoutée) |
 | --- |
-| ![Inventaire : armure, fabrication 3 × 3, four et table d'enchantement](docs/captures/inventaire.png) |
+| ![Inventaire : personnage avec la lettre du pseudo, cases d'armure, sac et poubelle](docs/captures/inventaire.png) |
 
 ## Stack
 
