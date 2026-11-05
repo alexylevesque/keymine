@@ -934,9 +934,9 @@ body {
     background: #4a4252;
   }
 
+  /* Objet enchanté : légère lueur fixe ; le reflet qui passe dessus est sur la case (.inv-ench). */
   .item-glow {
-    filter: drop-shadow(0 0 2px #b45cff) drop-shadow(0 0 4px #c77dff);
-    animation: item-glow 1.4s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 2px #b45cff);
   }
 
   @keyframes item-glow {
@@ -3835,15 +3835,174 @@ a.lobby-row:hover .lobby-go {
   inset: 0 auto 0 0;
   background: #f0b429;
 }
-.inv-next {
-  animation: inv-aura 1.4s steps(2) infinite;
+/* Enchanté (maquette) : un reflet violet en diagonale qui passe sur la case, en fondu, sans clignoter. */
+.inv-ench {
+  position: relative;
+  overflow: hidden;
 }
-@keyframes inv-aura {
-  50% {
-    box-shadow: 0 0 0 3px #c77dff;
+.inv-ench::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(199, 125, 255, 0.55) 45%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  animation: inv-glint 2.4s linear infinite;
+}
+@keyframes inv-glint {
+  0% {
+    background-position: 120% 0;
   }
+  100% {
+    background-position: -120% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inv-ench::before {
+    animation: none;
+  }
+}
+/* Messages de l'inventaire : bandeau sombre bordé d'or (comme les achats de la boutique). */
+.inv-toast {
+  padding: 12px 16px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: #f1e6c9;
+  background: #1b1209;
+  border: 4px solid #000;
+  border-left: 10px solid #f0b429;
+  box-shadow: 6px 6px 0 #000;
+}
+.inv-toast-err {
+  border-left-color: #b0281c;
+  color: #f39a8c;
 }
 .inv-dark .text-\[\#2b2b2b\],
 .inv-dark .text-\[\#3a3a3a\] {
   color: #cdbf9c;
+}
+
+/* Replay de la course : place à chaque 10 % du texte (maquette). */
+.replay-chart {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 96px;
+  grid-template-rows: 260px auto;
+  gap: 8px 14px;
+  padding: 24px 0 8px;
+}
+.replay-xax {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  text-align: center;
+  font-size: 16px;
+  color: #a8966e;
+}
+.replay-bump {
+  stroke-dasharray: 1400;
+  stroke-dashoffset: 1400;
+  animation: replay-draw 1.8s steps(18) forwards;
+}
+.replay-bump.replay-me {
+  animation-delay: 0.4s;
+}
+@keyframes replay-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.replay-pt {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -10px 0 0 -10px;
+  border: 3px solid #000;
+  transition: transform 0.08s steps(2);
+}
+.replay-ptme {
+  z-index: 2;
+}
+.replay-pt:hover {
+  z-index: 3;
+  transform: scale(1.4);
+}
+.replay-pt::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  font-size: 19px;
+  white-space: nowrap;
+  color: #fff;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+.replay-pt:hover::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .replay-bump {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+.hist-dots {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  margin: 4px 0;
+}
+.hist-dots span {
+  aspect-ratio: 1;
+  background: #5e9c3a;
+  border: 2px solid #000;
+}
+.hist-dots [data-kind="win"] {
+  background: #f0b429;
+}
+.hist-dots [data-kind="abandoned"] {
+  background: #b0281c;
+}
+.hist-dots [data-kind="spectated"] {
+  background: #2b5c7a;
+}
+.prof-week {
+  display: flex;
+  gap: 3px;
+  margin: 6px 0;
+}
+.prof-week span {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  font-size: 15px;
+  color: #5a4632;
+  background: #2b1e13;
+  border: 2px solid #000;
+}
+.prof-week span[data-on="true"] {
+  color: #fff;
+  background: #c97a2a;
+  animation: prof-fire 1s steps(2) infinite;
+}
+@keyframes prof-fire {
+  50% {
+    background: #f0b429;
+    color: #1b1209;
+  }
+}
+.prof-bars {
+  height: 26px;
+  margin-top: 6px;
 }

@@ -4,6 +4,8 @@ import { PixelAvatar, PixelKeyboard } from "@/components/ui";
 import { identicon } from "@/lib/identicon";
 import { levelFromXp } from "@/lib/xp";
 import { weakestKeys } from "@/lib/weak-keys";
+import { loadHistoryTiles } from "@/lib/history-tiles";
+import { TileBars, runningAverage } from "@/components/history/TileBars";
 import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { loadHistory } from "@/lib/history";
 import { loadProfileStats } from "@/lib/stats";
@@ -22,6 +24,16 @@ import { heatmapRowsFromCounts } from "@/lib/heatmap";
 
 // Nombre de courses récentes affichées dans Stats ; la page Historique les montre toutes.
 const RECENT_RACES = 5;
+
+const DAY_KEYS = [
+  "day.mon",
+  "day.tue",
+  "day.wed",
+  "day.thu",
+  "day.fri",
+  "day.sat",
+  "day.sun",
+] as const;
 
 /** Couleur de la pastille de chaque classe (bronze → netherite). */
 const LEAGUE_COLOR = ["#9a6b3a", "#8b8b8b", "#f0b429", "#45cfc8", "#4a3f4a"];
@@ -48,7 +60,10 @@ export default async function ProfilPage() {
   const user = await db.query.users.findFirst({ where: eq(users.id, identity.userId) });
   if (!user) throw new Error("compte introuvable");
 
-  const stats = await loadProfileStats(identity.userId);
+  const [stats, tiles] = await Promise.all([
+    loadProfileStats(identity.userId),
+    loadHistoryTiles(identity.userId),
+  ]);
 
   const keyRows = await db.query.keyStats.findMany({
     columns: { char: true, correct_count: true, error_count: true },
@@ -89,8 +104,6 @@ export default async function ProfilPage() {
   const winPct = stats.races > 0 ? Math.round((stats.wins / stats.races) * 100) : 0;
   const weak = weakestKeys(keyRows, 3);
   const leagueName = t(`league.${user.league}` as DictKey);
-  const maxPt = Math.max(1, ...points.map((p) => p.wpm));
-  const lastBars = points.slice(-8);
   const streak = user.current_streak_days;
   const avatarColor = identicon(user.display_name).color;
 
@@ -159,17 +172,12 @@ export default async function ProfilPage() {
               <span className="hist-num text-[#f0b429]">
                 {formatNumber(lang, Math.round(stats.bestWpm))} <small>{t("race.wpm")}</small>
               </span>
-              <span className="prof-bars" aria-hidden="true">
-                {lastBars.map((p, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      height: `${Math.max(10, Math.round((p.wpm / maxPt) * 100))}%`,
-                      ...(i === lastBars.length - 1 ? { background: "#f0b429" } : {}),
-                    }}
-                  />
-                ))}
-              </span>
+              <TileBars values={tiles.recentWpm} last="#f0b429" />
+              {tiles.weekDelta != null && tiles.weekDelta > 0 && (
+                <span className="hist-more font-pixel">
+                  {t("profile.t_week", { delta: tiles.weekDelta })}
+                </span>
+              )}
             </Link>
             <Link href="/historique" className="hist-tile">
               <span className="font-pixel text-[8px] text-[#ffe08a]">{t("profile.average")}</span>
@@ -177,6 +185,14 @@ export default async function ProfilPage() {
                 {stats.avgWpm != null ? formatNumber(lang, Math.round(stats.avgWpm)) : "—"}{" "}
                 <small>{t("race.wpm")}</small>
               </span>
+              <TileBars values={runningAverage(tiles.recentWpm)} last="#7fc45a" />
+              {tiles.monthDelta != null && (
+                <span className="hist-more font-pixel">
+                  {t("hist.t_month", {
+                    delta: `${tiles.monthDelta >= 0 ? "+" : ""}${tiles.monthDelta}`,
+                  })}
+                </span>
+              )}
             </Link>
             <a href="#clavier" className="hist-tile">
               <span className="font-pixel text-[8px] text-[#ffe08a]">{t("profile.accuracy")}</span>
@@ -193,6 +209,11 @@ export default async function ProfilPage() {
             <Link href="/historique" className="hist-tile">
               <span className="font-pixel text-[8px] text-[#ffe08a]">{t("profile.races")}</span>
               <span className="hist-num">{formatNumber(lang, stats.races)}</span>
+              <span className="hist-dots" aria-hidden="true">
+                {tiles.dots.map((d, i) => (
+                  <span key={i} data-kind={d} />
+                ))}
+              </span>
               <span className="hist-more font-pixel">{t("profile.t_records")}</span>
             </Link>
             <Link href="/historique" className="hist-tile">
@@ -211,6 +232,13 @@ export default async function ProfilPage() {
               <span className="font-pixel text-[8px] text-[#ffe08a]">{t("profile.streak")}</span>
               <span className="hist-num">
                 {streak} <small>{streak > 1 ? t("profile.days") : t("profile.day")}</small>
+              </span>
+              <span className="prof-week" aria-label={t("profile.week_aria")}>
+                {DAY_KEYS.map((key, i) => (
+                  <span key={key} data-on={tiles.weekDays[i]}>
+                    {t(key)}
+                  </span>
+                ))}
               </span>
               <span className="hist-more font-pixel">
                 {t("profile.t_streak_sub", { next: streak + 1 })}

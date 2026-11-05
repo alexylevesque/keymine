@@ -27,7 +27,7 @@ export function QuickPlayButton({ className }: { className?: string }) {
         className={`home-play font-pixel ${className ?? ""}`}
       >
         {pending ? "..." : t("home.play")}
-        <PlayRunner color={color} />
+        <PlayRunner color={color} armored={viewer?.kind === "user"} />
       </button>
       {panel}
     </>

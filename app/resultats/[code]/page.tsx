@@ -5,8 +5,7 @@ import { participantName } from "@/lib/bot-name";
 import { PixelAvatar, PixelKeyboard } from "@/components/ui";
 import { ResultsActions } from "@/components/results/ResultsActions";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
-import { WpmChart } from "@/components/results/WpmChart";
-import { HIDDEN_FIRST_SECONDS } from "@/components/results/chart-config";
+import { ReplayChart } from "@/components/results/ReplayChart";
 import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
 import { heatmapRowsFromCounts } from "@/lib/heatmap";
@@ -451,19 +450,26 @@ export default async function ResultatsPage({
               label: t("res.tab_replay"),
               legend: t("res.tab_replay_legend"),
               content: (
-                <WpmChart
-                  title={t("res.chart")}
-                  description={t("res.chart_desc")}
-                  note={t("res.chart_note", { seconds: HIDDEN_FIRST_SECONDS })}
-                  showAllLabel={t("res.chart_show_all")}
-                  xLabel={t("res.chart_x")}
-                  yLabel={t("res.chart_y")}
+                <ReplayChart
+                  label={t("res.replay_aria")}
+                  placeLabel={(rank) =>
+                    (rank === 1 ? t("lb.place_1") : t("lb.place_n", { n: rank })).toUpperCase()
+                  }
+                  tipLabel={(name, pct, rank, wpm) =>
+                    t("res.replay_tip", {
+                      name,
+                      pct,
+                      place: rank === 1 ? t("lb.place_1") : t("lb.place_n", { n: rank }),
+                      wpm: wpm == null ? "—" : formatNumber(lang, Math.round(wpm)),
+                    })
+                  }
                   series={rows.map((r) => ({
                     id: r.id,
-                    name: `${participantName(t, r)} · ${formatNumber(lang, r.wpm)} ${t("race.wpm")}`,
-                    shortName: participantName(t, r),
-                    isBot: r.isBot,
+                    name: participantName(t, r),
                     isMe: r.ownerKey != null && r.ownerKey === myKey,
+                    rank: r.rank,
+                    progress: r.progress,
+                    textLength: r.textLength,
                     points: r.series,
                   }))}
                 />

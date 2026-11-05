@@ -4,7 +4,9 @@ import { HistoryControls } from "@/components/history/HistoryControls";
 import { PixelShell } from "@/components/PixelShell";
 import { PixelButton, PixelPanel } from "@/components/ui";
 import { peekIdentity } from "@/lib/auth/identity";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatPercent, localeOf } from "@/lib/format";
+import { loadHistoryTiles } from "@/lib/history-tiles";
+import { TileBars, runningAverage } from "@/components/history/TileBars";
 import { loadProfileStats } from "@/lib/stats";
 import {
   HISTORY_SECTIONS,
@@ -64,9 +66,10 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
     );
   }
 
-  const [history, stats] = await Promise.all([
+  const [history, stats, tiles] = await Promise.all([
     loadHistory(identity.userId, parseHistoryQuery(await searchParams)),
     loadProfileStats(identity.userId),
+    loadHistoryTiles(identity.userId),
   ]);
   const winPct = stats.races > 0 ? Math.round((stats.wins / stats.races) * 100) : 0;
 
@@ -92,6 +95,11 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
           <a href="#liste" className="hist-tile">
             <span className="font-pixel text-[8px] text-[#ffe08a]">{t("hist.t_races")}</span>
             <span className="hist-num">{formatNumber(lang, history.counts.all)}</span>
+            <span className="hist-dots" aria-hidden="true">
+              {tiles.dots.map((d, i) => (
+                <span key={i} data-kind={d} />
+              ))}
+            </span>
             <span className="hist-more font-pixel">
               {t("hist.t_races_sub", {
                 played: history.counts.played,
@@ -116,6 +124,16 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
             <span className="hist-num text-[#f0b429]">
               {formatNumber(lang, Math.round(stats.bestWpm))} <small>{t("race.wpm")}</small>
             </span>
+            <TileBars values={tiles.recentWpm} last="#f0b429" />
+            {tiles.bestAt && (
+              <span className="hist-more font-pixel">
+                {t("hist.t_best_sub", {
+                  date: new Intl.DateTimeFormat(localeOf(lang), { day: "numeric", month: "long" })
+                    .format(tiles.bestAt)
+                    .toUpperCase(),
+                })}
+              </span>
+            )}
           </a>
           <a href="#liste" className="hist-tile">
             <span className="font-pixel text-[8px] text-[#ffe08a]">{t("hist.t_avg")}</span>
@@ -123,11 +141,16 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
               {stats.avgWpm != null ? formatNumber(lang, Math.round(stats.avgWpm)) : "—"}{" "}
               <small>{t("race.wpm")}</small>
             </span>
-            {stats.avgAccuracy != null && (
-              <span className="hist-more font-pixel">
-                {t("hist.t_avg_sub", { acc: formatPercent(lang, Math.round(stats.avgAccuracy)) })}
-              </span>
-            )}
+            <TileBars values={runningAverage(tiles.recentWpm)} last="#7fc45a" />
+            <span className="hist-more font-pixel">
+              {tiles.monthDelta != null
+                ? t("hist.t_month", {
+                    delta: `${tiles.monthDelta >= 0 ? "+" : ""}${tiles.monthDelta}`,
+                  })
+                : stats.avgAccuracy != null
+                  ? t("hist.t_avg_sub", { acc: formatPercent(lang, Math.round(stats.avgAccuracy)) })
+                  : ""}
+            </span>
           </a>
         </div>
 

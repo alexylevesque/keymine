@@ -424,7 +424,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
                     : t("inv.active_title")
                 }
                 data-target={!!held}
-                className={`pixel-slot inv-slot flex h-full w-full items-center justify-center ${view.activeItem ? "inv-next" : ""}`}
+                className={`pixel-slot inv-slot flex h-full w-full items-center justify-center ${view.activeItem === "enchanted_golden_apple" ? "inv-ench" : ""}`}
               >
                 {view.activeItem ? (
                   <ItemIcon item={view.activeItem} className="h-3/4 w-3/4" />
@@ -692,9 +692,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
           >
             <p
               role={error ? "alert" : undefined}
-              className={`pixel-panel max-w-xl px-4 py-2 text-2xl leading-tight ${
-                error ? "text-[#9b3a2e]" : "text-[#23501a]"
-              }`}
+              className={`inv-toast max-w-xl ${error ? "inv-toast-err" : ""}`}
             >
               {error ?? notice}
             </p>
@@ -888,7 +886,11 @@ function InventorySlot({
         {...handlers}
         aria-label={t("inv.slot_label", { area: label, n: refKey.slot + 1, content })}
         data-target={target}
-        className="pixel-slot inv-slot flex h-full w-full items-center justify-center"
+        className={`pixel-slot inv-slot flex h-full w-full items-center justify-center ${
+          stack && (stack.enchants?.length || stack.item === "enchanted_golden_apple")
+            ? "inv-ench"
+            : ""
+        }`}
       >
         {stack ? (
           <ItemIcon
