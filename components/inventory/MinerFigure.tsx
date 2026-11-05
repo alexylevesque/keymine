@@ -76,6 +76,12 @@ const PARTS = {
 
 export type FigurePart = keyof typeof PARTS;
 
+/** Forme d'une pièce, en masque CSS : le reflet enchanté ne passe que sur l'armure. */
+function partMask(part: FigurePart): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 32" shape-rendering="crispEdges">${PARTS[part].replace(/fill="[^"]+"/g, 'fill="#000"')}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 /** Filtre de couleur par matériau (la netherite garde ses couleurs d'origine). */
 const MATERIAL_FILTER: Record<string, string> = {
   leather: "sepia(1) saturate(2.2) brightness(1.6)",
@@ -98,7 +104,10 @@ export function MinerFigure({
   worn,
   label,
   name,
+  enchanted = {},
 }: {
+  /** Pièces enchantées : un reflet violet passe dessus, comme sur leur case. */
+  enchanted?: Partial<Record<FigurePart, boolean>>;
   /** Pseudo du joueur : sa première lettre est dessinée sur le torse. */
   name: string;
   /** Couleur de l'avatar du joueur. */
@@ -124,17 +133,23 @@ export function MinerFigure({
       />
       {(Object.keys(PARTS) as FigurePart[]).map((part) =>
         worn[part] ? (
-          <svg
-            key={part}
-            className="inv-fig inv-fig-part"
-            viewBox="0 0 16 32"
-            shapeRendering="crispEdges"
-            style={{
-              filter: `${MATERIAL_FILTER[worn[part]!] ?? "none"} drop-shadow(0 0 0 transparent)`,
-            }}
-            aria-hidden="true"
-            dangerouslySetInnerHTML={{ __html: PARTS[part] }}
-          />
+          <span key={part}>
+            <svg
+              className="inv-fig inv-fig-part"
+              viewBox="0 0 16 32"
+              shapeRendering="crispEdges"
+              style={{ filter: MATERIAL_FILTER[worn[part]!] ?? "none" }}
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: PARTS[part] }}
+            />
+            {enchanted[part] && (
+              <span
+                className="inv-fig-glint"
+                aria-hidden="true"
+                style={{ maskImage: partMask(part), WebkitMaskImage: partMask(part) }}
+              />
+            )}
+          </span>
         ) : null,
       )}
       <span className="inv-shadow" aria-hidden="true" />

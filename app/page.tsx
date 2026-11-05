@@ -13,6 +13,7 @@ import { translate, type DictKey } from "@/lib/i18n-dictionary";
 import { loadWeek } from "@/lib/leaderboard";
 import { leagueMoves, MIN_WINS, weekStart } from "@/lib/league";
 import { weakestKeys } from "@/lib/weak-keys";
+import { loadWornArmor } from "@/lib/armor-worn";
 
 export const dynamic = "force-dynamic";
 
@@ -70,11 +71,14 @@ async function getTiles() {
 }
 
 export default async function Home() {
-  const [lobbies, tiles, lang] = await Promise.all([
+  const identity = await peekIdentity();
+  const [lobbies, tiles, lang, wornMap] = await Promise.all([
     listPublicLobbies(),
     getTiles(),
     getRequestLang(),
+    identity?.kind === "user" ? loadWornArmor([identity.userId]) : Promise.resolve(null),
   ]);
+  const worn = identity?.kind === "user" ? (wornMap?.get(identity.userId) ?? {}) : {};
   const t = (key: DictKey, params?: Record<string, string | number>) =>
     translate(lang, key, params);
   const maxBar = tiles ? Math.max(1, ...tiles.bars) : 1;
@@ -97,7 +101,7 @@ export default async function Home() {
             {t("home.subtitle")}
           </p>
 
-          <QuickPlayButton />
+          <QuickPlayButton worn={worn} />
 
           <JoinByCodeForm />
 

@@ -17,6 +17,7 @@ import { ItemIcon } from "@/components/items/ItemIcon";
 import { InfoButton, ItemInfoDialog } from "@/components/items/ItemInfoDialog";
 import { PixelButton, PixelDisclosure } from "@/components/ui";
 import { MinerFigure, type FigurePart } from "./MinerFigure";
+import { FurnaceFire } from "./FurnaceFire";
 import { identicon } from "@/lib/identicon";
 import { useViewer } from "@/lib/viewer";
 import { formatPercent } from "@/lib/format";
@@ -320,9 +321,11 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
   };
 
   const worn: Partial<Record<FigurePart, string>> = {};
+  const enchantedParts: Partial<Record<FigurePart, boolean>> = {};
   ARMOR_PARTS.forEach((part, i) => {
     const piece = inv.armor[i];
     if (piece) worn[part] = piece.item.split("_")[0]!;
+    if (piece?.enchants?.length) enchantedParts[part] = true;
   });
   const bagUsed = inv.bag.filter(Boolean).length;
   const figureColor = viewer ? identicon(viewer.name).color : "#b0281c";
@@ -387,6 +390,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
             <MinerFigure
               color={figureColor}
               worn={worn}
+              enchanted={enchantedParts}
               label={t("inv.figure")}
               name={viewer?.name ?? "K"}
             />
@@ -557,11 +561,9 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               <div className="flex flex-wrap items-center gap-4">
                 <div className="grid gap-1">
                   <div className="w-14">{slot({ area: "furnace_in", slot: 0 })}</div>
-                  <span
-                    aria-hidden="true"
-                    className="pixel-flame mx-auto"
-                    data-on={view.furnaceActive}
-                  />
+                  <span className="mx-auto">
+                    <FurnaceFire on={view.furnaceActive} />
+                  </span>
                   <div className="w-14">{slot({ area: "furnace_fuel", slot: 0 })}</div>
                 </div>
                 <span

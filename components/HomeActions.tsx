@@ -7,10 +7,18 @@ import { useRoomEntry } from "./useRoomEntry";
 import { PlayRunner } from "./home/PlayRunner";
 import { useLanguage } from "@/lib/i18n";
 import { useViewer } from "@/lib/viewer";
+import type { WornArmor } from "@/lib/armor-look";
 import { identicon } from "@/lib/identicon";
 
 /** JOIN-03: bouton « Faire une course » (partie rapide). */
-export function QuickPlayButton({ className }: { className?: string }) {
+export function QuickPlayButton({
+  className,
+  worn = {},
+}: {
+  className?: string;
+  /** Armure que le joueur porte (vide pour un invité). */
+  worn?: WornArmor;
+}) {
   const router = useRouter();
   const { t } = useLanguage();
   const { run, pending, panel } = useRoomEntry((code) => router.push(`/jouer/${code}`));
@@ -27,7 +35,7 @@ export function QuickPlayButton({ className }: { className?: string }) {
         className={`home-play font-pixel ${className ?? ""}`}
       >
         {pending ? "..." : t("home.play")}
-        <PlayRunner color={color} armored={viewer?.kind === "user"} />
+        <PlayRunner color={color} worn={worn} />
       </button>
       {panel}
     </>

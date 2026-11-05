@@ -5,6 +5,8 @@ import { raceParticipants, races } from "@/db/schema";
 import { getIdentity } from "@/lib/auth/identity";
 import { getLobbyByCode } from "@/lib/lobby";
 import { msg } from "@/lib/api-messages";
+import { loadWornArmor } from "@/lib/armor-worn";
+import type { WornArmor } from "@/lib/armor-look";
 
 // Donne au client tout ce qu'il faut pour afficher /course/[code]: le texte
 // de la course (même texte pour tous, TXT-8), et lequel des participants
@@ -37,7 +39,22 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     ),
   });
 
+  // Armure portée par chaque joueur (comptes seulement) : les mineurs de la piste la montrent.
+  const participants = await db.query.raceParticipants.findMany({
+    columns: { id: true, user_id: true },
+    where: eq(raceParticipants.race_id, race.id),
+  });
+  const wornByUser = await loadWornArmor(
+    participants.flatMap((p) => (p.user_id ? [p.user_id] : [])),
+  );
+  const armor: Record<string, WornArmor> = {};
+  for (const p of participants) {
+    const worn = p.user_id ? wornByUser.get(p.user_id) : undefined;
+    if (worn) armor[p.id] = worn;
+  }
+
   return NextResponse.json({
+    armor,
     race: {
       id: race.id,
       textContent: race.text_content,

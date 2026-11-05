@@ -4315,3 +4315,88 @@ a.lobby-row:hover .lobby-go {
 .res-cols {
   grid-template-columns: 36px minmax(0, 1fr) 52px 72px 120px 74px 200px;
 }
+
+/* Armure enchantée sur le personnage : le même reflet violet que sur les cases, en forme de la pièce. */
+.inv-fig-glint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 128px;
+  height: 256px;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(199, 125, 255, 0.6) 45%,
+    transparent 60%
+  );
+  background-size: 300% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  animation: inv-glint 2.4s linear infinite;
+}
+
+/* Feu du four (maquette). */
+.inv-fire {
+  position: relative;
+  display: block;
+  width: 56px;
+  height: 64px;
+}
+.inv-fire svg {
+  position: absolute;
+  inset: 0;
+  width: 56px;
+  height: 64px;
+}
+.inv-fire[data-on="true"] .fb {
+  animation: home-fswap 0.5s steps(1) infinite;
+}
+.inv-fire[data-on="true"] .fa {
+  animation: home-fswap 0.5s steps(1) infinite reverse;
+}
+.inv-fire[data-on="false"] svg {
+  filter: grayscale(1) brightness(0.45);
+}
+.inv-fire[data-on="false"] .fb {
+  display: none;
+}
+.inv-fire i {
+  position: absolute;
+  bottom: 20px;
+  width: 4px;
+  height: 4px;
+  background: #ffe08a;
+  opacity: 0;
+}
+.inv-fire[data-on="true"] i {
+  animation: inv-spark 1.2s steps(6) infinite;
+}
+.inv-fire i:nth-of-type(1) {
+  left: 16px;
+}
+.inv-fire i:nth-of-type(2) {
+  left: 30px;
+  animation-delay: 0.4s;
+}
+.inv-fire i:nth-of-type(3) {
+  left: 40px;
+  animation-delay: 0.8s;
+}
+@keyframes inv-spark {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inv-fig-glint,
+  .inv-fire svg,
+  .inv-fire i {
+    animation: none;
+  }
+}

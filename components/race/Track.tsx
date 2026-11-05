@@ -4,6 +4,7 @@ import { Crown } from "@/components/leaderboard/badges";
 import { useState, useSyncExternalStore } from "react";
 import { identicon } from "@/lib/identicon";
 import { Diamond, Miner } from "./MinePixels";
+import type { WornArmor } from "@/lib/armor-look";
 import { participantName } from "@/lib/bot-name";
 import { useLanguage } from "@/lib/i18n";
 import type { RaceParticipantView } from "./types";
@@ -33,7 +34,10 @@ export function Track({
   participants,
   meId,
   showBotLabel,
+  armor = {},
 }: {
+  /** Armure portée par chaque participant (rien pour les invités et les bots). */
+  armor?: Record<string, WornArmor>;
   participants: RaceParticipantView[];
   meId: string | null;
   showBotLabel: string;
@@ -106,7 +110,7 @@ export function Track({
                   className={`mine-runner ${moving ? "" : "mine-still"}`}
                   style={{ left: `clamp(36px, ${left}, calc(100% - 56px))` }}
                 >
-                  <Miner color={color} speed={speed} />
+                  <Miner color={color} speed={speed} worn={armor[p.id]} />
                   {isMe && (
                     // Le badge de rang suit le mineur ; `key` relance l'animation à chaque dépassement.
                     <span

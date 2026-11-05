@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Track } from "@/components/race/Track";
+import type { WornArmor } from "@/lib/armor-look";
 import { LanguageSelect } from "@/components/LanguageSelect";
 import Image from "next/image";
 import logoRond from "@/public/logo-rond.png";
@@ -35,6 +36,8 @@ type RaceInfo = {
   errorMode: "accumuler" | "bloquer";
   meId: string | null;
   role: "participant" | "spectator" | null;
+  /** Armure portée par chaque participant (identifiant de participant → matériaux). */
+  armor: Record<string, WornArmor>;
 };
 
 type Typed = {
@@ -115,6 +118,7 @@ export default function CoursePage() {
           errorMode: data.lobby.errorMode,
           meId: data.me?.participantId ?? null,
           role: data.me?.role ?? null,
+          armor: data.armor ?? {},
         });
       })
       .catch(() => !cancelled && setLoadError(t("race.error")));
