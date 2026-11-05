@@ -1,7 +1,7 @@
 "use client";
 
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
-import { PixelButton, PixelPanel } from "@/components/ui";
+import { PixelButton } from "@/components/ui";
 import { HistoryIcon } from "@/components/history/icons";
 import type { LobbyView } from "@/lib/lobby-snapshot";
 import { useLanguage } from "@/lib/i18n";
@@ -75,14 +75,14 @@ export function HostSettingsEditor({
   return (
     <div className="pixel-unfold mb-6" data-testid="settings-editor">
       <div className="pixel-unfold-inner">
-        <PixelPanel className="p-5">
+        <div className="ui-dark lobby-panel p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="font-pixel text-sm text-[#2b2b2b]">{t("set.edit_title")}</h2>
+            <h2 className="font-pixel text-sm text-white">{t("set.edit_title")}</h2>
             <button
               type="button"
               onClick={requestClose}
               aria-label={t("set.close")}
-              className="pixel-chip flex h-9 w-9 items-center justify-center"
+              className="shell-btn flex h-9 w-9 items-center justify-center"
             >
               <HistoryIcon name="close" />
             </button>
@@ -90,22 +90,20 @@ export function HostSettingsEditor({
           <SettingsForm
             value={value}
             requireName
-            layout="stacked"
+            compact
+            layout="numbered"
             onChange={(patch) => {
               setError(null);
               setValue((prev) => ({ ...prev, ...patch }));
             }}
           />
           {error && (
-            <p
-              role="alert"
-              className="mt-4 border-4 border-black bg-[#f39a8c] px-3.5 py-2.5 text-xl text-black"
-            >
+            <p role="alert" className="inv-toast inv-toast-err mt-4">
               {error}
             </p>
           )}
           <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-            {dirty && <span className="mr-auto text-xl text-[#3a3a3a]">{t("set.unsaved")}</span>}
+            {dirty && <span className="mr-auto text-xl text-[#ffe08a]">{t("set.unsaved")}</span>}
             <PixelButton variant="slate" onClick={requestClose} className="h-12 px-5 text-[11px]">
               {t("set.close")}
             </PixelButton>
@@ -118,7 +116,7 @@ export function HostSettingsEditor({
               {saving ? "..." : t("set.save")}
             </PixelButton>
           </div>
-        </PixelPanel>
+        </div>
       </div>
 
       <dialog

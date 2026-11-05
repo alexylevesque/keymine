@@ -39,6 +39,7 @@ export default function LobbyPage() {
   const [entered, setEntered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
   const editor = useRef<HostSettingsEditorHandle>(null);
   const joined = useRef(false);
   const { run, panel } = useRoomEntry(() => setEntered(true), { leaveToHome: true });
@@ -110,8 +111,21 @@ export default function LobbyPage() {
   }
 
   async function closeLobby() {
-    await fetch(`/api/lobbies/${code}`, { method: "DELETE" });
-    router.push("/");
+    setClosing(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/lobbies/${code}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(data?.error ?? t("err.generic"));
+        setClosing(false);
+        return;
+      }
+      router.push("/");
+    } catch {
+      setError(t("err.network"));
+      setClosing(false);
+    }
   }
 
   const participants = players.filter((p) => p.role === "participant");
@@ -432,8 +446,9 @@ export default function LobbyPage() {
             {lobby?.isHost && (
               <button
                 type="button"
-                onClick={closeLobby}
-                className="room-danger font-pixel self-center"
+                onClick={() => void closeLobby()}
+                disabled={closing}
+                className="room-close font-pixel"
               >
                 {t("lobby.close")}
               </button>

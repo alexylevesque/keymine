@@ -670,7 +670,7 @@ export const DICTIONARY = {
     "lobbies.in_progress": "EN COURSE",
     "lobbies.offline": "Mise à jour impossible pour l'instant, nouvel essai en cours…",
     "lobbies.empty":
-      "Aucune salle publique ne correspond. Lance la première avec « Créer une course » !",
+      "Aucune salle publique ne correspond. Lance la première avec « + Créer une salle » !",
     "nav.inventaire": "INVENTAIRE",
     "nav.boutique": "BOUTIQUE",
     "title.inventory": "Inventaire",
@@ -1622,7 +1622,7 @@ export const DICTIONARY = {
     "lobbies.full": "FULL",
     "lobbies.in_progress": "RACING",
     "lobbies.offline": "Cannot refresh right now, retrying…",
-    "lobbies.empty": 'No public room matches. Start the first one with "Create a race"!',
+    "lobbies.empty": 'No public room matches. Start the first one with "+ Create a room"!',
     "nav.inventaire": "INVENTORY",
     "nav.boutique": "SHOP",
     "title.inventory": "Inventory",

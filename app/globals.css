@@ -4400,3 +4400,88 @@ a.lobby-row:hover .lobby-go {
     animation: none;
   }
 }
+
+/* --- Thème sombre : tous les anciens panneaux gris et boutons au style des maquettes ---
+   (fenêtres « aucune salle », « déjà dans une salle », confirmations, pseudo d'invité…). */
+:root:not([data-theme="light"]) .pixel-panel {
+  background: #1b1209;
+  color: #f1e6c9;
+  border: 4px solid #000;
+  outline: none;
+  box-shadow: 8px 8px 0 #000;
+}
+:root:not([data-theme="light"])
+  .pixel-panel
+  :is(.text-\[\#2b2b2b\], .text-\[\#3a3a3a\], .text-\[\#1b1b1b\]) {
+  color: #cdbf9c;
+}
+:root:not([data-theme="light"]) .pixel-panel :is(h2, h3).font-pixel {
+  color: #fff;
+}
+:root:not([data-theme="light"]) .pixel-panel .text-\[\#9b3a2e\],
+:root:not([data-theme="light"]) .pixel-panel .text-\[\#9b2d20\] {
+  color: #f39a8c;
+}
+:root:not([data-theme="light"]) .pixel-panel .pixel-slot,
+:root:not([data-theme="light"]) .pixel-panel input.pixel-slot {
+  background: #3b2a1a;
+  color: #f1e6c9;
+  border: 0;
+  box-shadow:
+    inset 3px 3px 0 #1b1209,
+    inset -3px -3px 0 #5a4632;
+}
+:root:not([data-theme="light"]) .pixel-btn {
+  outline: none;
+  border: 4px solid #000;
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 0.08s steps(2);
+}
+:root:not([data-theme="light"]) .pixel-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  transform: translate(-2px, -2px);
+  box-shadow:
+    inset 3px 3px 0 rgba(255, 255, 255, 0.35),
+    inset -4px -4px 0 rgba(0, 0, 0, 0.35),
+    4px 4px 0 #000;
+}
+:root:not([data-theme="light"]) .pixel-btn[data-variant="slate"] {
+  background: #3b2a1a;
+  color: #f1e6c9;
+}
+:root:not([data-theme="light"]) .pixel-btn[data-variant="green"] {
+  background: #3f7d24;
+  color: #fff;
+}
+:root:not([data-theme="light"]) .pixel-btn[data-variant="gold"] {
+  background: #f0b429;
+  color: #1b1209;
+  text-shadow: none;
+}
+:root:not([data-theme="light"]) .pixel-btn[data-variant="red"] {
+  background: #b0281c;
+  color: #fff;
+}
+
+/* Bouton FERMER LA SALLE : vrai bouton pixel, texte rouge, rouge plein au survol. */
+.room-close {
+  align-self: center;
+  height: 44px;
+  padding: 0 16px;
+  font-size: 10px;
+  color: #f39a8c;
+  background: #2b1e13;
+  border: 3px solid #5a4632;
+  transition: transform 0.08s steps(2);
+}
+.room-close:hover:not(:disabled) {
+  color: #fff;
+  background: #b0281c;
+  border-color: #000;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000;
+}
+.room-close:disabled {
+  opacity: 0.5;
+}

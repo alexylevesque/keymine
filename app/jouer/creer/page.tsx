@@ -24,7 +24,7 @@ export default async function CreerCoursePage() {
       {current ? (
         <>
           <h1 className="font-pixel mb-6 text-xl text-white [text-shadow:4px_4px_0_#000]">
-            {translate(lang, "create.title")}
+            {translate(lang, "create.title_room")}
           </h1>
           <AlreadyInRoom code={current.code} />
         </>
