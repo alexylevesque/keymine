@@ -6,7 +6,7 @@ import { PASSWORD, registerViaApi, uniqueName } from "./helpers";
 test("créer un compte, se déconnecter, se reconnecter", async ({ page }) => {
   const username = uniqueName("e2e");
   await page.goto("/connexion");
-  await page.getByRole("button", { name: "CREER UN COMPTE" }).first().click();
+  await page.getByRole("tab", { name: "CREER UN COMPTE" }).click();
   await page.getByLabel("NOM D'UTILISATEUR").fill(username);
   await page.getByLabel("MOT DE PASSE").fill(PASSWORD);
   await page.getByRole("button", { name: "CREER LE COMPTE" }).click();
@@ -75,6 +75,8 @@ test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jo
     .png()
     .toBuffer();
 
+  // L'éditeur du profil est replié : on l'ouvre.
+  await page.getByText("MODIFIER LE PSEUDO OU LA PHOTO").click();
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "CHANGER LA PHOTO" }).click();
   await (await chooser).setFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
@@ -98,6 +100,7 @@ test("le bouton « CHANGER LA PHOTO » ouvre le sélecteur et met la photo à jo
   await expect(page.locator("main [data-avatar]").first()).toHaveAttribute("data-avatar", "photo");
   await page.request.post(`/api/lobbies/${code}/leave`);
   await page.goto("/profil");
+  await page.getByText("MODIFIER LE PSEUDO OU LA PHOTO").click();
 
   // Retirer la photo ramène l'avatar généré.
   await page.getByRole("button", { name: "Retirer la photo" }).click();
@@ -110,14 +113,28 @@ test("un fichier déguisé ou trop lourd est refusé par le serveur (SEC-02)", a
   const upload = (name: string, mimeType: string, buffer: Buffer) =>
     page.request.post("/api/profile/avatar", { multipart: { file: { name, mimeType, buffer } } });
 
-  const fake = await upload("photo.png", "image/png", Buffer.from("<script>alert(1)</script>".repeat(10)));
+  const fake = await upload(
+    "photo.png",
+    "image/png",
+    Buffer.from("<script>alert(1)</script>".repeat(10)),
+  );
   expect(fake.status()).toBe(415);
 
-  const gif = await upload("anim.png", "image/png", Buffer.from("GIF89a\x01\x00\x01\x00\x00\x00\x00;", "binary"));
+  const gif = await upload(
+    "anim.png",
+    "image/png",
+    Buffer.from("GIF89a\x01\x00\x01\x00\x00\x00\x00;", "binary"),
+  );
   expect(gif.status()).toBe(415);
 
-  const big = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#000" } }).png().toBuffer();
-  const tooLarge = await upload("lourd.png", "image/png", Buffer.concat([big, Buffer.alloc(2 * 1024 * 1024)]));
+  const big = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#000" } })
+    .png()
+    .toBuffer();
+  const tooLarge = await upload(
+    "lourd.png",
+    "image/png",
+    Buffer.concat([big, Buffer.alloc(2 * 1024 * 1024)]),
+  );
   expect(tooLarge.status()).toBe(413);
 
   const missing = await page.request.post("/api/profile/avatar", { multipart: { autre: "x" } });
@@ -129,6 +146,7 @@ test("changer son pseudonyme depuis le profil (AUTH-05)", async ({ page }) => {
   await registerViaApi(page.request, "renom");
   await page.goto("/profil");
   const newName = uniqueName("Nouv");
+  await page.getByText("MODIFIER LE PSEUDO OU LA PHOTO").click();
   await page.getByLabel("PSEUDONYME").fill(newName);
   await page.getByRole("button", { name: "OK", exact: true }).click();
   await expect(page.getByText("Pseudonyme enregistré.")).toBeVisible();
@@ -153,5 +171,7 @@ test("les erreurs OAuth sont traduites et un texte libre dans l'URL n'est jamais
   // Sans identifiants OAuth (environnement de test), le bouton renvoie un code d'erreur connu.
   const res = await page.request.get("/api/auth/discord/start", { maxRedirects: 0 });
   expect(res.status()).toBeGreaterThanOrEqual(300);
-  expect(res.headers()["location"]).toContain("/connexion?error=oauth_not_configured&provider=discord");
+  expect(res.headers()["location"]).toContain(
+    "/connexion?error=oauth_not_configured&provider=discord",
+  );
 });

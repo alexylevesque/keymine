@@ -22,7 +22,10 @@ export async function guestViaApi(request: APIRequestContext, pseudo: string) {
 }
 
 /** Crée une salle (compte connecté) et renvoie son code. */
-export async function createRoomViaApi(request: APIRequestContext, settings: Record<string, unknown> = {}) {
+export async function createRoomViaApi(
+  request: APIRequestContext,
+  settings: Record<string, unknown> = {},
+) {
   const res = await request.post("/api/lobbies", {
     data: { access: "public", durationSeconds: 60, textLength: 10, language: "fr", ...settings },
   });
@@ -36,7 +39,11 @@ export async function addBotViaApi(request: APIRequestContext, code: string, lev
 }
 
 /** Un second joueur (nouveau contexte de navigateur) qui entre dans la salle comme invité. */
-export async function joinAsGuest(context: BrowserContext, code: string, pseudo: string): Promise<Page> {
+export async function joinAsGuest(
+  context: BrowserContext,
+  code: string,
+  pseudo: string,
+): Promise<Page> {
   const page = await context.newPage();
   await page.goto(`/jouer/${code}`);
   await page.getByLabel("Pseudonyme").fill(pseudo);

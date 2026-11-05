@@ -1203,7 +1203,9 @@ html,
     .pixel-panel *,
     .pixel-slot *,
     .pixel-btn *,
-    .pixel-dark *
+    .pixel-dark *,
+    #nom,
+    #res-title
   ) {
   color: #2b1e13;
   text-shadow: none;
@@ -1990,7 +1992,7 @@ a.lobby-row:hover .lobby-go {
   justify-content: center;
   min-height: 72px;
   border: 3px dashed #3b2a1a;
-  color: #5a4632;
+  color: #937f5e;
   transition:
     color 0.1s steps(2),
     border-color 0.1s steps(2);
@@ -3630,7 +3632,7 @@ a.lobby-row:hover .lobby-go {
 }
 .lb-lgn {
   font-size: 8px;
-  color: #5a4632;
+  color: #937f5e;
 }
 .lb-done .lb-lgn {
   color: #a8966e;
@@ -4568,5 +4570,20 @@ a.lobby-row:hover .lobby-go {
   .km-navbar {
     animation: none;
     width: 60%;
+  }
+}
+
+/* Moins de mouvement demandé : les cartes, lignes et tuiles apparaissent directement (sans fondu). */
+@media (prefers-reduced-motion: reduce) {
+  .hist-tile,
+  .home-tile,
+  .lobby-row,
+  .lb-row,
+  .room-pcard,
+  .room-free,
+  .km-pop,
+  .res-row,
+  .prof-tile {
+    animation: none !important;
   }
 }

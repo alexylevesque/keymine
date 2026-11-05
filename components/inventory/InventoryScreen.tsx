@@ -401,26 +401,29 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
               <dt className="font-pixel text-[7px] text-[#ffe08a]">{t("inv.dodge")}</dt>
               <dd className="text-[30px] leading-none">
                 {formatPercent(lang, loadout.dodge * 100)}
+                <span className="inv-statb">
+                  <span
+                    style={{
+                      width: `${Math.min(100, loadout.dodge * 200)}%`,
+                      background: "#45cfc8",
+                    }}
+                  />
+                </span>
               </dd>
-              <span className="inv-statb">
-                <span
-                  style={{ width: `${Math.min(100, loadout.dodge * 200)}%`, background: "#45cfc8" }}
-                />
-              </span>
             </div>
             <div className="flex-1">
               <dt className="font-pixel text-[7px] text-[#ffe08a]">{t("inv.xp_bonus")}</dt>
               <dd className="text-[30px] leading-none">
                 +{formatPercent(lang, loadout.xpBonus * 100)}
+                <span className="inv-statb">
+                  <span
+                    style={{
+                      width: `${Math.min(100, loadout.xpBonus * 333)}%`,
+                      background: "#7fc45a",
+                    }}
+                  />
+                </span>
               </dd>
-              <span className="inv-statb">
-                <span
-                  style={{
-                    width: `${Math.min(100, loadout.xpBonus * 333)}%`,
-                    background: "#7fc45a",
-                  }}
-                />
-              </span>
             </div>
           </dl>
           <div className="flex items-center gap-3.5 border-t-2 border-[#3b2a1a] px-5 py-4">
@@ -469,7 +472,7 @@ export function InventoryScreen({ initial }: { initial: InventoryView }) {
             <h2 id="sac" className="font-pixel text-[11px] text-white">
               {t("inv.bag")}
             </h2>
-            <span className="flex items-center gap-2.5 text-xl text-[#e8dcb8]">
+            <span className="flex items-center gap-2.5 text-xl text-white">
               <span className="inv-cap" aria-hidden="true">
                 <span style={{ width: `${(bagUsed / 27) * 100}%` }} />
               </span>

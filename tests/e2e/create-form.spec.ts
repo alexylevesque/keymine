@@ -14,7 +14,7 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
   await page.getByRole("button", { name: /^-3 MOTS/ }).click();
   await page.getByRole("button", { name: /^\+3 MOTS/ }).click();
 
-  await page.getByRole("button", { name: /ALEATOIRE/ }).click();
+  await page.getByRole("button", { name: "MOTS AU HASARD" }).click();
   // Réglages avancés du texte : repliés par défaut, rangés en onglets (refonte du 4 nov.).
   await page.getByText("PERSONNALISER").click();
   await page.getByRole("button", { name: "Ponctuation" }).click();
@@ -36,7 +36,7 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
   await symbols.getByRole("button", { name: /^' : / }).click({ clickCount: 2 });
 
   // Accents : cédille souvent, tréma jamais.
-  await page.getByRole("tab", { name: "TYPES D'ACCENTS" }).click();
+  await page.getByRole("tab", { name: "ACCENTS" }).click();
   const accents = page.getByRole("group", { name: "TYPES D'ACCENTS" });
   await accents.getByRole("button", { name: /^CEDILLE : / }).click();
   await accents.getByRole("button", { name: /^TREMA : / }).click({ clickCount: 2 });
@@ -65,22 +65,31 @@ test("le formulaire de création enregistre bonus, accents, lettres et symboles 
   });
 });
 
-test("décocher tous les types de bonus coupe l'interrupteur général", async ({ page }) => {
+test("décocher les trois bonus crée une salle sans bonus, et on peut les rallumer", async ({
+  page,
+}) => {
   await registerViaApi(page.request, "bonus");
   await page.goto("/jouer/creer");
-  const master = page.getByRole("checkbox", { name: "Bonus de remontée activés" });
-  await expect(master).toBeChecked();
-  for (const name of [/^-3 MOTS/, /^\+3 MOTS/, /^BROUILLARD/]) {
+  const names = [/^-3 MOTS/, /^\+3 MOTS/, /^BROUILLARD/];
+  for (const name of names) {
+    await expect(page.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
     await page.getByRole("button", { name }).click();
+    await expect(page.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
   }
-  await expect(master).not.toBeChecked();
-  await expect(page.getByRole("button", { name: /^BROUILLARD/ })).toBeDisabled();
-  await master.check();
-  await expect(page.getByRole("button", { name: /^BROUILLARD/ })).toBeEnabled();
-  await expect(page.getByRole("button", { name: /^-3 MOTS/ })).toHaveAttribute(
+  // Rallumer une carte la remet seule.
+  await page.getByRole("button", { name: /^BROUILLARD/ }).click();
+  await expect(page.getByRole("button", { name: /^BROUILLARD/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
+  await page.getByRole("button", { name: /^BROUILLARD/ }).click();
+
+  await page.getByRole("button", { name: "CONTINUER" }).click();
+  await page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" }).click();
+  await page.waitForURL(/\/jouer\/[A-Z0-9]{6}/);
+  const code = page.url().split("/").pop()!;
+  const lobby = await (await page.request.get(`/api/lobbies/${code}`)).json();
+  expect(lobby.lobby.comebackBonus && lobby.lobby.bonusKinds.length > 0).toBe(false);
 });
 
 test("en texte cohérent, tout est grisé : le passage est tapé tel qu'écrit (CONF-06, CONF-07)", async ({
@@ -102,7 +111,7 @@ test("en texte cohérent, tout est grisé : le passage est tapé tel qu'écrit (
   await expect(page.getByText("Vrais passages : le texte est tapé tel qu'écrit")).toBeVisible();
 
   // En texte aléatoire, les options redeviennent actives, sauf les accents en anglais.
-  await page.getByRole("button", { name: /ALEATOIRE/ }).click();
+  await page.getByRole("button", { name: "MOTS AU HASARD" }).click();
   await expect(page.getByRole("button", { name: "Accents", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await expect(page.getByRole("button", { name: "Accents", exact: true })).toBeDisabled();
@@ -112,14 +121,23 @@ test("en texte cohérent, tout est grisé : le passage est tapé tel qu'écrit (
 test("la langue du texte part de la langue du site (CONF-02)", async ({ page }) => {
   await registerViaApi(page.request, "langue");
   await page.goto("/jouer/creer");
-  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   await page.getByRole("combobox", { name: "Langue du site" }).selectOption("en");
   await page.goto("/jouer/creer");
-  await expect(page.getByRole("button", { name: "EN", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "EN", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   // Toujours modifiable.
   await page.getByRole("button", { name: "FR", exact: true }).click();
-  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "FR", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   // Salle par défaut (partie rapide sans salle) : même règle côté serveur.
   const res = await page.request.post("/api/lobbies", { data: {} });

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { addBotViaApi, createRoomViaApi, registerViaApi } from "./helpers";
 
-const WRONG = "span.bg-\\[\\#b0281c\\]";
-const RIGHT = "span.text-\\[\\#7fd36a\\]";
+const WRONG = "span.race-err";
+const RIGHT = "span.race-done";
 
 /** Crée une salle (compte + bot), lance la course et attend la fin du décompte. */
 async function startRace(page: Page, settings: Record<string, unknown> = {}) {
@@ -26,7 +26,7 @@ async function cursorIndex(page: Page) {
   return page
     .getByRole("group", { name: "Texte à taper" })
     .locator("span")
-    .evaluateAll((spans) => spans.findIndex((s) => s.className.includes("f0b429")));
+    .evaluateAll((spans) => spans.findIndex((s) => s.classList.contains("race-cur")));
 }
 
 function wrongKeyFor(expected: string) {
@@ -103,7 +103,7 @@ test("créer une salle en spectateur, ajouter puis retirer un bot (SALLE-01, CON
 }) => {
   const { username } = await registerViaApi(page.request, "specta");
   await page.goto("/jouer/creer");
-  await page.getByRole("button", { name: /SPECTATEUR/ }).click();
+  await page.getByRole("button", { name: "JE REGARDE" }).click();
   await page.getByRole("button", { name: "CONTINUER" }).click();
   await page.getByRole("button", { name: "ACCEPTER ET CREER LA SALLE" }).click();
   await expect(page).toHaveURL(/\/jouer\/[A-Z0-9]+$/, { timeout: 15_000 });
@@ -180,41 +180,46 @@ test("changer de langue pendant la course, puis continuer à taper (I18N-02)", a
   const { box } = await startRace(page);
   const text = (await box.textContent())!;
   await page.getByRole("combobox", { name: "Langue du site" }).selectOption("en");
-  await expect(page.getByText("TIME LEFT")).toBeVisible();
+  await expect(page.getByRole("timer", { name: /^TIME LEFT/ })).toBeVisible();
   const typingBox = page.getByRole("group", { name: "Text to type" });
   await pressChar(page, text[0]!);
   await expect
     .poll(() =>
       typingBox
         .locator("span")
-        .evaluateAll((s) => s.findIndex((x) => x.className.includes("f0b429"))),
+        .evaluateAll((s) => s.findIndex((x) => x.classList.contains("race-cur"))),
     )
     .toBe(1);
   await page.getByRole("combobox", { name: "Site language" }).selectOption("fr");
-  await expect(page.getByText("TEMPS RESTANT")).toBeVisible();
+  await expect(page.getByRole("timer", { name: /^TEMPS RESTANT/ })).toBeVisible();
 });
 
 // CONF-01 : temps maximal « aucun » ou de 30 s à 10 min.
-test("course sans temps maximal : le chronomètre compte le temps écoulé (CONF-01)", async ({ page }) => {
+test("course sans temps maximal : le chronomètre compte le temps écoulé (CONF-01)", async ({
+  page,
+}) => {
   await startRace(page, { durationSeconds: 0 });
-  await expect(page.getByText("TEMPS ECOULE")).toBeVisible();
-  await expect(page.getByText("TEMPS RESTANT")).toHaveCount(0);
+  await expect(page.getByRole("timer", { name: /^TEMPS ECOULE/ })).toBeVisible();
+  await expect(page.getByRole("timer", { name: /^TEMPS RESTANT/ })).toHaveCount(0);
 });
 
 test("le formulaire propose « Sans limite » puis de 30 s à 10 min (CONF-01)", async ({ page }) => {
   await registerViaApi(page.request, "duree");
   await page.goto("/jouer/creer");
   // Création : la durée se choisit avec des boutons (refonte du 4 nov.).
-  const group = page.getByRole("group", { name: "Durée maximale" });
+  const group = page.getByRole("group", { name: "TEMPS MAXIMAL" });
   const options = await group.getByRole("button").allTextContents();
-  expect(options[0]).toBe("Sans limite");
-  expect(options.at(-1)).toMatch(/^10\sminutes$/);
-  expect(options).not.toContain("15 secondes");
+  expect(options[0]).toBe("SANS LIMITE");
+  expect(options[1]).toBe("30 S");
+  expect(options.at(-1)).toBe("10 MIN");
+  expect(options).not.toContain("15 S");
 });
 
 // Expérience : une course gagnée rapporte de l'XP (colonne des résultats et barre de l'en-tête) ;
 // la fenêtre d'abandon prévient qu'on perd un niveau.
-test("une course rapporte de l'XP et l'abandon prévient de la perte d'un niveau", async ({ page }) => {
+test("une course rapporte de l'XP et l'abandon prévient de la perte d'un niveau", async ({
+  page,
+}) => {
   test.setTimeout(120_000);
   // Le bot noob finit lentement : la course se termine au plus tard à la fin des 30 s.
   const { code, box } = await startRace(page, { textLength: 10, durationSeconds: 30 });
@@ -226,12 +231,15 @@ test("une course rapporte de l'XP et l'abandon prévient de la perte d'un niveau
     await page.waitForTimeout(70);
   }
   await expect(page).toHaveURL(new RegExp(`/resultats/${code}`), { timeout: 45_000 });
-  const myRow = page.getByRole("table").locator("tbody tr").filter({ has: page.locator("td.font-bold") });
-  await expect(myRow.getByTestId("xp-cell")).toHaveText(/^\+\d+$/);
+  // Badge d'XP du joueur dans l'en-tête des résultats.
+  await expect(page.getByTestId("xp-cell")).toHaveText(/^\+\d+ XP$/);
   // La barre de l'en-tête se met à jour sans recharger la page.
-  await expect(page.getByRole("banner").getByRole("progressbar")).toHaveAccessibleName(/^Niveau [1-9]\d* :/, {
-    timeout: 10_000,
-  });
+  await expect(page.getByRole("banner").getByRole("progressbar")).toHaveAccessibleName(
+    /^Niveau [1-9]\d* :/,
+    {
+      timeout: 10_000,
+    },
+  );
 
   // Nouvelle course : la fenêtre d'abandon annonce la perte d'un niveau.
   await page.request.post(`/api/lobbies/${code}/leave`);
@@ -242,5 +250,7 @@ test("une course rapporte de l'XP et l'abandon prévient de la perte d'un niveau
   await expect(page).toHaveURL(new RegExp(`/course/${second}`), { timeout: 15_000 });
   await expect(page.getByText("La course commence…")).toBeHidden({ timeout: 15_000 });
   await page.getByRole("button", { name: "ABANDONNER" }).click();
-  await expect(page.getByTestId("abandon-xp")).toContainText("perdre un niveau d'expérience complet");
+  await expect(page.getByTestId("abandon-xp")).toContainText(
+    "perdre un niveau d'expérience complet",
+  );
 });

@@ -9,6 +9,7 @@ test("un compte voit le classement général, change d'onglet et de classe", asy
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/classement");
   await expect(page.getByRole("heading", { name: "CLASSEMENT", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "GENERAL" }).click();
   await expect(page.getByRole("tab", { name: "NIVEAU" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "MEILLEUR MPM" }).click();
   await expect(page.getByRole("tab", { name: "MEILLEUR MPM" })).toHaveAttribute(
@@ -17,14 +18,15 @@ test("un compte voit le classement général, change d'onglet et de classe", asy
   );
   await expect(page.getByRole("columnheader", { name: "Meilleur MPM" })).toBeVisible();
 
-  await expect(page.getByText(/Fin de la semaine dans/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Bronze" })).toHaveAttribute(
+  await page.getByRole("tab", { name: "MA CLASSE" }).click();
+  await expect(page.getByText(/fin dans/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /BRONZE/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
   await expect(page.getByText("Joue une course cette semaine", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Netherite" }).click();
-  await expect(page.getByRole("button", { name: "Netherite" })).toHaveAttribute(
+  await page.getByRole("button", { name: "NETHERITE" }).click();
+  await expect(page.getByRole("button", { name: "NETHERITE" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

@@ -56,7 +56,7 @@ test("l'explorateur se met à jour sans rechargement et se filtre par langue et 
   const context = await browser.newContext({ locale: "fr-CA" });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "LOBBYS PUBLICS" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "SALLES PUBLIQUES" })).toBeVisible();
 
   // Une salle créée APRÈS l'ouverture de la page apparaît d'elle-même.
   const hostContext = await browser.newContext({ locale: "fr-CA" });
@@ -64,11 +64,12 @@ test("l'explorateur se met à jour sans rechargement et se filtre par langue et 
   const { username } = await registerViaApi(host.request, "explo");
   const name = uniqueName("Explo");
   await createRoomViaApi(host.request, { name, language: "en", complexity: "hard", maxPlayers: 8 });
-  const row = page.locator("li", { hasText: name });
+  const row = page.locator("[role=row]", { hasText: name });
   await expect(row).toBeVisible({ timeout: 10_000 });
-  await expect(row).toContainText("EN · Difficile · En attente");
+  await expect(row.getByRole("cell", { name: "EN", exact: true })).toBeVisible();
+  await expect(row.getByRole("cell", { name: "Niveau Difficile" })).toBeVisible();
   await expect(row).toContainText(`hôte ${username}`);
-  await expect(row.getByLabel("1 joueurs sur 8")).toBeVisible();
+  await expect(row.getByRole("cell", { name: "1 joueurs sur 8" })).toBeVisible();
 
   const filters = page.getByRole("group", { name: "Filtres de l'explorateur" });
   await filters.getByRole("button", { name: "FR", exact: true }).click();

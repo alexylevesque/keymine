@@ -61,8 +61,9 @@ test("course complète : hôte + invité + bot, résultats, rejouer (COURSE-03/0
   // Le classement est un vrai tableau (A11Y-03).
   await expect(host.getByRole("table")).toBeVisible();
   await expect(host.getByRole("table")).toContainText(guestName);
-  // Les résultats sont complets dès l'arrivée sur la page : une courbe de MPM par coureur (RES-03).
-  await expect(host.locator("figure svg polyline")).toHaveCount(3);
+  // Les résultats sont complets dès l'arrivée sur la page : le replay trace une ligne par coureur (RES-03).
+  const replay = host.getByRole("tabpanel", { name: "REPLAY DE LA COURSE" });
+  await expect(replay.locator("svg g:has(polyline)")).toHaveCount(3);
 
   // L'hôte relance avec les mêmes participants.
   await host.getByRole("button", { name: "REJOUER" }).click();
@@ -147,49 +148,50 @@ test("marteler le clavier est pénalisé : la pénalité s'ajoute au temps d'arr
   await expect(page).toHaveURL(new RegExp(`/resultats/${code}`), { timeout: 30_000 });
   await expect(page.getByRole("table")).toContainText("de pénalité");
 
-  // Classement ouvert ; évolution du MPM et clavier thermique repliés jusqu'à ce qu'on les ouvre.
-  const chart = page.locator("figure");
-  await expect(chart).toBeHidden();
-  await page.getByRole("heading", { name: "EVOLUTION DU MPM" }).click();
-  await expect(chart).toBeVisible();
+  // Onglets sous le classement : le replay est ouvert, le clavier thermique s'affiche à la demande.
+  await expect(page.getByRole("tab", { name: "REPLAY DE LA COURSE" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   const heatmap = page.getByRole("group", { name: /HEATMAP DU CLAVIER/ });
   await expect(heatmap).toBeHidden();
-  await page
-    .getByText(/HEATMAP DU CLAVIER/)
-    .first()
-    .click();
+  await page.getByRole("tab", { name: "MON CLAVIER" }).click();
   await expect(heatmap).toBeVisible();
 
   // Stats : la course récente y figure avec les mêmes infos et les mêmes boutons que dans l'historique.
   await page.goto("/profil");
-  const recent = page.getByRole("list", { name: "HISTORIQUE" }).getByRole("listitem");
+  const recentTable = page.getByRole("table", { name: "DERNIERES COURSES" });
+  const recent = recentTable.getByRole("row").filter({ has: page.getByRole("cell") });
   await expect(recent).toHaveCount(1);
-  await expect(recent).toContainText("Jouée");
-  for (const name of ["DETAILS", "REJOUER", "SUPPRIMER"]) {
-    await expect(recent.getByRole(name === "DETAILS" ? "link" : "button", { name })).toBeVisible();
-  }
-  await expect(page.getByRole("link", { name: "VOIR TOUT L'HISTORIQUE" })).toBeVisible();
+  await expect(recent).toContainText("TERMINE");
+  await expect(recent.getByRole("link", { name: "DETAILS" })).toBeVisible();
+  await expect(recent.getByRole("button", { name: "REJOUER" })).toBeVisible();
+  await expect(recent.getByRole("button", { name: /^Supprimer la course/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "TOUT L'HISTORIQUE" })).toBeVisible();
 
-  // HIST-01 : la course figure dans l'historique (section « Courses » par défaut), avec des champs
-  // étiquetés ; on peut la supprimer.
-  await page.getByRole("link", { name: "VOIR TOUT L'HISTORIQUE" }).click();
+  // HIST-01 : la course figure dans l'historique (section « Courses » par défaut), en tableau aux
+  // colonnes nommées ; on peut la supprimer.
+  await page.getByRole("link", { name: "TOUT L'HISTORIQUE" }).click();
   await expect(page).toHaveURL(/\/historique/);
-  await expect(page.getByRole("link", { name: /^COURSES \(1\)/ })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  const card = page.getByRole("listitem").filter({ hasText: "DATE" });
-  await expect(card).toHaveCount(1);
-  await expect(card).toContainText("RANG");
-  await expect(card).toContainText("MPM");
-  await expect(card).toContainText("PRECISION");
-  await page.getByRole("button", { name: "SUPPRIMER" }).click();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Sections de l'historique" })
+      .getByRole("link", { name: /^COURSES/ }),
+  ).toHaveAttribute("aria-current", "page");
+  const table = page.getByRole("table", { name: "COURSES" });
+  for (const col of ["DATE", "RANG", "MPM", "PRECISION"]) {
+    await expect(table.getByRole("columnheader", { name: col })).toBeVisible();
+  }
+  const rows = table.getByRole("row").filter({ has: page.getByRole("cell") });
+  await expect(rows).toHaveCount(1);
+  const del = rows.getByRole("button", { name: /^Supprimer la course/ });
+  await del.click();
   await expect(
     page.getByRole("dialog", { name: "Supprimer cette course de ton historique ?" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "ANNULER" }).click();
-  await expect(card).toHaveCount(1); // annuler ne supprime rien
-  await page.getByRole("button", { name: "SUPPRIMER" }).click();
+  await expect(rows).toHaveCount(1); // annuler ne supprime rien
+  await del.click();
   await page.getByRole("button", { name: "OUI, SUPPRIMER" }).click();
   await expect(page.getByText("Aucune course terminée pour l'instant.")).toBeVisible();
 });
@@ -222,9 +224,12 @@ test("abandonner ramène à la liste des lobbys et ferme la porte de cette cours
   // REJOUER ouvre une nouvelle salle (on n'était plus dans l'ancienne) avec les mêmes réglages.
   await expect(async () => {
     await page.goto("/historique?section=abandoned");
-    await expect(page.getByRole("listitem").filter({ hasText: "DATE" })).toHaveCount(1, {
-      timeout: 1_000,
-    });
+    await expect(
+      page
+        .getByRole("table")
+        .getByRole("row")
+        .filter({ has: page.getByRole("cell") }),
+    ).toHaveCount(1, { timeout: 1_000 });
   }).toPass({ timeout: 45_000 });
   await page.getByRole("button", { name: "REJOUER" }).click();
   await expect(page).toHaveURL(/\/jouer\/[A-Z0-9]+$/, { timeout: 15_000 });
