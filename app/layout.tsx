@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Suspense } from "react";
 import { Providers } from "@/components/Providers";
+import { NavProgress } from "@/components/NavProgress";
 import { getRequestLang } from "@/lib/i18n-server";
 import { translate } from "@/lib/i18n-dictionary";
 import { eq } from "drizzle-orm";
@@ -67,6 +69,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       {/* Des extensions de navigateur (ex. ColorZilla : cz-shortcut-listen) ajoutent des attributs à <body>
           avant React : on ignore ces différences d'attributs sur cette seule balise. */}
       <body className="min-h-screen antialiased" suppressHydrationWarning>
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <Providers initialLang={lang} viewer={viewer}>
           {children}
         </Providers>

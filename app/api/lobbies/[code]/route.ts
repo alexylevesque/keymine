@@ -46,13 +46,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   if (lobby.status !== "closed") {
     assertTransition(lobby.status, "closed");
-    await db
-      .update(lobbies)
-      .set({ status: "closed", closed_at: new Date() })
-      .where(eq(lobbies.id, lobby.id));
-    await revokeAllInvites(lobby.id); // SALLE-04 : plus aucun lien ne fonctionne
-    // Une salle fermée ne retient plus personne : chacun peut en créer ou en rejoindre une autre (SALLE-06).
-    await db.update(lobbyPlayers).set({ active: false }).where(eq(lobbyPlayers.lobby_id, lobby.id));
+    // Les trois écritures partent en même temps (fermeture plus rapide).
+    await Promise.all([
+      db
+        .update(lobbies)
+        .set({ status: "closed", closed_at: new Date() })
+        .where(eq(lobbies.id, lobby.id)),
+      revokeAllInvites(lobby.id), // SALLE-04 : plus aucun lien ne fonctionne
+      // Une salle fermée ne retient plus personne : chacun peut en créer ou en rejoindre une autre (SALLE-06).
+      db.update(lobbyPlayers).set({ active: false }).where(eq(lobbyPlayers.lobby_id, lobby.id)),
+    ]);
   }
 
   return NextResponse.json({ ok: true });

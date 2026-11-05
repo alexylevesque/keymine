@@ -1,6 +1,7 @@
 "use client";
 
 import { Crown } from "@/components/leaderboard/badges";
+import { startNavProgress } from "@/components/NavProgress";
 import { useParams, useRouter } from "next/navigation";
 import { participantName } from "@/lib/bot-name";
 import { identicon } from "@/lib/identicon";
@@ -110,9 +111,15 @@ export default function LobbyPage() {
     router.push(`/course/${code}`);
   }
 
+  // L'accueil est préchargé : après la fermeture, on y arrive sans attendre.
+  useEffect(() => {
+    router.prefetch("/");
+  }, [router]);
+
   async function closeLobby() {
     setClosing(true);
     setError(null);
+    startNavProgress();
     try {
       const res = await fetch(`/api/lobbies/${code}`, { method: "DELETE" });
       if (!res.ok) {
@@ -121,6 +128,7 @@ export default function LobbyPage() {
         setClosing(false);
         return;
       }
+      startNavProgress();
       router.push("/");
     } catch {
       setError(t("err.network"));
@@ -450,7 +458,7 @@ export default function LobbyPage() {
                 disabled={closing}
                 className="room-close font-pixel"
               >
-                {t("lobby.close")}
+                {closing ? t("lobby.closing") : t("lobby.close")}
               </button>
             )}
           </aside>
