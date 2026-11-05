@@ -44,7 +44,7 @@ export function HistoryTableRow({
               className="hist-medal font-pixel"
               style={{
                 background: MEDAL[r.rank - 1] ?? "#3b2a1a",
-                color: r.rank <= 3 ? "#1b1209" : "#f1e6c9",
+                color: r.rank <= 3 ? "#1b1209" : "var(--km-ink)",
               }}
             >
               {r.rank}

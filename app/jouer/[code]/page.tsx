@@ -284,10 +284,10 @@ export default function LobbyPage() {
                             style={{
                               color:
                                 p.isBot || !p.connected
-                                  ? "#a8966e"
+                                  ? "var(--km-ink-3)"
                                   : p.isHost
-                                    ? "#ffe08a"
-                                    : "#7fc45a",
+                                    ? "var(--km-gold-ink)"
+                                    : "var(--km-green-ink)",
                             }}
                           >
                             {tagOf(p)}

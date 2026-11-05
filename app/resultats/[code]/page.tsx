@@ -57,7 +57,6 @@ const CONFETTI: [number, string, number, number][] = [
   [7, "#f0b429", 0.1, 3.9],
 ];
 
-
 const BONUS_KEY = {
   minus_words: "res.bonus_minus_words",
   plus_words: "res.bonus_plus_words",
@@ -317,7 +316,7 @@ export default async function ResultatsPage({
                       className="max-w-full truncate leading-none"
                       style={{
                         fontSize: place === 0 ? 22 : 19,
-                        color: place === 0 ? "#ffe08a" : undefined,
+                        color: place === 0 ? "var(--km-gold-ink)" : undefined,
                       }}
                     >
                       {participantName(t, p)}
@@ -384,7 +383,7 @@ export default async function ResultatsPage({
                       <span
                         role="cell"
                         className="font-pixel text-[11px]"
-                        style={{ color: p.rank === 1 ? "#f0b429" : "#a8966e" }}
+                        style={{ color: p.rank === 1 ? "var(--km-gold-text)" : "var(--km-ink-3)" }}
                       >
                         {p.rank}
                       </span>

@@ -70,7 +70,10 @@ export function InvitePanel({ code, refreshKey }: { code: string; refreshKey: un
     <details className="lobby-panel room-details">
       <summary className="flex items-center justify-between gap-3 px-5 py-4">
         <h2 className="font-pixel text-[11px] text-white">{t("invite.title")}</h2>
-        <span className="room-tag font-pixel" style={{ background: "#3b2a1a", color: "#ffe08a" }}>
+        <span
+          className="room-tag font-pixel"
+          style={{ background: "var(--km-tile)", color: "var(--km-gold-ink)" }}
+        >
           {invites.length}
         </span>
       </summary>

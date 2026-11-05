@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 // Replay de la course (maquette « 4 · Résultats ») : la place de chaque joueur à chaque 10 % du
 // texte. On retrouve quand chacun a passé chaque palier grâce à son MPM moyen relevé chaque
 // seconde (caractères tapés ≈ MPM × 5 × secondes / 60).
@@ -80,7 +82,7 @@ export function ReplayChart({
             className="font-pixel absolute right-0 text-[9px]"
             style={{
               top: `calc(${((i + 0.5) / n) * 100}% - 6px)`,
-              color: i === 0 ? "#f0b429" : "#a8966e",
+              color: i === 0 ? "var(--km-gold-text)" : "var(--km-ink-3)",
             }}
           >
             {placeLabel(i + 1)}
@@ -146,20 +148,18 @@ export function ReplayChart({
           })}
         </svg>
         {ordered.map((s) =>
-          ranks
-            .get(s.id)!
-            .map((p, i) => (
-              <span
-                key={`${s.id}-${i}`}
-                className={`replay-pt ${s.isMe ? "replay-ptme" : ""}`}
-                style={{
-                  left: `${5 + i * 10}%`,
-                  top: `${(y(p.rank) / 240) * 100}%`,
-                  background: colorOf.get(s.id),
-                }}
-                data-tip={tipLabel(s.name, (i + 1) * 10, p.rank, p.wpm)}
-              />
-            )),
+          ranks.get(s.id)!.map((p, i) => (
+            <span
+              key={`${s.id}-${i}`}
+              className={`replay-pt ${s.isMe ? "replay-ptme" : ""}`}
+              style={{
+                left: `${5 + i * 10}%`,
+                top: `${(y(p.rank) / 240) * 100}%`,
+                background: colorOf.get(s.id),
+              }}
+              data-tip={tipLabel(s.name, (i + 1) * 10, p.rank, p.wpm)}
+            />
+          )),
         )}
       </div>
       <div className="relative" aria-hidden="true">
@@ -168,12 +168,14 @@ export function ReplayChart({
           return (
             <span
               key={s.id}
-              className="absolute left-0 truncate text-lg"
-              style={{
-                top: `calc(${(y(last.rank) / 240) * 100}% - 12px)`,
-                color: colorOf.get(s.id),
-                maxWidth: 96,
-              }}
+              className="replay-name absolute left-0 truncate text-lg"
+              style={
+                {
+                  top: `calc(${(y(last.rank) / 240) * 100}% - 12px)`,
+                  "--c": colorOf.get(s.id),
+                  maxWidth: 96,
+                } as CSSProperties
+              }
             >
               {s.name}
             </span>

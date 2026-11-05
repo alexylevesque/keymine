@@ -520,7 +520,7 @@ export function LeaderboardScreen({ initial }: { initial: LeaderboardView }) {
                       style={{
                         background:
                           ["#f0b429", "#c6c6c6", "#c98e58"][row.position - 1] ?? "#2b1e13",
-                        color: row.position <= 3 ? "#1b1209" : "#a8966e",
+                        color: row.position <= 3 ? "#1b1209" : "var(--km-ink-3)",
                       }}
                     >
                       {row.position}

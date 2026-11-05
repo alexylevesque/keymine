@@ -91,7 +91,7 @@ export function Track({
                 {tag && (
                   <span
                     className="font-pixel mt-1 block text-[7px]"
-                    style={{ color: isMe ? "#ffe08a" : "#a8966e" }}
+                    style={{ color: isMe ? "var(--km-gold-ink)" : "var(--km-ink-3)" }}
                   >
                     {tag}
                   </span>
