@@ -44,6 +44,17 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up 
 
 Les migrations déjà appliquées sont ignorées ; le seed est idempotent.
 
+### Mise à jour automatique
+
+`deploy/mise-a-jour-auto.sh` fait la même chose tout seul : s'il y a de nouveaux commits sur `main`, il récupère le code, reconstruit les conteneurs et nettoie les vieilles images (verrou pour ne jamais lancer deux mises à jour en même temps ; journal dans `deploy/mise-a-jour.log`). À installer une seule fois sur le serveur :
+
+```bash
+chmod +x ~/keymine/deploy/mise-a-jour-auto.sh
+(crontab -l 2>/dev/null; echo "*/5 * * * * $HOME/keymine/deploy/mise-a-jour-auto.sh") | crontab -
+```
+
+Ensuite, un `git push` est en ligne en moins d'une dizaine de minutes (5 min d'attente au plus, puis le build). Pour suivre : `tail -f ~/keymine/deploy/mise-a-jour.log`.
+
 ## 5. Sauvegarde et dépannage
 
 - Sauvegarde : `docker compose -f deploy/docker-compose.prod.yml exec postgres pg_dump -U keymine keymine > sauvegarde.sql`

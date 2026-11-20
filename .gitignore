@@ -53,3 +53,6 @@ next-env.d.ts
 # IDE
 .idea/
 .vscode/
+
+# Journal de la mise à jour automatique (serveur)
+deploy/mise-a-jour.log
