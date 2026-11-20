@@ -1915,8 +1915,18 @@ a.lobby-row:hover .lobby-go {
   .lobby-cols > :first-child {
     grid-column: 1 / -1;
   }
+  /* Sur mobile, l'en-tête du tableau est caché à l'écran mais reste lu par les lecteurs d'écran
+     (un tableau sans ligne d'en-tête visible pour eux n'est plus un tableau valide). */
   .lobby-colhead {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 
