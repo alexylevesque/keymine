@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
+import { headers } from "next/headers";
 import type { Viewer } from "@/lib/viewer";
 
 const pressStart = localFont({
@@ -56,7 +57,9 @@ async function loadViewer(): Promise<Viewer> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [lang, viewer] = await Promise.all([getRequestLang(), loadViewer()]);
+  const [lang, viewer, h] = await Promise.all([getRequestLang(), loadViewer(), headers()]);
+  // Nonce de la politique de sécurité (proxy.ts) : sans lui, le script du thème serait bloqué.
+  const nonce = h.get("x-nonce") ?? undefined;
   return (
     <html
       lang={lang}
@@ -64,7 +67,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${pressStart.variable} ${vt323.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       {/* Des extensions de navigateur (ex. ColorZilla : cz-shortcut-listen) ajoutent des attributs à <body>
           avant React : on ignore ces différences d'attributs sur cette seule balise. */}

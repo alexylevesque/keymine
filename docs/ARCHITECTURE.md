@@ -334,6 +334,8 @@ Ajout demandé par l'étudiant, hors cahier des charges (règles validées le 16
 
 ## 9. Authentification et sécurité
 
+En-têtes de sécurité : `proxy.ts` envoie une politique de sécurité du contenu (CSP) avec un nonce aléatoire par page (seuls les scripts de Next.js et le script du thème s'exécutent ; images limitées au site et aux photos Discord/GitHub ; connexions limitées au site et au serveur temps réel ; `frame-ancestors 'none'`), et `next.config.ts` ajoute `X-Frame-Options: DENY`. Mozilla Observatory donnait 55/100 (C) sans ces deux en-têtes le 20 nov. 2026.
+
 - Comptes : mot de passe haché (bcrypt), session JWT en cookie `httpOnly`, `sameSite=lax`, `secure` en production ; verrouillage temporaire après des échecs répétés ; OAuth Discord/GitHub optionnels.
 - Invités : pseudonyme (3 à 20 caractères) dans un cookie JWT signé ; un invité **ne crée pas** de salle et ne peut pas être hôte.
 - Validation : Zod sur toutes les routes et tous les messages temps réel ; requêtes paramétrées par l'ORM (Drizzle) ; WebSocket protégé par origine + cookie ; limitation de débit des messages.

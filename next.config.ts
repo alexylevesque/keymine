@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Le site ne s'affiche jamais dans le cadre d'un autre site (complète frame-ancestors de proxy.ts).
+        source: "/:path*",
+        headers: [{ key: "X-Frame-Options", value: "DENY" }],
+      },
+      {
         source: "/cursors/:path*",
         headers: [
           {
