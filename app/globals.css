@@ -4969,3 +4969,24 @@ a.lobby-row:hover .lobby-go {
   background: var(--km-panel);
   color: var(--km-ink-3);
 }
+
+/* FAQ de l'accueil : chevron pixel qui tourne à l'ouverture. */
+.home-faq summary {
+  list-style: none;
+}
+.home-faq summary::-webkit-details-marker {
+  display: none;
+}
+.home-faq summary::before {
+  content: ">";
+  display: inline-block;
+  margin-right: 12px;
+  color: var(--km-gold-ink);
+  transition: transform 0.1s steps(2);
+}
+.home-faq[open] summary::before {
+  transform: rotate(90deg);
+}
+.home-faq summary:hover {
+  background: var(--km-slot);
+}

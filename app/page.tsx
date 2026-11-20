@@ -1,4 +1,7 @@
 import Link from "next/link";
+import Image from "next/image";
+import { headers } from "next/headers";
+import apercuCourse from "@/public/apercu-course.png";
 import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { PixelShell } from "@/components/PixelShell";
 import { PublicLobbies } from "@/components/PublicLobbies";
@@ -16,6 +19,9 @@ import { weakestKeys } from "@/lib/weak-keys";
 import { loadWornArmor } from "@/lib/armor-worn";
 
 export const dynamic = "force-dynamic";
+
+// Adresse officielle de l'accueil (évite que Google compte des doublons avec ?paramètres).
+export const metadata = { alternates: { canonical: "/" } };
 
 /** Les trois tuiles de l'accueil (comptes seulement) : meilleur MPM, classe de la semaine, touches à travailler. */
 async function getTiles() {
@@ -82,6 +88,40 @@ export default async function Home() {
   const t = (key: DictKey, params?: Record<string, string | number>) =>
     translate(lang, key, params);
   const maxBar = tiles ? Math.max(1, ...tiles.bars) : 1;
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const faq = [1, 2, 3, 4, 5, 6].map((n) => ({
+    q: t(`home.faq_q${n}` as DictKey),
+    a: t(`home.faq_a${n}` as DictKey),
+  }));
+  // Données structurées (schema.org) : les moteurs et les assistants IA savent que c'est un jeu web
+  // gratuit, bilingue, et retrouvent la FAQ affichée plus bas.
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": ["VideoGame", "WebApplication"],
+      name: "KeyMine",
+      description: t("meta.description"),
+      url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+      applicationCategory: "GameApplication",
+      genre: "Typing game",
+      gamePlatform: "Web browser",
+      operatingSystem: "Any (web browser)",
+      playMode: "MultiPlayer",
+      inLanguage: ["fr", "en"],
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "CAD" },
+      author: { "@type": "Person", name: "Alexy Lévesque" },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faq.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ];
 
   return (
     <PixelShell active="lobbys">
@@ -215,6 +255,87 @@ export default async function Home() {
         <div className="flex min-w-0 flex-[1_1_560px]">
           <PublicLobbies initial={lobbies} />
         </div>
+      </div>
+
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
+
+      <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <section aria-labelledby="how-title" className="lobby-panel">
+          <div className="lobby-head">
+            <h2 id="how-title" className="font-pixel text-[13px] text-white">
+              {t("home.how_title")}
+            </h2>
+          </div>
+          <ol className="flex flex-col gap-4 p-5">
+            {[1, 2, 3, 4].map((n) => (
+              <li key={n}>
+                <h3 className="font-pixel text-[10px] text-[#ffe08a]">
+                  {t(`home.how_${n}_t` as DictKey)}
+                </h3>
+                <p className="mt-1.5 text-xl leading-tight text-[#f1e6c9]">
+                  {t(`home.how_${n}` as DictKey)}
+                </p>
+              </li>
+            ))}
+          </ol>
+          <div className="border-t-2 border-[#3b2a1a] p-5">
+            <h3 className="font-pixel text-[10px] text-[#ffe08a]">{t("home.levels_title")}</h3>
+            <ul className="mt-2 flex flex-col gap-1 text-xl text-[#f1e6c9]">
+              <li>{t("home.level_easy")}</li>
+              <li>{t("home.level_medium")}</li>
+              <li>{t("home.level_hard")}</li>
+            </ul>
+          </div>
+        </section>
+
+        <div className="flex flex-col gap-8">
+          <section aria-labelledby="preview-title" className="lobby-panel">
+            <div className="lobby-head">
+              <h2 id="preview-title" className="font-pixel text-[13px] text-white">
+                {t("home.preview_title")}
+              </h2>
+            </div>
+            <div className="p-5">
+              <Image
+                src={apercuCourse}
+                alt={t("home.preview_alt")}
+                sizes="(min-width: 1024px) 560px, 100vw"
+                className="h-auto w-full border-4 border-black"
+              />
+            </div>
+          </section>
+
+          <section aria-labelledby="about-title" className="lobby-panel">
+            <div className="lobby-head">
+              <h2 id="about-title" className="font-pixel text-[13px] text-white">
+                {t("home.about_title")}
+              </h2>
+            </div>
+            <p className="p-5 text-xl leading-tight text-[#f1e6c9]">{t("home.about_text")}</p>
+          </section>
+        </div>
+
+        <section aria-labelledby="faq-title" className="lobby-panel lg:col-span-2">
+          <div className="lobby-head">
+            <h2 id="faq-title" className="font-pixel text-[13px] text-white">
+              {t("home.faq_title")}
+            </h2>
+          </div>
+          <div className="flex flex-col">
+            {faq.map((f) => (
+              <details key={f.q} className="home-faq border-t-2 border-[#3b2a1a]">
+                <summary className="font-pixel cursor-pointer px-5 py-4 text-[10px] text-white">
+                  {f.q}
+                </summary>
+                <p className="px-5 pb-4 text-xl leading-tight text-[#f1e6c9]">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
       </div>
     </PixelShell>
   );

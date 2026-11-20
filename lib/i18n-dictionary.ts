@@ -4,7 +4,8 @@ export type SiteLang = "fr" | "en";
 
 export const DICTIONARY = {
   fr: {
-    "meta.description": "Courses de frappe en temps réel pour la classe.",
+    "meta.description":
+      "KeyMine est un jeu de course de frappe au clavier en ligne, gratuit et multijoueur : toute la classe tape le même texte en direct, en français ou en anglais.",
     "a11y.skip": "Aller au contenu",
     "a11y.profile_link": "Mon profil",
     "a11y.login_link": "Connexion",
@@ -26,7 +27,49 @@ export const DICTIONARY = {
     "lang.select": "Langue du site",
     "home.title": "TAPE PLUS VITE QUE TA CLASSE.",
     "home.subtitle":
-      "Des courses de frappe en direct. Tout le monde tape le même texte, le plus rapide monte sur le podium.",
+      "KeyMine est un jeu de course de frappe au clavier, gratuit et en ligne. Tout le monde tape le même texte en direct, le plus rapide monte sur le podium.",
+    "shell.logo_alt": "Logo KeyMine",
+    "home.how_title": "COMMENT CA MARCHE",
+    "home.how_1_t": "1. ENTRE DANS UNE SALLE",
+    "home.how_1":
+      "Clique JOUER pour rejoindre une salle publique, entre le code de 6 caractères qu'on t'a donné, ou crée ta propre salle.",
+    "home.how_2_t": "2. ATTENDS LE DECOMPTE",
+    "home.how_2":
+      "L'hôte lance la course quand il y a au moins 2 participants. Un décompte 3, 2, 1 révèle le texte en même temps pour tout le monde.",
+    "home.how_3_t": "3. TAPE LE TEXTE",
+    "home.how_3":
+      "Chaque lettre devient verte si elle est juste, rouge si elle est fausse. Ta vitesse (MPM) et ta précision s'affichent en direct.",
+    "home.how_4_t": "4. MONTE SUR LE PODIUM",
+    "home.how_4":
+      "Le premier qui finit gagne. Les résultats montrent le classement, l'évolution de la vitesse de chacun et tes touches à travailler.",
+    "home.levels_title": "LES NIVEAUX DE TEXTE",
+    "home.level_easy": "FACILE : mots courts de 2 à 5 lettres, sans accent.",
+    "home.level_medium": "MOYEN : mots de 4 à 8 lettres.",
+    "home.level_hard": "DIFFICILE : mots de 7 lettres et plus, accents et ponctuation.",
+    "home.preview_title": "APERCU D'UNE COURSE",
+    "home.preview_alt":
+      "Une course KeyMine : le texte à taper en haut, la vitesse et la précision en direct, et les mineurs de chaque joueur qui courent vers le diamant.",
+    "home.about_title": "A PROPOS",
+    "home.about_text":
+      "KeyMine a été créé par Alexy Lévesque dans le cadre du cours Web V, pour pratiquer la frappe au clavier en classe de façon amusante, avec un style pixel inspiré des jeux de mine.",
+    "home.faq_title": "QUESTIONS FREQUENTES",
+    "home.faq_q1": "Faut-il un compte pour jouer ?",
+    "home.faq_a1":
+      "Non. Tu peux jouer en invité avec un pseudonyme. Un compte garde ton historique, ton expérience, ton inventaire et ta classe.",
+    "home.faq_q2": "Faut-il installer quelque chose ?",
+    "home.faq_a2":
+      "Non, tout se passe dans le navigateur. Un clavier physique est recommandé pour courir.",
+    "home.faq_q3": "Quelles langues sont offertes ?",
+    "home.faq_a3":
+      "Le site et les textes à taper sont en français et en anglais. La langue du texte se choisit dans chaque salle.",
+    "home.faq_q4": "Comment est calculée la vitesse ?",
+    "home.faq_a4":
+      "En mots par minute (MPM) : le nombre de caractères tapés correctement, divisé par 5, divisé par le nombre de minutes. Les espaces comptent.",
+    "home.faq_q5": "Peut-on jouer contre l'ordinateur ?",
+    "home.faq_a5":
+      "Oui. L'hôte peut ajouter des bots de 5 niveaux, de Noob à Impossible, dans sa salle.",
+    "home.faq_q6": "Est-ce gratuit ?",
+    "home.faq_a6": "Oui, KeyMine est entièrement gratuit.",
     "home.play": "JOUER",
     "home.quickplay_hint":
       "Partie rapide: on te place dans un lobby, ou on en crée un et tu deviens le Chef.",
@@ -987,7 +1030,8 @@ export const DICTIONARY = {
     "lb.days": "{d} j {hms}",
   },
   en: {
-    "meta.description": "Real-time typing races for the classroom.",
+    "meta.description":
+      "KeyMine is a free, online multiplayer typing race game: the whole class types the same text live, in French or English.",
     "a11y.skip": "Skip to content",
     "a11y.profile_link": "My profile",
     "a11y.login_link": "Log in",
@@ -1009,7 +1053,49 @@ export const DICTIONARY = {
     "lang.select": "Site language",
     "home.title": "TYPE FASTER THAN YOUR CLASS.",
     "home.subtitle":
-      "Live typing races. Everyone types the same text, the fastest one takes the podium.",
+      "KeyMine is a free online keyboard typing race game. Everyone types the same text live, the fastest one takes the podium.",
+    "shell.logo_alt": "KeyMine logo",
+    "home.how_title": "HOW IT WORKS",
+    "home.how_1_t": "1. JOIN A ROOM",
+    "home.how_1":
+      "Click PLAY to join a public room, enter the 6-character code you were given, or create your own room.",
+    "home.how_2_t": "2. WAIT FOR THE COUNTDOWN",
+    "home.how_2":
+      "The host starts the race when there are at least 2 participants. A 3, 2, 1 countdown reveals the text to everyone at the same time.",
+    "home.how_3_t": "3. TYPE THE TEXT",
+    "home.how_3":
+      "Each letter turns green when it is right and red when it is wrong. Your speed (WPM) and accuracy are shown live.",
+    "home.how_4_t": "4. TAKE THE PODIUM",
+    "home.how_4":
+      "The first one to finish wins. The results show the ranking, everyone's speed over time and the keys you should practise.",
+    "home.levels_title": "TEXT LEVELS",
+    "home.level_easy": "EASY: short words of 2 to 5 letters, no accents.",
+    "home.level_medium": "MEDIUM: words of 4 to 8 letters.",
+    "home.level_hard": "HARD: words of 7 letters or more, accents and punctuation.",
+    "home.preview_title": "A RACE IN ACTION",
+    "home.preview_alt":
+      "A KeyMine race: the text to type at the top, live speed and accuracy, and each player's miner running towards the diamond.",
+    "home.about_title": "ABOUT",
+    "home.about_text":
+      "KeyMine was created by Alexy Lévesque for the Web V course, to make keyboard typing practice fun in class, with a pixel style inspired by mining games.",
+    "home.faq_title": "FREQUENTLY ASKED QUESTIONS",
+    "home.faq_q1": "Do I need an account to play?",
+    "home.faq_a1":
+      "No. You can play as a guest with a nickname. An account keeps your history, experience, inventory and league.",
+    "home.faq_q2": "Do I need to install anything?",
+    "home.faq_a2":
+      "No, everything runs in the browser. A physical keyboard is recommended for racing.",
+    "home.faq_q3": "Which languages are available?",
+    "home.faq_a3":
+      "The site and the texts to type are available in French and English. The text language is chosen in each room.",
+    "home.faq_q4": "How is speed calculated?",
+    "home.faq_a4":
+      "In words per minute (WPM): the number of correctly typed characters, divided by 5, divided by the number of minutes. Spaces count.",
+    "home.faq_q5": "Can I play against the computer?",
+    "home.faq_a5":
+      "Yes. The host can add bots with 5 levels, from Noob to Impossible, to the room.",
+    "home.faq_q6": "Is it free?",
+    "home.faq_a6": "Yes, KeyMine is completely free.",
     "home.play": "PLAY",
     "home.quickplay_hint":
       "Quick play: we drop you into a lobby, or create one and you become the Host.",

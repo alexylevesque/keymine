@@ -27,11 +27,34 @@ const vt323 = localFont({
   display: "swap",
 });
 
+/** Adresse publique du site (NEXT_PUBLIC_SITE_URL, voir .env.example) : adresse officielle et aperçus de partage. */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getRequestLang();
+  const description = translate(lang, "meta.description");
   return {
+    metadataBase: new URL(SITE_URL),
     title: { default: "KeyMine", template: "%s · KeyMine" },
-    description: translate(lang, "meta.description"),
+    description,
+    applicationName: "KeyMine",
+    // Aperçu quand le lien est partagé (Discord, Messenger, réseaux sociaux).
+    openGraph: {
+      type: "website",
+      siteName: "KeyMine",
+      title: "KeyMine",
+      description,
+      url: "/",
+      locale: lang === "fr" ? "fr_CA" : "en_CA",
+      alternateLocale: lang === "fr" ? ["en_CA"] : ["fr_CA"],
+      images: [{ url: "/og-keymine.png", width: 1200, height: 630, alt: "KeyMine" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "KeyMine",
+      description,
+      images: ["/og-keymine.png"],
+    },
   };
 }
 

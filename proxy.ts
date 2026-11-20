@@ -50,7 +50,7 @@ export const config = {
     {
       // Pages seulement : pas les routes API, ni les fichiers statiques et images.
       source:
-        "/((?!api|_next/static|_next/image|favicon.ico|icon.png|cursors|logo-rond.png|logo-texte.png).*)",
+        "/((?!api|_next/static|_next/image|favicon.ico|icon.png|cursors|logo-rond.png|logo-texte.png|og-keymine.png|apercu-course.png|robots.txt|sitemap.xml).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

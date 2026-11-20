@@ -187,10 +187,10 @@ export function PixelShell({
             className="shell-logo flex shrink-0 items-center gap-2 lg:gap-3"
             aria-label="KeyMine"
           >
-            <Image src={logoRond} alt="" className="h-8 w-8 lg:h-10 lg:w-10" />
+            <Image src={logoRond} alt={t("shell.logo_alt")} className="h-8 w-8 lg:h-10 lg:w-10" />
             <Image
               src={logoTexte}
-              alt=""
+              alt="KeyMine"
               unoptimized
               className="h-4 w-auto [image-rendering:pixelated] lg:h-[22px]"
             />
