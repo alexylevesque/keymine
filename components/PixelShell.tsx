@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 // Imports statiques : Next leur donne un nom avec empreinte et les sert en cache pour un an (immutable).
 import logoRond from "@/public/logo-rond.png";
 import logoTexte from "@/public/logo-texte.png";
@@ -49,6 +50,8 @@ export function PixelShell({
   const viewer = useViewer();
   const viewerName = viewer?.name ?? t("common.guest");
   const [menuOpen, setMenuOpen] = useState(false);
+  // Sur l'accueil, les liens du pied de page restent sur la page (garde « ?lang= » s'il y en a un).
+  const onHome = usePathname() === "/";
 
   // Échap ferme le menu et rend le focus au bouton.
   useEffect(() => {
@@ -248,7 +251,28 @@ export function PixelShell({
       </main>
 
       <footer className="border-t-4 border-black bg-[#1b1209] px-4 py-4 text-center text-xl text-[#f1e6c9] sm:px-8">
-        {t("footer.text")}
+        <nav aria-label={t("footer.nav")} className="mb-2">
+          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+            {(
+              [
+                ["comment", "footer.how"],
+                ["niveaux", "footer.levels"],
+                ["a-propos", "footer.about"],
+                ["faq", "footer.faq"],
+              ] as const
+            ).map(([id, key]) => (
+              <li key={id}>
+                <Link
+                  href={onHome ? `#${id}` : `/#${id}`}
+                  className="font-pixel text-[9px] underline underline-offset-4 hover:text-[var(--km-gold-ink)]"
+                >
+                  {t(key)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <p>{t("footer.text")}</p>
       </footer>
     </div>
   );

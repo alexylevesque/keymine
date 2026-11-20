@@ -1,0 +1,32 @@
+# KeyMine
+
+> KeyMine est un jeu de course de frappe au clavier en ligne, gratuit et multijoueur : tout le monde tape le même texte en direct, en français ou en anglais, et le plus rapide gagne. KeyMine is a free online multiplayer typing race game in French and English.
+
+KeyMine a été créé par Alexy Lévesque dans le cadre du cours Web V. Il fonctionne dans le navigateur, sans installation ; on peut jouer en invité, sans compte.
+
+## Comment jouer
+
+- Rejoindre une salle publique (bouton JOUER), entrer un code de salle de 6 caractères, ou créer sa propre salle.
+- L'hôte lance la course dès qu'il y a au moins 2 participants ; un décompte 3, 2, 1 révèle le texte pour tout le monde en même temps.
+- Chaque lettre juste devient verte, chaque erreur rouge ; la vitesse (MPM) et la précision s'affichent en direct.
+- Les résultats donnent le classement, l'évolution de la vitesse de chacun et les touches à travailler.
+- L'hôte peut ajouter des bots de 5 niveaux, de Noob à Impossible.
+
+## Niveaux de texte
+
+- Facile : mots courts de 2 à 5 lettres, sans accent.
+- Moyen : mots de 4 à 8 lettres.
+- Difficile : mots de 7 lettres et plus, accents et ponctuation.
+
+## Définitions
+
+- MPM (mots par minute) : caractères tapés correctement, divisés par 5, divisés par le nombre de minutes. Les espaces comptent.
+- Précision : pourcentage des frappes qui étaient justes.
+
+## Pages
+
+- [Accueil](https://keymine.quest/) : jouer, salles publiques, explications et questions fréquentes.
+- [Accueil en français](https://keymine.quest/?lang=fr)
+- [Home in English](https://keymine.quest/?lang=en)
+- [Classement](https://keymine.quest/classement) : classement de la semaine.
+- [Connexion](https://keymine.quest/connexion) : compte par mot de passe, Discord ou GitHub.

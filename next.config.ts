@@ -6,6 +6,8 @@ import type { NextConfig } from "next";
 const MONTH = 60 * 60 * 24 * 30;
 
 const nextConfig: NextConfig = {
+  // Date du build (= date de mise en ligne), affichée sur l'accueil (« Dernière mise à jour »).
+  env: { KM_BUILD_DATE: new Date().toISOString() },
   images: {
     // Images optimisées par next/image (avatars, logo rond) : gardées 31 jours au lieu de 4 h.
     minimumCacheTTL: 2678400,

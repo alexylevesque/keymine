@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { headers } from "next/headers";
+import type { Metadata } from "next";
+import { langParam } from "@/lib/lang-param";
 import apercuCourse from "@/public/apercu-course.png";
 import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { PixelShell } from "@/components/PixelShell";
@@ -10,7 +12,7 @@ import { JoinByCodeForm, QuickPlayButton } from "@/components/HomeActions";
 import { db } from "@/lib/db";
 import { keyStats, raceParticipants, users } from "@/db/schema";
 import { peekIdentity } from "@/lib/auth/identity";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatDate, formatNumber, formatPercent } from "@/lib/format";
 import { getRequestLang } from "@/lib/i18n-server";
 import { translate, type DictKey } from "@/lib/i18n-dictionary";
 import { loadWeek } from "@/lib/leaderboard";
@@ -20,8 +22,22 @@ import { loadWornArmor } from "@/lib/armor-worn";
 
 export const dynamic = "force-dynamic";
 
-// Adresse officielle de l'accueil (évite que Google compte des doublons avec ?paramètres).
-export const metadata = { alternates: { canonical: "/" } };
+/**
+ * Titre et adresses de l'accueil. « /?lang=fr » et « /?lang=en » affichent la page dans une langue
+ * précise (proxy.ts) : les balises hreflang les relient pour les moteurs, « / » reste l'adresse par
+ * défaut (langue du navigateur). Les autres paramètres ne créent pas de doublon (adresse officielle).
+ */
+export async function generateMetadata({ searchParams }: PageProps<"/">): Promise<Metadata> {
+  const forced = langParam.safeParse((await searchParams).lang);
+  const lang = await getRequestLang();
+  return {
+    title: { absolute: translate(lang, "meta.home_title") },
+    alternates: {
+      canonical: forced.success ? `/?lang=${forced.data}` : "/",
+      languages: { "fr-CA": "/?lang=fr", "en-CA": "/?lang=en", "x-default": "/" },
+    },
+  };
+}
 
 /** Les trois tuiles de l'accueil (comptes seulement) : meilleur MPM, classe de la semaine, touches à travailler. */
 async function getTiles() {
@@ -89,7 +105,15 @@ export default async function Home() {
     translate(lang, key, params);
   const maxBar = tiles ? Math.max(1, ...tiles.bars) : 1;
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  const faq = [1, 2, 3, 4, 5, 6].map((n) => ({
+  // Date du dernier déploiement (fixée au build dans next.config.ts).
+  const updated = process.env.KM_BUILD_DATE ?? new Date().toISOString();
+  const facts: DictKey[] = [
+    "home.fact_free",
+    "home.fact_browser",
+    "home.fact_langs",
+    "home.fact_guest",
+  ];
+  const faq = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
     q: t(`home.faq_q${n}` as DictKey),
     a: t(`home.faq_a${n}` as DictKey),
   }));
@@ -111,6 +135,8 @@ export default async function Home() {
       isAccessibleForFree: true,
       offers: { "@type": "Offer", price: "0", priceCurrency: "CAD" },
       author: { "@type": "Person", name: "Alexy Lévesque" },
+      dateModified: updated,
+      featureList: facts.map((f) => t(f)),
     },
     {
       "@context": "https://schema.org",
@@ -140,6 +166,17 @@ export default async function Home() {
           <p className="max-w-[460px] text-[22px] leading-tight text-[#f1e6c9]">
             {t("home.subtitle")}
           </p>
+
+          <ul aria-label={t("home.facts_label")} className="flex flex-wrap gap-2">
+            {facts.map((f) => (
+              <li
+                key={f}
+                className="font-pixel border-2 border-black bg-[#2b1e13] px-2.5 py-1.5 text-[9px] text-[#ffe08a]"
+              >
+                {t(f)}
+              </li>
+            ))}
+          </ul>
 
           <QuickPlayButton worn={worn} />
 
@@ -264,7 +301,7 @@ export default async function Home() {
       />
 
       <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <section aria-labelledby="how-title" className="lobby-panel">
+        <section id="comment" aria-labelledby="how-title" className="lobby-panel home-anchor">
           <div className="lobby-head">
             <h2 id="how-title" className="font-pixel text-[13px] text-white">
               {t("home.how_title")}
@@ -282,13 +319,39 @@ export default async function Home() {
               </li>
             ))}
           </ol>
-          <div className="border-t-2 border-[#3b2a1a] p-5">
+          <div id="niveaux" className="home-anchor border-t-2 border-[#3b2a1a] p-5">
             <h3 className="font-pixel text-[10px] text-[#ffe08a]">{t("home.levels_title")}</h3>
-            <ul className="mt-2 flex flex-col gap-1 text-xl text-[#f1e6c9]">
-              <li>{t("home.level_easy")}</li>
-              <li>{t("home.level_medium")}</li>
-              <li>{t("home.level_hard")}</li>
-            </ul>
+            <table role="table" className="km-table mt-2 w-full text-xl text-[#f1e6c9]">
+              <caption className="sr-only">{t("home.levels_caption")}</caption>
+              <thead role="rowgroup">
+                <tr role="row" className="flex gap-4 text-[#a8966e]">
+                  <th
+                    role="columnheader"
+                    scope="col"
+                    className="font-pixel w-28 shrink-0 text-left text-[8px]"
+                  >
+                    {t("home.levels_col_level")}
+                  </th>
+                  <th role="columnheader" scope="col" className="font-pixel text-left text-[8px]">
+                    {t("home.levels_col_text")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody role="rowgroup">
+                {(["easy", "medium", "hard"] as const).map((lv) => (
+                  <tr key={lv} role="row" className="flex gap-4 border-t-2 border-[#3b2a1a] py-1.5">
+                    <th
+                      role="rowheader"
+                      scope="row"
+                      className="font-pixel w-28 shrink-0 text-left text-[9px] leading-[1.8] text-white"
+                    >
+                      {t(`set.${lv}` as DictKey)}
+                    </th>
+                    <td role="cell">{t(`home.level_${lv}` as DictKey)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -309,17 +372,26 @@ export default async function Home() {
             </div>
           </section>
 
-          <section aria-labelledby="about-title" className="lobby-panel">
+          <section id="a-propos" aria-labelledby="about-title" className="lobby-panel home-anchor">
             <div className="lobby-head">
               <h2 id="about-title" className="font-pixel text-[13px] text-white">
                 {t("home.about_title")}
               </h2>
             </div>
-            <p className="p-5 text-xl leading-tight text-[#f1e6c9]">{t("home.about_text")}</p>
+            <div className="p-5 text-xl leading-tight text-[#f1e6c9]">
+              <p>{t("home.about_text")}</p>
+              <p className="mt-3 text-[#cdbf9c]">
+                {t("home.updated", { date: formatDate(lang, updated) })}
+              </p>
+            </div>
           </section>
         </div>
 
-        <section aria-labelledby="faq-title" className="lobby-panel lg:col-span-2">
+        <section
+          id="faq"
+          aria-labelledby="faq-title"
+          className="lobby-panel home-anchor lg:col-span-2"
+        >
           <div className="lobby-head">
             <h2 id="faq-title" className="font-pixel text-[13px] text-white">
               {t("home.faq_title")}

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { langParam } from "@/lib/lang-param";
 
 // Politique de sécurité du contenu (CSP) : un nonce aléatoire par page, que Next.js pose sur ses
 // propres scripts et que app/layout.tsx pose sur le script du thème. Seuls ces scripts s'exécutent.
@@ -38,6 +39,10 @@ export function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  // « ?lang=fr|en » force la langue de la page (liens hreflang) ; l'en-tête venu du navigateur est ignoré.
+  requestHeaders.delete("x-km-lang");
+  const forced = langParam.safeParse(request.nextUrl.searchParams.get("lang"));
+  if (forced.success) requestHeaders.set("x-km-lang", forced.data);
   requestHeaders.set("Content-Security-Policy", csp);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -50,7 +55,7 @@ export const config = {
     {
       // Pages seulement : pas les routes API, ni les fichiers statiques et images.
       source:
-        "/((?!api|_next/static|_next/image|favicon.ico|icon.png|cursors|logo-rond.png|logo-texte.png|og-keymine.png|apercu-course.png|robots.txt|sitemap.xml).*)",
+        "/((?!api|_next/static|_next/image|favicon.ico|icon.png|cursors|logo-rond.png|logo-texte.png|og-keymine.png|apercu-course.png|llms.txt|robots.txt|sitemap.xml).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

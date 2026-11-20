@@ -38,8 +38,15 @@ export function LanguageProvider({
         document.documentElement.lang = l;
         document.cookie = `km_lang=${l}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
         // Les pages rendues côté serveur (accueil, historique, titre de l'onglet)
-        // doivent être recalculées dans la nouvelle langue.
-        router.refresh();
+        // doivent être recalculées dans la nouvelle langue. Une adresse « ?lang= » imposerait
+        // l'ancienne langue : on la retire.
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("lang")) {
+          url.searchParams.delete("lang");
+          router.replace(url.pathname + url.search + url.hash);
+        } else {
+          router.refresh();
+        }
       },
       t: (key, params) => translate(lang, key, params),
     }),

@@ -4990,3 +4990,8 @@ a.lobby-row:hover .lobby-go {
 .home-faq summary:hover {
   background: var(--km-slot);
 }
+
+/* Sections de l'accueil visées par les liens du pied de page : ne pas passer sous l'en-tête. */
+.home-anchor {
+  scroll-margin-top: 96px;
+}
