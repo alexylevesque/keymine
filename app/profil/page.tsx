@@ -342,22 +342,39 @@ export default async function ProfilPage() {
           {history.length === 0 ? (
             <p className="px-5 py-4 text-xl text-[#cdbf9c]">{t("profile.history_empty")}</p>
           ) : (
-            <div role="table" aria-label={t("profile.recent")}>
-              <div role="row" className="hist-cols hist-thead font-pixel">
-                <span role="columnheader">{t("hist.c_date")}</span>
-                <span role="columnheader">{t("hist.c_rank")}</span>
-                <span role="columnheader">{t("hist.c_wpm")}</span>
-                <span role="columnheader">{t("hist.c_acc")}</span>
-                <span role="columnheader">{t("hist.c_winner")}</span>
-                <span role="columnheader">{t("hist.c_status")}</span>
-                <span role="columnheader">
-                  <span className="sr-only">{t("hist.c_actions")}</span>
-                </span>
-              </div>
-              {history.map((h, i) => (
-                <HistoryTableRow key={h.raceId} row={h} lang={lang} index={i} />
-              ))}
-            </div>
+            <table role="table" className="km-table">
+              <caption className="sr-only">{t("profile.recent")}</caption>
+              <thead role="rowgroup">
+                <tr role="row" className="hist-cols hist-thead font-pixel">
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_date")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_rank")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_wpm")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_acc")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_winner")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_status")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    <span className="sr-only">{t("hist.c_actions")}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody role="rowgroup">
+                {history.map((h, i) => (
+                  <HistoryTableRow key={h.raceId} row={h} lang={lang} index={i} />
+                ))}
+              </tbody>
+            </table>
           )}
         </section>
 

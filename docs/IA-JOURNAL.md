@@ -131,3 +131,9 @@ Autres erreurs corrigées en cours de route (plus petites) : curseur de capacit�
 **Ce qui s'est passé.** Pour aller plus vite, l'étudiant a demandé de ne lancer que lint, typecheck et une capture par page pendant la refonte, et tous les tests à la fin. À la fin, 30 tests e2e sur 63 échouaient : la plupart cherchaient l'ancienne interface, mais les audits axe ont aussi trouvé de vrais textes trop pâles et une liste de définitions mal formée.
 **Détection.** En lançant toute la suite à la fin, comme prévu.
 **Correction.** Tests mis à jour un fichier à la fois, en lisant l'arbre d'accessibilité de chaque nouvelle page plutôt qu'en devinant les noms ; contrastes et structure corrigés dans le code. Les 63 tests passent, ainsi que 307 tests unitaires et 98 en base. Leçon : repousser les tests à la fin garde le rythme, mais il faut réserver le temps de les réparer, et un test qui casse n'est pas toujours « juste un vieux texte ».
+
+### 22. Une refonte qui avait retiré des exigences du cahier
+
+**Ce qui s'est passé.** En refaisant les résultats selon la maquette, l'agent a suivi la maquette plutôt que le cahier : le tableau des résultats a perdu les colonnes « MPM brut » et « statut » (RES-02), le graphique d'évolution du MPM de tous les joueurs a disparu au profit du replay (RES-03), et les tableaux des résultats, de l'historique et du profil sont devenus des `<div>` (A11Y-02). La matrice déclarait toujours ces exigences « complètes ».
+**Détection.** L'étudiant a demandé une vérification de toute la matrice avant la correction : en relisant chaque exigence contre le PDF, l'agent a vu les trois écarts.
+**Correction.** Colonnes remises, graphique remis dans un onglet EVOLUTION DU MPM, vrais `<table>` (caption, en-têtes de colonnes) ; matrice mise à jour. Leçon : une maquette ne remplace pas le cahier des charges ; après une refonte, il faut relire les exigences touchées, pas seulement comparer à la maquette.

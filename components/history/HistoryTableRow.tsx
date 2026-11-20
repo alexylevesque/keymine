@@ -26,18 +26,18 @@ export function HistoryTableRow({
     : r.status === "abandoned"
       ? { key: "hist.st_abandoned", bg: "#b0281c", fg: "#fff" }
       : r.status === "timeout"
-        ? { key: "hist.st_timeout", bg: "#c97a2a", fg: "#fff" }
+        ? { key: "hist.st_timeout", bg: "#c97a2a", fg: "#1b1209" }
         : { key: "hist.st_finished", bg: "#3f7d24", fg: "#fff" };
   const date = new Intl.DateTimeFormat(localeOf(lang), { dateStyle: "medium" }).format(r.playedAt);
   const time = new Intl.DateTimeFormat(localeOf(lang), { timeStyle: "short" }).format(r.playedAt);
   const played = !spectated && r.status !== "abandoned";
   return (
-    <div role="row" className="hist-cols hist-row" style={{ animationDelay: `${index * 0.05}s` }}>
-      <span role="cell" className="min-w-0">
+    <tr role="row" className="hist-cols hist-row" style={{ animationDelay: `${index * 0.05}s` }}>
+      <td role="cell" className="min-w-0">
         <span className="block text-[22px] text-white">{date}</span>
         <span className="block text-[17px] text-[#a8966e]">{time}</span>
-      </span>
-      <span role="cell" className="flex items-center gap-2">
+      </td>
+      <td role="cell" className="flex items-center gap-2">
         {played && r.rank ? (
           <>
             <span
@@ -56,22 +56,22 @@ export function HistoryTableRow({
         ) : (
           <span className="text-[#a8966e]">—</span>
         )}
-      </span>
-      <span role="cell" className="text-[26px] text-white">
+      </td>
+      <td role="cell" className="text-[26px] text-white">
         {spectated ? "—" : formatNumber(lang, r.wpm)}
-      </span>
-      <span role="cell" className="text-[22px]">
+      </td>
+      <td role="cell" className="text-[22px]">
         {spectated ? "—" : formatPercent(lang, r.accuracy)}
-      </span>
-      <span role="cell" className="truncate text-[22px]">
+      </td>
+      <td role="cell" className="truncate text-[22px]">
         {r.winnerName ?? "—"}
-      </span>
-      <span role="cell">
+      </td>
+      <td role="cell">
         <span className="hist-st font-pixel" style={{ background: status.bg, color: status.fg }}>
           {t(status.key)}
         </span>
-      </span>
-      <span role="cell" className="flex flex-wrap justify-end gap-1.5">
+      </td>
+      <td role="cell" className="flex flex-wrap justify-end gap-1.5">
         <Link
           href={`/resultats/${r.lobbyCode}?course=${r.raceId}`}
           className="hist-rb hist-det font-pixel"
@@ -81,7 +81,7 @@ export function HistoryTableRow({
         </Link>
         {!spectated && <ReplayButton raceId={r.raceId} compact />}
         <DeleteHistoryButton raceId={r.raceId} compactLabel={t("hist.delete_aria", { date })} />
-      </span>
-    </div>
+      </td>
+    </tr>
   );
 }

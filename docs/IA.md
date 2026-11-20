@@ -12,7 +12,7 @@
 
 ## Trois situations où l'IA s'est trompée
 
-Vingt et une erreurs ont été détectées et corrigées pendant le projet. Les trois ci-dessous sont les plus instructives ; toutes sont détaillées dans le [journal complet](IA-JOURNAL.md).
+Vingt-deux erreurs ont été détectées et corrigées pendant le projet. Les trois ci-dessous sont les plus instructives ; toutes sont détaillées dans le [journal complet](IA-JOURNAL.md).
 
 ### 1. Un « ORM » qui n'en était pas un (TECH-04)
 
@@ -32,7 +32,7 @@ Vingt et une erreurs ont été détectées et corrigées pendant le projet. Les 
 **Détection.** En lançant toute la suite e2e en local à la demande de l'étudiant : 3 à 4 tests échouaient sur une machine plus lente. L'enregistrement des messages WebSocket a montré la frappe partie sans qu'aucun avancement soit envoyé.
 **Correction.** La frappe est acceptée dès l'annonce du serveur (ou dès l'heure de départ si l'annonce tarde), et l'écoute du clavier est posée avant l'affichage. Les 63 tests e2e passent. **Leçon :** un test qui échoue « seulement sur une machine lente » révèle un vrai problème que les joueurs rencontreront aussi.
 
-### Les dix-huit autres, en une ligne
+### Les dix-neuf autres, en une ligne
 
 | N° | Erreur | Comment elle a été vue |
 | --- | --- | --- |
@@ -54,10 +54,15 @@ Vingt et une erreurs ont été détectées et corrigées pendant le projet. Les 
 | 19 | Refonte : aperçu refusé remis en place, armure en netherite pour tous | l'étudiant, page par page |
 | 20 | Fenêtre d'abandon illisible (jaune pâle sur jaune) | l'étudiant, capture d'écran |
 | 21 | 30 tests e2e cassés après la refonte (dont de vrais contrastes) | suite complète lancée à la fin |
+| 22 | Refonte qui avait retiré le MPM brut, le graphique du MPM et les vrais tableaux | relecture de la matrice contre le cahier |
 
 ## Réflexion sur notre façon de travailler avec les agents
 
-_À rédiger par l'équipe, avec ses propres mots : ce qui a bien marché, ce qui a demandé de la vigilance, ce que nous referions autrement._
+Ce qui m'a fait gagner beaucoup de temps, c'est d'aller chercher des maquettes et de passer par Claude Code pour commencer à faire les maquettes, puis de refaire le site page par page.
+
+Ensuite, ce qu'il faut surveiller, c'est le design que l'IA met en ligne : elle ne comprend pas toujours tout et elle peut parfois mélanger des concepts. Pour les concepts importants, il faut toujours tout lui dire.
+
+La prochaine fois, je vais commencer par écrire un plan bien détaillé de ce que je veux, et améliorer mes prompts pour qu'ils soient clairs et détaillés.
 
 ## Limites connues liées à l'IA
 

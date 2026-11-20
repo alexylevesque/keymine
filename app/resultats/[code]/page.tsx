@@ -7,6 +7,8 @@ import { MineKeyboard } from "@/components/MineKeyboard";
 import { ResultsActions } from "@/components/results/ResultsActions";
 import { RefreshOnMount } from "@/components/RefreshOnMount";
 import { ReplayChart } from "@/components/results/ReplayChart";
+import { WpmChart } from "@/components/results/WpmChart";
+import { HIDDEN_FIRST_SECONDS } from "@/components/results/chart-config";
 import { peekIdentity } from "@/lib/auth/identity";
 import { formatNumber, formatPercent, formatRaceTime } from "@/lib/format";
 import { getRequestLang, pageMetadata } from "@/lib/i18n-server";
@@ -349,93 +351,121 @@ export default async function ResultatsPage({
               aria-label={t("res.ranking")}
               tabIndex={0}
             >
-              <div role="table" aria-label={t("res.ranking")} className="min-w-[640px]">
-                <div
-                  role="row"
-                  className="res-cols font-pixel px-5 py-2.5 text-[7px] text-[#a8966e]"
-                >
-                  <span role="columnheader">{t("res.col_rank")}</span>
-                  <span role="columnheader">{t("res.col_player")}</span>
-                  <span role="columnheader">{t("res.col_wpm")}</span>
-                  <span role="columnheader">{t("res.col_acc_short")}</span>
-                  <span role="columnheader">{t("res.col_time")}</span>
-                  <span role="columnheader">{t("res.col_errors")}</span>
-                  <span role="columnheader">{t("res.col_bonus_taken")}</span>
-                </div>
-                {rows.map((p, i) => {
-                  const mine = p.ownerKey != null && p.ownerKey === myKey;
-                  const groups = groupBonuses(p.bonuses);
-                  return (
-                    <div
-                      key={p.id}
-                      role="row"
-                      className={`res-cols res-row ${mine ? "res-me" : ""}`}
-                    >
-                      <span
-                        role="cell"
-                        className="font-pixel text-[11px]"
-                        style={{ color: p.rank === 1 ? "var(--km-gold-text)" : "var(--km-ink-3)" }}
+              <table role="table" className="km-table min-w-[1000px]">
+                <caption className="sr-only">{t("res.ranking")}</caption>
+                <thead role="rowgroup">
+                  <tr
+                    role="row"
+                    className="res-cols font-pixel px-5 py-2.5 text-left text-[7px] text-[#a8966e]"
+                  >
+                    <th role="columnheader" scope="col">
+                      {t("res.col_rank")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_player")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_wpm")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_raw")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_acc_short")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_time")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_errors")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_status")}
+                    </th>
+                    <th role="columnheader" scope="col">
+                      {t("res.col_bonus_taken")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody role="rowgroup">
+                  {rows.map((p, i) => {
+                    const mine = p.ownerKey != null && p.ownerKey === myKey;
+                    const groups = groupBonuses(p.bonuses);
+                    const status =
+                      p.status === "abandoned"
+                        ? { key: "hist.st_abandoned" as DictKey, bg: "#b0281c", fg: "#fff" }
+                        : p.status === "timeout"
+                          ? { key: "hist.st_timeout" as DictKey, bg: "#c97a2a", fg: "#1b1209" }
+                          : { key: "hist.st_finished" as DictKey, bg: "#3f7d24", fg: "#fff" };
+                    return (
+                      <tr
+                        key={p.id}
+                        role="row"
+                        className={`res-cols res-row ${mine ? "res-me" : ""}`}
                       >
-                        {p.rank}
-                      </span>
-                      <span role="cell" className="flex min-w-0 items-center gap-2.5">
-                        <PixelAvatar
-                          label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
-                          color={colorOf(p, i)}
-                          src={p.avatarUrl}
-                          seed={p.isBot ? null : p.name}
-                          className="h-[30px] w-[30px] flex-none text-[10px]"
-                        />
-                        <span className="truncate text-[23px] text-white">
-                          {participantName(t, p)}
-                        </span>
-                        {p.champion !== null && <Crown league={p.champion} />}
-                      </span>
-                      <span role="cell" className="text-[26px] text-white">
-                        {formatNumber(lang, p.wpm)}
-                      </span>
-                      <span role="cell">{formatPercent(lang, p.accuracy)}</span>
-                      <span role="cell" className="whitespace-nowrap">
-                        {p.status === "abandoned" ? (
+                        <td
+                          role="cell"
+                          className="font-pixel text-[11px]"
+                          style={{
+                            color: p.rank === 1 ? "var(--km-gold-text)" : "var(--km-ink-3)",
+                          }}
+                        >
+                          {p.rank}
+                        </td>
+                        <td role="cell" className="flex min-w-0 items-center gap-2.5">
+                          <PixelAvatar
+                            label={participantName(t, p)[0]?.toUpperCase() ?? "?"}
+                            color={colorOf(p, i)}
+                            src={p.avatarUrl}
+                            seed={p.isBot ? null : p.name}
+                            className="h-[30px] w-[30px] flex-none text-[10px]"
+                          />
+                          <span className="truncate text-[23px] text-white">
+                            {participantName(t, p)}
+                          </span>
+                          {p.champion !== null && <Crown league={p.champion} />}
+                        </td>
+                        <td role="cell" className="text-[26px] text-white">
+                          {formatNumber(lang, p.wpm)}
+                        </td>
+                        <td role="cell">{formatNumber(lang, p.rawWpm)}</td>
+                        <td role="cell">{formatPercent(lang, p.accuracy)}</td>
+                        <td role="cell" className="whitespace-nowrap">
+                          {p.status === "abandoned" ? "—" : formatRaceTime(lang, p.timeMs)}
+                          {p.status === "finished" && p.penaltyMs > 0 && (
+                            <span className="block text-base text-[#a8966e]">
+                              {t("res.penalty_note", {
+                                seconds: formatNumber(lang, p.penaltyMs / 1000, 1),
+                              })}
+                            </span>
+                          )}
+                        </td>
+                        <td role="cell">{p.errors}</td>
+                        <td role="cell">
                           <span
                             className="hist-st font-pixel"
-                            style={{ background: "#b0281c", color: "#fff" }}
+                            style={{ background: status.bg, color: status.fg }}
                           >
-                            {t("hist.st_abandoned")}
+                            {t(status.key)}
                           </span>
-                        ) : (
-                          formatRaceTime(lang, p.timeMs)
-                        )}
-                        {p.status === "timeout" && (
-                          <span className="block text-base text-[#a8966e]">
-                            {t("res.status_timeout")}
-                          </span>
-                        )}
-                        {p.status === "finished" && p.penaltyMs > 0 && (
-                          <span className="block text-base text-[#a8966e]">
-                            {t("res.penalty_note", {
-                              seconds: formatNumber(lang, p.penaltyMs / 1000, 1),
-                            })}
-                          </span>
-                        )}
-                      </span>
-                      <span role="cell">{p.errors}</span>
-                      <span role="cell" className="flex flex-wrap gap-1">
-                        {groups.length === 0 ? (
-                          <span className="text-[#5a4632]">{t("res.bonus_none")}</span>
-                        ) : (
-                          groups.map(({ kind, count }) => (
-                            <span key={kind} className="res-chip font-pixel">
-                              {t(BONUS_KEY[kind]).toUpperCase()}
-                              {count > 1 ? ` X${count}` : ""}
-                            </span>
-                          ))
-                        )}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                        </td>
+                        <td role="cell" className="flex flex-wrap gap-1">
+                          {groups.length === 0 ? (
+                            <span className="text-[#5a4632]">{t("res.bonus_none")}</span>
+                          ) : (
+                            groups.map(({ kind, count }) => (
+                              <span key={kind} className="res-chip font-pixel">
+                                {t(BONUS_KEY[kind]).toUpperCase()}
+                                {count > 1 ? ` X${count}` : ""}
+                              </span>
+                            ))
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         </div>
@@ -467,6 +497,29 @@ export default async function ResultatsPage({
                     rank: r.rank,
                     progress: r.progress,
                     textLength: r.textLength,
+                    points: r.series,
+                  }))}
+                />
+              ),
+            },
+            {
+              id: "wpm",
+              label: t("res.chart"),
+              legend: t("res.chart_desc"),
+              content: (
+                <WpmChart
+                  title={t("res.chart")}
+                  description={t("res.chart_desc")}
+                  note={t("res.chart_note", { seconds: HIDDEN_FIRST_SECONDS })}
+                  showAllLabel={t("res.chart_show_all")}
+                  xLabel={t("res.chart_x")}
+                  yLabel={t("res.chart_y")}
+                  series={rows.map((r) => ({
+                    id: r.id,
+                    name: `${participantName(t, r)} · ${formatNumber(lang, r.wpm)} ${t("race.wpm")}`,
+                    shortName: participantName(t, r),
+                    isBot: r.isBot,
+                    isMe: r.ownerKey != null && r.ownerKey === myKey,
                     points: r.series,
                   }))}
                 />

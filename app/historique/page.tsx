@@ -192,22 +192,39 @@ export default async function HistoriquePage({ searchParams }: PageProps<"/histo
           {history.rows.length === 0 ? (
             <p className="px-5 py-4 text-2xl">{t(EMPTY_KEY[history.section])}</p>
           ) : (
-            <div role="table" aria-label={t(SECTION_KEY[history.section])}>
-              <div role="row" className="hist-cols hist-thead font-pixel">
-                <span role="columnheader">{t("hist.c_date")}</span>
-                <span role="columnheader">{t("hist.c_rank")}</span>
-                <span role="columnheader">{t("hist.c_wpm")}</span>
-                <span role="columnheader">{t("hist.c_acc")}</span>
-                <span role="columnheader">{t("hist.c_winner")}</span>
-                <span role="columnheader">{t("hist.c_status")}</span>
-                <span role="columnheader">
-                  <span className="sr-only">{t("hist.c_actions")}</span>
-                </span>
-              </div>
-              {history.rows.map((r, i) => (
-                <HistoryTableRow key={r.raceId} row={r} lang={lang} index={i} />
-              ))}
-            </div>
+            <table role="table" className="km-table">
+              <caption className="sr-only">{t(SECTION_KEY[history.section])}</caption>
+              <thead role="rowgroup">
+                <tr role="row" className="hist-cols hist-thead font-pixel">
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_date")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_rank")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_wpm")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_acc")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_winner")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    {t("hist.c_status")}
+                  </th>
+                  <th role="columnheader" scope="col">
+                    <span className="sr-only">{t("hist.c_actions")}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody role="rowgroup">
+                {history.rows.map((r, i) => (
+                  <HistoryTableRow key={r.raceId} row={r} lang={lang} index={i} />
+                ))}
+              </tbody>
+            </table>
           )}
 
           {history.pages > 1 && (

@@ -252,7 +252,7 @@ export function WpmChart({
                   onFocus={() => setFocus(s.id)}
                   onBlur={() => setFocus(null)}
                   className={`flex min-h-9 items-center gap-2 border-2 border-black px-2 py-0.5 text-left ${
-                    off ? "bg-[#d4d4d4] text-[#4a4a4a] line-through" : "bg-white text-[#1b1b1b]"
+                    off ? "wpm-leg wpm-leg-off line-through" : "wpm-leg"
                   }`}
                 >
                   <svg aria-hidden="true" width="34" height="14" viewBox="0 0 34 14">

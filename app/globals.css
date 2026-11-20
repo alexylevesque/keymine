@@ -3331,7 +3331,7 @@ a.lobby-row:hover .lobby-go {
 }
 .res-cols {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 52px 72px 92px 74px 200px;
+  grid-template-columns: 30px minmax(150px, 1fr) 48px 56px 56px 104px 56px 112px 160px;
   gap: 12px;
   align-items: center;
 }
@@ -4348,7 +4348,7 @@ a.lobby-row:hover .lobby-go {
     6px 6px 0 #000;
 }
 .res-cols {
-  grid-template-columns: 36px minmax(0, 1fr) 52px 72px 120px 74px 200px;
+  grid-template-columns: 30px minmax(150px, 1fr) 48px 56px 56px 120px 56px 112px 160px;
 }
 
 /* Armure enchantée sur le personnage : le même reflet violet que sur les cases, en forme de la pièce. */
@@ -4938,4 +4938,34 @@ a.lobby-row:hover .lobby-go {
   .kb-leds i.on {
     animation: none;
   }
+}
+
+/* Tableaux de données (A11Y-02) : de vrais <table>, mis en page en grille comme les maquettes.
+   Les rôles ARIA explicites gardent la sémantique de tableau malgré le changement d'affichage. */
+.km-table,
+.km-table thead,
+.km-table tbody {
+  display: block;
+  width: 100%;
+}
+.km-table {
+  border-collapse: collapse;
+}
+.km-table th {
+  font-weight: normal;
+  text-align: left;
+}
+.km-table td,
+.km-table th {
+  padding: 0;
+}
+
+/* Légende du graphique d'évolution du MPM : boutons aux couleurs du site. */
+.wpm-leg {
+  background: var(--km-slot);
+  color: var(--km-ink);
+}
+.wpm-leg-off {
+  background: var(--km-panel);
+  color: var(--km-ink-3);
 }
